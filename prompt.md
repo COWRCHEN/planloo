@@ -4,3 +4,6 @@ Product-manager, I have a fresh project(Frontend**: Astro v5.17 + Backend: hono 
 Designer, the Product-Manager has outlined our event planner requirements. Please create a design specification for an event planner that's clean, readable, and professional. Focus on typography, layout, color scheme, and responsive behavior. Consider the user journey from homepage to sign in  and to read individual event plans.
 
 I have requirements from the Product-Manager and design specifications from the Designer. Please implement the event planner functionality step by step. Start with the core architecture—how should we structure components, handle markdown processing, and organize the codebase for maintainability
+
+
+devops - The Developer has implemented the event planner features. Please review the codebase for production readiness, optimize the build process, set up proper Git workflows, and prepare for cloudflare deployment. What needs to be configured?
