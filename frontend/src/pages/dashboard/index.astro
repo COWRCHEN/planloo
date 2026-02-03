@@ -1,0 +1,94 @@
+---
+/**
+ * Dashboard Home Page
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Dashboard" description="Your Planloo dashboard">
+  <div class="space-y-6">
+    <div>
+      <h1 class="font-heading text-3xl font-bold">Dashboard</h1>
+      <p class="text-muted-foreground">Welcome to your event planning dashboard.</p>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-xl border bg-card p-6">
+        <div class="flex items-center gap-4">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100">
+            <svg class="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm text-muted-foreground">Total Events</p>
+            <p class="text-2xl font-bold">0</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl border bg-card p-6">
+        <div class="flex items-center gap-4">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary-100">
+            <svg class="h-6 w-6 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm text-muted-foreground">Total Guests</p>
+            <p class="text-2xl font-bold">0</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl border bg-card p-6">
+        <div class="flex items-center gap-4">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-success-100">
+            <svg class="h-6 w-6 text-success-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm text-muted-foreground">Confirmed</p>
+            <p class="text-2xl font-bold">0</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl border bg-card p-6">
+        <div class="flex items-center gap-4">
+          <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-warning-100">
+            <svg class="h-6 w-6 text-warning-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm text-muted-foreground">Pending</p>
+            <p class="text-2xl font-bold">0</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Getting started -->
+    <div class="rounded-xl border bg-card p-6">
+      <h2 class="font-heading text-xl font-semibold">Getting Started</h2>
+      <p class="mt-2 text-muted-foreground">
+        Start planning your first event by clicking the button below.
+      </p>
+      <a
+        href="/dashboard/events/new"
+        class="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+      >
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Create Event
+      </a>
+    </div>
+  </div>
+</DashboardLayout>

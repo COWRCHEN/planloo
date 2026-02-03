@@ -14,3 +14,12 @@ Ready to proceed with implementation. What would you like to build next?
   
 
 devops - The Developer has implemented the event planner features. Please review the codebase for production readiness, optimize the build process, set up proper Git workflows, and prepare for cloudflare deployment. What needs to be configured?
+
+
+ Next Steps
+
+  1. Install dependencies: cd backend && npm install and cd frontend && npm install --legacy-peer-deps
+  2. Set the BETTER_AUTH_SECRET via wrangler secret put BETTER_AUTH_SECRET
+  3. Run the backend: cd backend && npm run dev
+  4. Run the frontend: cd frontend && npm run dev
+  5. Test by navigating to http://localhost:4321/login

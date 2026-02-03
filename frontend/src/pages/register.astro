@@ -1,0 +1,23 @@
+---
+/**
+ * Register Page
+ */
+
+import AuthLayout from '@/layouts/AuthLayout.astro';
+import { RegisterForm } from '@/components/auth/RegisterForm';
+---
+
+<AuthLayout title="Create Account" description="Create your Planloo account">
+  <div class="space-y-6">
+    <div class="space-y-2 text-center">
+      <h1 class="font-heading text-2xl font-semibold tracking-tight">
+        Create an account
+      </h1>
+      <p class="text-sm text-muted-foreground">
+        Get started with Planloo to plan your perfect events
+      </p>
+    </div>
+
+    <RegisterForm client:load />
+  </div>
+</AuthLayout>

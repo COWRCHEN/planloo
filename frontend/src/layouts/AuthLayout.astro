@@ -1,0 +1,42 @@
+---
+/**
+ * Auth Layout
+ *
+ * Centered card layout for authentication pages.
+ */
+
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="flex min-h-screen flex-col items-center justify-center bg-muted/40 px-4 py-12 sm:px-6 lg:px-8">
+    <div class="w-full max-w-md">
+      <!-- Logo -->
+      <div class="mb-8 flex justify-center">
+        <a href="/" class="flex items-center gap-2">
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-600 to-secondary-600">
+            <span class="text-lg font-bold text-white">P</span>
+          </div>
+          <span class="font-heading text-2xl font-bold text-foreground">Planloo</span>
+        </a>
+      </div>
+
+      <!-- Content Card -->
+      <div class="rounded-xl border bg-card p-8 shadow-lg">
+        <slot />
+      </div>
+
+      <!-- Footer -->
+      <p class="mt-8 text-center text-sm text-muted-foreground">
+        &copy; {new Date().getFullYear()} Planloo. All rights reserved.
+      </p>
+    </div>
+  </div>
+</BaseLayout>

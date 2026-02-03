@@ -3,7 +3,7 @@ import { user, session, account } from './auth';
 import { organization, organizationMember, organizationInvitation } from './organization';
 import { events, guests, eventCollaborators, tasks } from './events';
 import { budgetItems, payments } from './budget';
-import { serviceProviders, venues, eventServiceProviders, eventVenues, images, reviews } from './providers';
+import { serviceProviders, venues, eventServiceProviders, eventVenues, reviews } from './providers';
 import { auditLog, impersonationSession } from './admin';
 
 /**

@@ -1,0 +1,26 @@
+---
+/**
+ * Login Page
+ */
+
+import AuthLayout from '@/layouts/AuthLayout.astro';
+import { LoginForm } from '@/components/auth/LoginForm';
+
+// Get return URL from query params
+const returnUrl = Astro.url.searchParams.get('returnUrl') || '/dashboard';
+---
+
+<AuthLayout title="Sign In" description="Sign in to your Planloo account">
+  <div class="space-y-6">
+    <div class="space-y-2 text-center">
+      <h1 class="font-heading text-2xl font-semibold tracking-tight">
+        Welcome back
+      </h1>
+      <p class="text-sm text-muted-foreground">
+        Enter your credentials to access your account
+      </p>
+    </div>
+
+    <LoginForm client:load returnUrl={returnUrl} />
+  </div>
+</AuthLayout>

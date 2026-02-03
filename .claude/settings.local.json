@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(dir:*)",
+      "WebSearch",
+      "WebFetch(domain:www.better-auth.com)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e:*)"
     ]
   }
 }

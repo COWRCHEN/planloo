@@ -1,0 +1,48 @@
+/**
+ * API Routes Index
+ *
+ * Main API router that mounts all route handlers.
+ */
+
+import { Hono } from 'hono';
+import type { HonoEnv } from '@/types/env';
+import { authMiddleware, requireAuth } from '@/middleware/auth';
+import users from './users';
+
+const api = new Hono<HonoEnv>();
+
+// Apply auth middleware to all routes
+api.use('*', authMiddleware);
+
+/**
+ * GET /api/v1/me
+ * Get current authenticated user
+ */
+api.get('/me', requireAuth, (c) => {
+  const user = c.get('user')!;
+  const session = c.get('session')!;
+
+  return c.json({
+    success: true,
+    data: {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        emailVerified: user.emailVerified,
+        image: user.image,
+        platformRole: user.platformRole,
+        isActive: user.isActive,
+      },
+      session: {
+        id: session.id,
+        expiresAt: session.expiresAt,
+      },
+    },
+  });
+});
+
+// Mount route handlers
+api.route('/users', users);
+
+export default api;
