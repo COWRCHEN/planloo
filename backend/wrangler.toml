@@ -1,0 +1,57 @@
+name = "planloo-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Default environment (development)
+[env.development]
+name = "planloo-api-dev"
+
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "planloo-db-dev"
+database_id = "" # Will be generated after creating D1 database
+
+[env.development.vars]
+ENVIRONMENT = "development"
+FRONTEND_URL = "http://localhost:4321"
+
+# Staging environment
+[env.staging]
+name = "planloo-api-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "planloo-db-staging"
+database_id = "" # Will be generated after creating D1 database
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+FRONTEND_URL = "https://staging.planloo.com"
+
+# Production environment
+[env.production]
+name = "planloo-api"
+route = { pattern = "api.planloo.com/*", zone_name = "planloo.com" }
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "planloo-db"
+database_id = "" # Will be generated after creating D1 database
+
+[env.production.vars]
+ENVIRONMENT = "production"
+FRONTEND_URL = "https://planloo.com"
+
+# Secrets (set via `wrangler secret put <KEY>` for each environment)
+# BETTER_AUTH_SECRET
+# EMAIL_API_KEY
+# GOOGLE_CLIENT_ID (optional)
+# GOOGLE_CLIENT_SECRET (optional)
+# GITHUB_CLIENT_ID (optional)
+# GITHUB_CLIENT_SECRET (optional)
+
+# Local development
+[dev]
+port = 8787
+local_protocol = "http"

@@ -1,0 +1,42 @@
+{
+  "name": "@planloo/backend",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev src/index.ts",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src/ --ext .ts",
+    "lint:fix": "eslint src/ --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.{ts,json}\"",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 migrations apply planloo-db",
+    "db:migrate:local": "wrangler d1 migrations apply planloo-db --local",
+    "db:studio": "drizzle-kit studio",
+    "db:push": "drizzle-kit push"
+  },
+  "dependencies": {
+    "better-auth": "^1.2.0",
+    "drizzle-orm": "^0.45.0",
+    "hono": "^4.6.17",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250117.0",
+    "@types/node": "^22.10.5",
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0",
+    "@vitest/ui": "^2.1.8",
+    "drizzle-kit": "^0.31.8",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8",
+    "wrangler": "^3.106.0"
+  }
+}

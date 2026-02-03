@@ -1,38 +1,35 @@
-# Planloo - Event Planning Platform
+# Planloo - Event Planning SaaS Platform
 
-A modern, performant event planning SAAS platform built with Astro, Hono, and Cloudflare technologies.
+A modern, performant event planning platform built with Astro, React, Hono, and Cloudflare.
 
 ## Overview
 
-Planloo is a comprehensive event planning and coordination platform that helps users manage every aspect of their events - from guest lists and RSVPs to vendor coordination, venue booking, and budget tracking.
+Planloo is a full-stack event planning SaaS application that helps users coordinate every aspect of their events - from guest management to vendor coordination, venue booking, and budget tracking.
 
-**Target Users:**
-- Professional event planners
-- Individual event hosts (weddings, birthdays, corporate events)
-- Service providers (caterers, photographers, venues, etc.)
+**Key Features:**
+- Guest list management with RSVP tracking
+- Service provider and venue directory
+- Budget tracking and expense management
+- Organization-based collaboration
+- Role-based access control
+- Mobile-responsive design
+- SEO-optimized with SSR/SSG
 
 ## Tech Stack
 
 ### Frontend
 - **Framework:** Astro v5.17 (hybrid SSR/SSG)
-- **UI Library:** React 18 (for interactive components)
-- **Styling:** Tailwind CSS
+- **UI Library:** React 19  with shadcn/ui + Radix
+- **Styling:** Tailwind CSS 
 - **State Management:** Nanostores
-- **Type Safety:** TypeScript (strict mode)
+- **Deployment:** Cloudflare Workers
 
 ### Backend
 - **Framework:** Hono v4.x
 - **Runtime:** Cloudflare Workers
-- **Database:** Cloudflare D1 (SQLite-based)
+- **Database:** Cloudflare D1 (SQLite)
 - **ORM:** Drizzle ORM
 - **Authentication:** Better Auth
-
-### Deployment
-- **Frontend:** Cloudflare Pages
-- **Backend:** Cloudflare Workers
-- **Database:** Cloudflare D1
-- **Storage:** Cloudflare R2 (images/files)
-- **CDN:** Cloudflare CDN
 
 ## Project Structure
 
@@ -59,6 +56,8 @@ planloo/
 │   ├── drizzle/
 │   ├── wrangler.toml
 │   └── package.json
+│
+├── shared/                        # Shared types and contracts between frontend and backend
 │
 └── README.md                      # This file
 ```
@@ -168,55 +167,151 @@ See `docs/roadmap.md` for detailed timeline and tasks.
 
 ## Getting Started
 
-### Prerequisites
-- Node.js 18+
-- npm or pnpm
-- Cloudflare account (for D1 database and Workers)
-- Wrangler CLI (`npm install -g wrangler`)
-
-### Installation
+### 1. Clone the Repository
 
 ```bash
-# Clone the repository
 git clone https://github.com/cowrchen/planloo.git
 cd planloo
-
-# Install dependencies (once project is initialized)
-npm install
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your configuration
-
-# Run database migrations
-wrangler d1 migrations apply planloo-db --local
-
-# Start development server
-npm run dev
 ```
 
-### Development
+### 2. Install Dependencies
 
 ```bash
-# Frontend development
-cd frontend
-npm run dev
+# Install root dependencies (if using workspaces)
+npm install
 
-# Backend development
+# Or install each project separately
+cd frontend && npm install
+cd ../backend && npm install
+```
+
+### 3. Set Up Environment Variables
+
+**Frontend:**
+```bash
+cd frontend
+cp .env.example .env
+```
+
+Edit `frontend/.env`:
+```env
+PUBLIC_API_URL=http://localhost:8787/api/v1
+PUBLIC_SITE_URL=http://localhost:4321
+PUBLIC_ENVIRONMENT=development
+```
+
+**Backend:**
+```bash
+cd backend
+cp .env.example .env
+```
+
+Edit `backend/.env` and add your credentials:
+```env
+BETTER_AUTH_SECRET=your_secret_key_here_min_32_chars
+EMAIL_API_KEY=your_email_api_key
+ENVIRONMENT=development
+FRONTEND_URL=http://localhost:4321
+```
+
+### 4. Set Up Cloudflare D1 Database
+
+```bash
+cd backend
+
+# Create D1 database (local development)
+npx wrangler d1 create planloo-db-dev
+
+# Copy the database_id from the output and update wrangler.toml
+# under [env.development.d1_databases]
+
+# Generate database schema
+npm run db:generate
+
+# Run migrations locally
+npm run db:migrate:local
+```
+
+### 5. Start Development Servers
+
+**Terminal 1 - Backend:**
+```bash
 cd backend
 npm run dev
+```
+Backend will run on `http://localhost:8787`
 
-# Run tests
-npm test
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+Frontend will run on `http://localhost:4321`
 
-# Run E2E tests
-npm run test:e2e
+### 6. Access the Application
 
-# Lint code
-npm run lint
+Open your browser and navigate to:
+- **Frontend:** http://localhost:4321
+- **Backend API:** http://localhost:8787/api/v1
+- **API Health Check:** http://localhost:8787/health
 
-# Type check
+## Development Workflow
+
+### Frontend Development
+
+```bash
+cd frontend
+
+# Start dev server
+npm run dev
+
+# Type checking
 npm run type-check
+
+# Linting
+npm run lint
+npm run lint:fix
+
+# Testing
+npm run test              # Unit tests
+npm run test:ui           # Test UI
+npm run test:e2e          # E2E tests
+npm run test:e2e:ui       # E2E test UI
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+### Backend Development
+
+```bash
+cd backend
+
+# Start dev server
+npm run dev
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
+npm run lint:fix
+
+# Testing
+npm run test
+npm run test:ui
+
+# Database operations
+npm run db:generate       # Generate migration from schema changes
+npm run db:migrate:local  # Apply migrations locally
+npm run db:studio         # Open Drizzle Studio
+
+# Deploy
+npm run deploy:staging
+npm run deploy:production
 ```
 
 ## Contributing

@@ -5,5 +5,12 @@ Designer, the Product-Manager has outlined our event planner requirements. Pleas
 
 I have requirements from the Product-Manager and design specifications from the Designer. Please implement the event planner functionality step by step. Start with the core architecture—how should we structure components, handle markdown processing, and organize the codebase for maintainability
 
+Ready to proceed with implementation. What would you like to build next?
+
+  1. Database schema - Implement Drizzle schema from database-schema.md
+  2. Authentication - Set up Better Auth with email/OAuth
+  3. Base UI components - Initialize shadcn/ui components
+  4. API routes - Create Hono route structure
+  
 
 devops - The Developer has implemented the event planner features. Please review the codebase for production readiness, optimize the build process, set up proper Git workflows, and prepare for cloudflare deployment. What needs to be configured?
