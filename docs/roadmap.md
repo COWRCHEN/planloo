@@ -42,7 +42,7 @@ Planloo is a modern event planning SAAS platform targeting individual event host
 
 4. **CI/CD Pipeline**
    - GitHub Actions for automated testing
-   - Cloudflare Pages deployment workflow
+   - Cloudflare Workers deployment workflow
    - Environment-specific configurations (dev, staging, prod)
    - Automated database migrations
 
