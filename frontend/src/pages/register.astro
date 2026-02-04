@@ -4,7 +4,7 @@
  */
 
 import AuthLayout from '@/layouts/AuthLayout.astro';
-import { RegisterForm } from '@/components/auth/RegisterForm';
+import { RegisterView } from '@/components/auth/RegisterView';
 ---
 
 <AuthLayout title="Create Account" description="Create your Planloo account">
@@ -18,6 +18,6 @@ import { RegisterForm } from '@/components/auth/RegisterForm';
       </p>
     </div>
 
-    <RegisterForm client:load />
+    <RegisterView client:load />
   </div>
 </AuthLayout>

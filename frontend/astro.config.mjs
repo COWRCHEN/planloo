@@ -5,7 +5,7 @@ import cloudflare from '@astrojs/cloudflare';
 
 // https://astro.build/config
 export default defineConfig({
-  output: 'hybrid', // Enable hybrid rendering (SSG by default, opt-in to SSR)
+  output: 'static', // Default in Astro 5; use prerender = false on pages for SSR (with adapter)
 
   adapter: cloudflare({
     mode: 'directory',
@@ -14,8 +14,10 @@ export default defineConfig({
       include: ['/api/*', '/dashboard/*', '/rsvp/*']
     },
     imageService: 'cloudflare',
+    // Disable platform proxy in dev to avoid "write EOF" / stream errors on Windows.
+    // Use `astro build` + `wrangler pages dev ./dist` to test Cloudflare bindings locally.
     platformProxy: {
-      enabled: true
+      enabled: false
     }
   }),
 
@@ -50,10 +52,5 @@ export default defineConfig({
   // Security headers
   security: {
     checkOrigin: true
-  },
-
-  // Experimental features
-  experimental: {
-    contentLayer: true
   }
 });

@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "wrangler dev src/index.ts",
+    "dev": "wrangler dev src/index.ts --remote --env development",
+    "dev:local": "wrangler dev src/index.ts --local --env development",
     "deploy": "wrangler deploy",
     "deploy:staging": "wrangler deploy --env staging",
     "deploy:production": "wrangler deploy --env production",
@@ -15,8 +16,8 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "wrangler d1 migrations apply planloo-db",
-    "db:migrate:local": "wrangler d1 migrations apply planloo-db --local",
+    "db:migrate": "wrangler d1 migrations apply planloo-db-dev --remote --env development",
+    "db:migrate:local": "wrangler d1 migrations apply planloo-db-dev --local --env development",
     "db:studio": "drizzle-kit studio",
     "db:push": "drizzle-kit push"
   },

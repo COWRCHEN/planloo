@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 ```bash
 npm run dev              # Start wrangler dev server (port 8787)
+npm run dev:remote       # Use remote Workers runtime (workaround for "write EOF" on Windows)
 npm run deploy           # Deploy to Cloudflare Workers
 npm run deploy:staging   # Deploy to staging
 npm run deploy:production # Deploy to production

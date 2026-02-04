@@ -4,13 +4,17 @@ compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 # Default environment (development)
+# Required: create D1 DB and set database_id below, or `npm run dev` will fail (API 10021).
+#   npx wrangler d1 create planloo-db-dev
+#   Then paste the returned uuid into database_id below.
 [env.development]
 name = "planloo-api-dev"
 
 [[env.development.d1_databases]]
 binding = "DB"
 database_name = "planloo-db-dev"
-database_id = "" # Will be generated after creating D1 database
+database_id = "87052909-41d8-4c33-9811-8762f16dc58e" # from `wrangler d1 create planloo-db-dev`
+migrations_dir = "drizzle"
 
 [env.development.vars]
 ENVIRONMENT = "development"
@@ -24,6 +28,7 @@ name = "planloo-api-staging"
 binding = "DB"
 database_name = "planloo-db-staging"
 database_id = "" # Will be generated after creating D1 database
+migrations_dir = "drizzle"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
@@ -38,6 +43,7 @@ route = { pattern = "api.planloo.com/*", zone_name = "planloo.com" }
 binding = "DB"
 database_name = "planloo-db"
 database_id = "" # Will be generated after creating D1 database
+migrations_dir = "drizzle"
 
 [env.production.vars]
 ENVIRONMENT = "production"

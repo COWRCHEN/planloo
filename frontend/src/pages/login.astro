@@ -4,7 +4,7 @@
  */
 
 import AuthLayout from '@/layouts/AuthLayout.astro';
-import { LoginForm } from '@/components/auth/LoginForm';
+import { LoginView } from '@/components/auth/LoginView';
 
 // Get return URL from query params
 const returnUrl = Astro.url.searchParams.get('returnUrl') || '/dashboard';
@@ -21,6 +21,6 @@ const returnUrl = Astro.url.searchParams.get('returnUrl') || '/dashboard';
       </p>
     </div>
 
-    <LoginForm client:load returnUrl={returnUrl} />
+    <LoginView client:load returnUrl={returnUrl} />
   </div>
 </AuthLayout>
