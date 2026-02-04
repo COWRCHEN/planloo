@@ -20,8 +20,6 @@ export interface Env {
   // OAuth providers (optional)
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
-  GITHUB_CLIENT_ID?: string;
-  GITHUB_CLIENT_SECRET?: string;
 
   // Email service (optional)
   EMAIL_API_KEY?: string;

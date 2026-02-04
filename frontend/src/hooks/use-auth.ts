@@ -157,7 +157,7 @@ export function useOAuthSignIn() {
       provider,
       callbackURL,
     }: {
-      provider: 'google' | 'github';
+      provider: 'google';
       callbackURL?: string;
     }) => {
       await authClient.signIn.social({ provider, callbackURL });
@@ -207,6 +207,33 @@ export function useResetPassword() {
       }
 
       return { success: true };
+    },
+  });
+}
+
+/**
+ * Hook for email verification
+ */
+export function useVerifyEmail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ token }: { token: string }) => {
+      const response = await fetch(`${API_URL}/auth/verify-email?token=${encodeURIComponent(token)}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.message || 'Failed to verify email');
+      }
+
+      return { success: true };
+    },
+    onSuccess: () => {
+      // Invalidate session to pick up verified status
+      queryClient.invalidateQueries({ queryKey: authKeys.session() });
     },
   });
 }

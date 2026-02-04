@@ -54,8 +54,6 @@ FRONTEND_URL = "https://planloo.com"
 # EMAIL_API_KEY
 # GOOGLE_CLIENT_ID (optional)
 # GOOGLE_CLIENT_SECRET (optional)
-# GITHUB_CLIENT_ID (optional)
-# GITHUB_CLIENT_SECRET (optional)
 
 # Local development
 [dev]

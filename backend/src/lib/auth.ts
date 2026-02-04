@@ -39,12 +39,6 @@ export function createAuth(env: Env) {
     };
   }
 
-  if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
-    socialProviders.github = {
-      clientId: env.GITHUB_CLIENT_ID,
-      clientSecret: env.GITHUB_CLIENT_SECRET,
-    };
-  }
 
   return betterAuth({
     baseURL,
@@ -66,9 +60,14 @@ export function createAuth(env: Env) {
       enabled: true,
       requireEmailVerification: true,
       sendResetPassword: async ({ user, url }) => {
+        // Rewrite URL to point to frontend instead of backend
+        const backendUrl = new URL(url);
+        const frontendUrl = new URL('/reset-password', env.FRONTEND_URL);
+        frontendUrl.search = backendUrl.search;
+
         await sendPasswordResetEmail(env, {
           to: user.email,
-          resetUrl: url,
+          resetUrl: frontendUrl.toString(),
         });
       },
     },
@@ -77,9 +76,16 @@ export function createAuth(env: Env) {
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
+        // Rewrite URL to point to frontend instead of backend
+        // Original: http://backend/api/v1/auth/verify-email?token=...&callbackURL=/
+        // New: http://frontend/verify-email?token=...&callbackURL=/
+        const backendUrl = new URL(url);
+        const frontendUrl = new URL('/verify-email', env.FRONTEND_URL);
+        frontendUrl.search = backendUrl.search;
+
         await sendVerificationEmail(env, {
           to: user.email,
-          verificationUrl: url,
+          verificationUrl: frontendUrl.toString(),
         });
       },
     },

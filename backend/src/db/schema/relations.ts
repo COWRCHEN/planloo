@@ -12,10 +12,11 @@ import { auditLog, impersonationSession } from './admin';
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
-  organizationMemberships: many(organizationMember),
+  organizationMemberships: many(organizationMember, { relationName: 'memberOrganizationMemberships' }),
   organizationsCreated: many(organization),
   personalEvents: many(events),
-  eventCollaborations: many(eventCollaborators),
+  eventCollaborations: many(eventCollaborators, { relationName: 'eventCollaboratorAsUser' }),
+  eventCollaborationsInvited: many(eventCollaborators, { relationName: 'eventCollaboratorAsInviter' }),
   tasksAssigned: many(tasks),
   serviceProviders: many(serviceProviders),
   venues: many(venues),
@@ -68,11 +69,13 @@ export const organizationMemberRelations = relations(organizationMember, ({ one 
   }),
   user: one(user, {
     fields: [organizationMember.userId],
-    references: [user.id]
+    references: [user.id],
+    relationName: 'memberOrganizationMemberships'
   }),
   inviter: one(user, {
     fields: [organizationMember.invitedBy],
-    references: [user.id]
+    references: [user.id],
+    relationName: 'inviterOrganizationMemberships'
   })
 }));
 
@@ -123,6 +126,7 @@ export const guestsRelations = relations(guests, ({ one }) => ({
 
 /**
  * Event Collaborators Relations
+ * Disambiguated: user (collaborator) vs inviter (who invited them)
  */
 export const eventCollaboratorsRelations = relations(eventCollaborators, ({ one }) => ({
   event: one(events, {
@@ -131,11 +135,13 @@ export const eventCollaboratorsRelations = relations(eventCollaborators, ({ one 
   }),
   user: one(user, {
     fields: [eventCollaborators.userId],
-    references: [user.id]
+    references: [user.id],
+    relationName: 'eventCollaboratorAsUser'
   }),
   inviter: one(user, {
     fields: [eventCollaborators.invitedByUserId],
-    references: [user.id]
+    references: [user.id],
+    relationName: 'eventCollaboratorAsInviter'
   })
 }));
 
@@ -180,6 +186,8 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
 
 /**
  * Service Providers Relations
+ * Note: reviews table uses polymorphic entityType/entityId (no FK to service_providers).
+ * Query reviews manually: where entityType = 'service_provider' and entityId = id.
  */
 export const serviceProvidersRelations = relations(serviceProviders, ({ one, many }) => ({
   user: one(user, {
@@ -187,20 +195,20 @@ export const serviceProvidersRelations = relations(serviceProviders, ({ one, man
     references: [user.id]
   }),
   eventBookings: many(eventServiceProviders),
-  budgetItems: many(budgetItems),
-  reviews: many(reviews)
+  budgetItems: many(budgetItems)
 }));
 
 /**
  * Venues Relations
+ * Note: reviews table uses polymorphic entityType/entityId (no FK to venues).
+ * Query reviews manually: where entityType = 'venue' and entityId = id.
  */
 export const venuesRelations = relations(venues, ({ one, many }) => ({
   user: one(user, {
     fields: [venues.userId],
     references: [user.id]
   }),
-  eventBookings: many(eventVenues),
-  reviews: many(reviews)
+  eventBookings: many(eventVenues)
 }));
 
 /**
