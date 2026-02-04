@@ -20,6 +20,19 @@ migrations_dir = "drizzle"
 ENVIRONMENT = "development"
 FRONTEND_URL = "http://localhost:4321"
 
+# KV namespace for rate limiting (optional in dev)
+# Create with: wrangler kv:namespace create "RATE_LIMIT" --env development --preview
+# [[env.development.kv_namespaces]]
+# binding = "RATE_LIMIT_KV"
+# id = ""  # Add ID after creating namespace
+# preview_id = ""  # Add preview ID after creating namespace
+
+# R2 bucket for uploads (optional in dev)
+# Create with: wrangler r2 bucket create planloo-uploads-dev
+# [[env.development.r2_buckets]]
+# binding = "UPLOADS_BUCKET"
+# bucket_name = "planloo-uploads-dev"
+
 # Staging environment
 [env.staging]
 name = "planloo-api-staging"
@@ -33,6 +46,18 @@ migrations_dir = "drizzle"
 [env.staging.vars]
 ENVIRONMENT = "staging"
 FRONTEND_URL = "https://staging.planloo.com"
+
+# KV namespace for rate limiting
+# Create with: wrangler kv:namespace create "RATE_LIMIT" --env staging
+[[env.staging.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = ""  # Add ID after creating namespace
+
+# R2 bucket for uploads
+# Create with: wrangler r2 bucket create planloo-uploads-staging
+[[env.staging.r2_buckets]]
+binding = "UPLOADS_BUCKET"
+bucket_name = "planloo-uploads-staging"
 
 # Production environment
 [env.production]
@@ -48,6 +73,18 @@ migrations_dir = "drizzle"
 [env.production.vars]
 ENVIRONMENT = "production"
 FRONTEND_URL = "https://planloo.com"
+
+# KV namespace for rate limiting
+# Create with: wrangler kv:namespace create "RATE_LIMIT" --env production
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = ""  # Add ID after creating namespace
+
+# R2 bucket for uploads
+# Create with: wrangler r2 bucket create planloo-uploads
+[[env.production.r2_buckets]]
+binding = "UPLOADS_BUCKET"
+bucket_name = "planloo-uploads"
 
 # Secrets (set via `wrangler secret put <KEY>` for each environment)
 # BETTER_AUTH_SECRET

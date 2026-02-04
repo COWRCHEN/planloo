@@ -24,6 +24,13 @@ export interface Env {
   // Email service (optional)
   EMAIL_API_KEY?: string;
   EMAIL_FROM?: string;
+
+  // Rate limiting KV namespace (optional)
+  RATE_LIMIT_KV?: KVNamespace;
+
+  // R2 bucket for uploads (optional)
+  UPLOADS_BUCKET?: R2Bucket;
+  R2_PUBLIC_URL?: string;
 }
 
 /**

@@ -70,7 +70,7 @@ Planloo is a modern event planning SAAS platform targeting individual event host
 1. **Backend Authentication (Hono + Better Auth)**
    - Configure Better Auth with Drizzle adapter for D1
    - Enable email/password authentication
-   - Configure OAuth providers (Google, GitHub)
+   - Configure OAuth providers (Google)
    - Session management with HTTP-only cookies (automatic)
    - Email verification flow
    - Password reset functionality

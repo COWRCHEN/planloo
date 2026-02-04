@@ -31,6 +31,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 - For non-server state (UI state, local preferences), use Nanostores
 - Do NOT use TanStack Query for pure client-side state
 
+### 5. UI Animation: Motion (prev Framer Motion)
+- Declarative Animations: Motion allows defining animations directly in JSX for ease of use.
+- Smooth Transitions: Provides built-in support for seamless transitions like opacity, position, and scale.
+- Gesture-based Animations: Triggers animations based on user gestures like hover, tap, and drag.
+- Page Transitions: Supports smooth transitions between pages.
+- Customizable and Flexible: Offers control over timing, easing, and variants for tailored animations.
+
 ### Quick Reference
 ```tsx
 // CORRECT: Using TanStack Query for API data

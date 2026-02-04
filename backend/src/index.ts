@@ -10,6 +10,7 @@ import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
 import type { HonoEnv } from '@/types/env';
 import { createAuth } from '@/lib/auth';
+import { authRateLimiters } from '@/middleware/rate-limit';
 import api from '@/routes';
 
 const app = new Hono<HonoEnv>();
@@ -59,6 +60,13 @@ app.get('/health', (c) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+/**
+ * Rate limiting for auth endpoints
+ */
+app.use('/api/v1/auth/sign-up/*', authRateLimiters.signUp);
+app.use('/api/v1/auth/sign-in/email', authRateLimiters.signIn);
+app.use('/api/v1/auth/forget-password', authRateLimiters.forgotPassword);
 
 /**
  * Better Auth handler

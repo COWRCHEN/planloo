@@ -43,35 +43,35 @@ async function sendEmail(env: Env, options: EmailOptions): Promise<void> {
     return;
   }
 
-  // Production email sending
-  // TODO: Integrate with email service (Resend, SendGrid, etc.)
+  // Production email sending via Resend
   if (!env.EMAIL_API_KEY) {
     console.warn('EMAIL_API_KEY not configured, skipping email send');
     return;
   }
 
-  // Example integration with Resend (uncomment and configure as needed):
-  // const response = await fetch('https://api.resend.com/emails', {
-  //   method: 'POST',
-  //   headers: {
-  //     'Authorization': `Bearer ${env.EMAIL_API_KEY}`,
-  //     'Content-Type': 'application/json',
-  //   },
-  //   body: JSON.stringify({
-  //     from: env.EMAIL_FROM || 'noreply@planloo.com',
-  //     to: options.to,
-  //     subject: options.subject,
-  //     html: options.html,
-  //     text: options.text,
-  //   }),
-  // });
-  //
-  // if (!response.ok) {
-  //   const error = await response.text();
-  //   throw new Error(`Failed to send email: ${error}`);
-  // }
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.EMAIL_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: env.EMAIL_FROM || 'Planloo <noreply@planloo.com>',
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+    }),
+  });
 
-  console.log(`Email queued for: ${options.to}`);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = (errorData as { message?: string }).message || 'Unknown error';
+    console.error('Email send failed:', errorMessage);
+    throw new Error(`Failed to send email: ${errorMessage}`);
+  }
+
+  console.log(`Email sent successfully to: ${options.to}`);
 }
 
 /**

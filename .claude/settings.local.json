@@ -7,7 +7,9 @@
       "WebFetch(domain:www.better-auth.com)",
       "Bash(npm run type-check:*)",
       "Bash(npm install:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm run lint)"
     ]
   }
 }
