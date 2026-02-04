@@ -8,6 +8,13 @@
       "when": 1770078369811,
       "tag": "0000_giant_dreaming_celestial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1738712400000,
+      "tag": "0001_add_session_token",
+      "breakpoints": true
     }
   ]
 }

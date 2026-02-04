@@ -6,7 +6,7 @@
  */
 
 import AuthLayout from '@/layouts/AuthLayout.astro';
-import { VerifyEmailHandler } from '@/components/auth/VerifyEmailHandler';
+import { VerifyEmailView } from '@/components/auth/VerifyEmailView';
 ---
 
 <AuthLayout title="Verify Email" description="Verify your Planloo email address">
@@ -17,6 +17,6 @@ import { VerifyEmailHandler } from '@/components/auth/VerifyEmailHandler';
       </h1>
     </div>
 
-    <VerifyEmailHandler client:load />
+    <VerifyEmailView client:load />
   </div>
 </AuthLayout>

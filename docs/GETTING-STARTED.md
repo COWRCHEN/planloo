@@ -105,9 +105,13 @@ git push origin feature/auth-system
 
 **Code Standards:**
 - TypeScript strict mode
-- ESLint configuration (to be set up)
-- Prettier for formatting
+- ESLint for linting (configured)
+- Prettier for formatting (configured)
+- Vitest for unit testing (configured)
+- Playwright for E2E testing (frontend, configured)
 - Conventional commits (feat:, fix:, docs:, etc.)
+
+See `docs/development-environment.md` for detailed configuration.
 
 ---
 

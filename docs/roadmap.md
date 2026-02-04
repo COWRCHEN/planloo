@@ -31,8 +31,8 @@ Planloo is a modern event planning SAAS platform targeting individual event host
 2. **Development Environment**
    - Configure Wrangler for local D1 development
    - Set up environment variables (.env files)
-   - Configure ESLint, Prettier, TypeScript
-   - Install and configure testing frameworks (Vitest, Playwright)
+   - [x] Configure ESLint, Prettier, TypeScript *(completed - see docs/development-environment.md)*
+   - [x] Install and configure testing frameworks (Vitest, Playwright) *(completed - see docs/development-environment.md)*
 
 3. **Database Setup**
    - Create initial Drizzle schema files

@@ -29,6 +29,27 @@ Then **restart your terminal** (and IDE if you run the dev server from it) and r
 
 ---
 
+## Sign-in returns 503 or "Worker exceeded CPU time limit"
+
+**Symptom:** `POST /api/v1/auth/sign-in/email` returns **503 Service Temporarily Unavailable** and the logs show:
+
+```text
+Worker exceeded CPU time limit.
+RATE_LIMIT_KV not configured, skipping rate limit
+```
+
+**Cause:** Cloudflare Workers have strict CPU limits (e.g. 10 ms on the free tier, 50 ms on paid). Better Auth’s default password hashing (scrypt) is CPU-heavy and can exceed that during sign-in, so the Worker is terminated and returns 503.
+
+**What we do:** In **development** only, the backend uses PBKDF2 (Web Crypto) instead of scrypt for password hashing so sign-in stays within the CPU limit. Staging and production still use the default scrypt.
+
+**If you still see 503 in development:**
+
+1. **New dev users:** Sign up again (or use “Forgot password”) so the account uses the dev PBKDF2 hash. Existing dev users created before this change had scrypt hashes; they need to reset password or sign up again in dev.
+2. **Use local dev:** Run `npm run dev:local` instead of `npm run dev`. The worker runs in a local simulator and may have different CPU behavior (remote dev uses the real edge and limits).
+3. **RATE_LIMIT_KV:** The “RATE_LIMIT_KV not configured” message is informational; auth rate limiting is skipped when KV isn’t bound. It does not cause the 503. To enable rate limiting, bind a KV namespace in `wrangler.toml` and set `RATE_LIMIT_KV` (see `wrangler.toml` comments).
+
+---
+
 ## See also
 
 - [LOCAL-DEV-SETUP.md](LOCAL-DEV-SETUP.md) — Prerequisites, D1 setup, and dev server commands

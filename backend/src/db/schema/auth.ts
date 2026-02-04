@@ -31,6 +31,7 @@ export const user = sqliteTable('user', {
  */
 export const session = sqliteTable('session', {
   id: text('id').primaryKey(),
+  token: text('token').notNull().unique(),
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
   ipAddress: text('ip_address'),
@@ -38,6 +39,7 @@ export const session = sqliteTable('session', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`)
 }, (table) => ({
+  tokenIdx: index('idx_session_token').on(table.token),
   userIdIdx: index('idx_session_user_id').on(table.userId),
   expiresAtIdx: index('idx_session_expires_at').on(table.expiresAt)
 }));

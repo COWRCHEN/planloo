@@ -11,6 +11,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '@/db/schema';
 import type { Env } from '@/types/env';
 import { sendVerificationEmail, sendPasswordResetEmail } from './email';
+import { hashPassword, verifyPassword } from './password-pbkdf2';
 
 /**
  * Creates a Better Auth instance for the given environment
@@ -59,6 +60,14 @@ export function createAuth(env: Env) {
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
+      // In development, use PBKDF2 to stay within Cloudflare Worker CPU time limits.
+      // Default scrypt can exceed 10ms (free) / 50ms (paid) and cause 503.
+      ...(env.ENVIRONMENT === 'development' && {
+        password: {
+          hash: (password) => hashPassword(password),
+          verify: ({ password, hash }) => verifyPassword(password, hash),
+        },
+      }),
       sendResetPassword: async ({ user, url }) => {
         // Rewrite URL to point to frontend instead of backend
         const backendUrl = new URL(url);
