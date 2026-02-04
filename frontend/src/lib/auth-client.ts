@@ -6,10 +6,14 @@
 
 import { createAuthClient } from 'better-auth/react';
 
+// Extract base URL (without /api/v1 suffix) for Better Auth
+// Better Auth is configured with basePath: '/api/v1/auth' on the server
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
+const AUTH_BASE_URL = new URL(API_URL).origin;
 
 export const authClient = createAuthClient({
-  baseURL: API_URL,
+  baseURL: AUTH_BASE_URL,
+  basePath: '/api/v1/auth',
   fetchOptions: {
     credentials: 'include',
   },

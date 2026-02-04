@@ -171,7 +171,7 @@ export function useOAuthSignIn() {
 export function useForgotPassword() {
   return useMutation({
     mutationFn: async ({ email, redirectTo }: { email: string; redirectTo: string }) => {
-      const response = await fetch(`${API_URL}/api/auth/forget-password`, {
+      const response = await fetch(`${API_URL}/auth/forget-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -194,7 +194,7 @@ export function useForgotPassword() {
 export function useResetPassword() {
   return useMutation({
     mutationFn: async ({ token, newPassword }: { token: string; newPassword: string }) => {
-      const response = await fetch(`${API_URL}/api/auth/reset-password`, {
+      const response = await fetch(`${API_URL}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

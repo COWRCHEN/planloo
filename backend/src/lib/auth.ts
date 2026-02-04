@@ -48,6 +48,7 @@ export function createAuth(env: Env) {
 
   return betterAuth({
     baseURL,
+    basePath: '/api/v1/auth',
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: [env.FRONTEND_URL],
 

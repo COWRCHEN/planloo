@@ -63,10 +63,10 @@ app.get('/health', (c) => {
 /**
  * Better Auth handler
  *
- * Handles all authentication routes at /api/auth/*
+ * Handles all authentication routes at /api/v1/auth/*
  * Must create auth instance per-request due to Cloudflare Workers constraints.
  */
-app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
+app.on(['GET', 'POST'], '/api/v1/auth/*', async (c) => {
   const auth = createAuth(c.env);
   return auth.handler(c.req.raw);
 });
