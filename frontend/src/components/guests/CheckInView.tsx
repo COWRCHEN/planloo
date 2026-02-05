@@ -21,10 +21,12 @@ interface CheckInViewProps {
 function CheckInStats({
   checkedIn,
   confirmed,
+  total,
   isLoading,
 }: {
   checkedIn: number;
   confirmed: number;
+  total: number;
   isLoading: boolean;
 }) {
   if (isLoading) {
@@ -35,18 +37,23 @@ function CheckInStats({
     );
   }
 
-  const percentage = confirmed > 0 ? Math.round((checkedIn / confirmed) * 100) : 0;
+  const percentage = total > 0 ? Math.round((checkedIn / total) * 100) : 0;
 
   return (
-    <div className="flex items-center justify-center gap-6 py-4 bg-muted rounded-lg">
-      <div className="text-center">
+    <div className="flex items-center justify-center gap-4 py-4 bg-muted rounded-lg flex-wrap">
+      <div className="text-center px-2">
         <div className="text-3xl font-bold">{checkedIn}</div>
         <div className="text-sm text-muted-foreground">Checked In</div>
       </div>
       <div className="text-2xl text-muted-foreground">/</div>
-      <div className="text-center">
+      <div className="text-center px-2">
         <div className="text-3xl font-bold">{confirmed}</div>
         <div className="text-sm text-muted-foreground">Confirmed</div>
+      </div>
+      <div className="text-2xl text-muted-foreground">/</div>
+      <div className="text-center px-2">
+        <div className="text-3xl font-bold">{total}</div>
+        <div className="text-sm text-muted-foreground">Total</div>
       </div>
       <div className="text-center pl-4 border-l">
         <div className="text-3xl font-bold">{percentage}%</div>
@@ -55,6 +62,13 @@ function CheckInStats({
     </div>
   );
 }
+
+const rsvpStatusColors: Record<string, string> = {
+  confirmed: 'bg-green-100 text-green-800',
+  pending: 'bg-yellow-100 text-yellow-800',
+  declined: 'bg-red-100 text-red-800',
+  maybe: 'bg-blue-100 text-blue-800',
+};
 
 function GuestCheckInCard({
   guest,
@@ -76,8 +90,14 @@ function GuestCheckInCard({
       }`}
     >
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium truncate">{guestName}</span>
+          <Badge 
+            variant="secondary" 
+            className={`text-xs ${rsvpStatusColors[guest.rsvpStatus] || ''}`}
+          >
+            {guest.rsvpStatus}
+          </Badge>
           {guest.plusOnesCount > 0 && (
             <Badge variant="secondary" className="text-xs">
               +{guest.plusOnesCount}
@@ -132,12 +152,12 @@ function CheckInContent({ eventUuid }: CheckInViewProps) {
   const [search, setSearch] = useState('');
   const [checkingId, setCheckingId] = useState<string | null>(null);
 
-  // Fetch confirmed guests with polling for real-time updates
+  // Fetch all guests with polling for real-time updates
+  // Note: Backend limits to max 100 per request
   const { data, isLoading: isLoadingGuests } = useGuests(
     eventUuid,
     {
-      rsvpStatus: 'confirmed',
-      limit: 500, // Load all confirmed guests for check-in
+      limit: 100, // Backend max is 100
       sortBy: 'lastName',
       sortOrder: 'asc',
     },
@@ -147,6 +167,7 @@ function CheckInContent({ eventUuid }: CheckInViewProps) {
   const { data: stats, isLoading: isLoadingStats } = useGuestStats(eventUuid, {
     refetchInterval: 5000, // Poll every 5 seconds
   });
+
 
   const checkInGuest = useCheckInGuest(eventUuid);
 
@@ -203,6 +224,7 @@ function CheckInContent({ eventUuid }: CheckInViewProps) {
       <CheckInStats
         checkedIn={stats?.checkedIn ?? 0}
         confirmed={stats?.confirmed ?? 0}
+        total={stats?.total ?? 0}
         isLoading={isLoadingStats}
       />
 
@@ -242,7 +264,7 @@ function CheckInContent({ eventUuid }: CheckInViewProps) {
         <div className="text-center py-8 text-muted-foreground">
           {search
             ? 'No guests found matching your search.'
-            : 'No confirmed guests to check in.'}
+            : 'No guests to check in.'}
         </div>
       ) : (
         <div className="space-y-2">
