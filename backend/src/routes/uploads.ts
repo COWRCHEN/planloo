@@ -18,6 +18,59 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 /**
+ * Extract R2 key from avatar URL
+ * Handles both R2_PUBLIC_URL format and API proxy format
+ */
+function extractAvatarKey(imageUrl: string, r2PublicUrl?: string): string | null {
+  let key = imageUrl;
+
+  // Handle R2_PUBLIC_URL format: {R2_PUBLIC_URL}/avatars/...
+  if (r2PublicUrl && key.startsWith(r2PublicUrl)) {
+    key = key.slice(r2PublicUrl.length + 1); // +1 for the slash
+  }
+
+  // Handle API proxy format: http://host/api/v1/uploads/files/avatars/...
+  const apiPrefix = '/api/v1/uploads/files/';
+  const apiIndex = key.indexOf(apiPrefix);
+  if (apiIndex !== -1) {
+    key = key.substring(apiIndex + apiPrefix.length);
+  }
+
+  // Validate it's an avatar key
+  if (key.startsWith('avatars/')) {
+    return key;
+  }
+
+  return null;
+}
+
+/**
+ * Delete avatar from R2 bucket
+ */
+async function deleteAvatarFromBucket(
+  bucket: R2Bucket,
+  imageUrl: string,
+  r2PublicUrl?: string
+): Promise<boolean> {
+  const key = extractAvatarKey(imageUrl, r2PublicUrl);
+
+  if (!key) {
+    console.warn('Could not extract avatar key from URL:', imageUrl);
+    return false;
+  }
+
+  try {
+    console.log('Deleting avatar from R2:', key);
+    await bucket.delete(key);
+    console.log('Successfully deleted avatar from R2:', key);
+    return true;
+  } catch (error) {
+    console.error('Failed to delete avatar from R2:', key, error);
+    return false;
+  }
+}
+
+/**
  * Helper to build the public URL for an uploaded file
  */
 function buildFileUrl(
@@ -215,6 +268,18 @@ uploads.post('/avatar', requireAuth, requireVerifiedEmail, async (c) => {
   const key = `avatars/${user.id}/${timestamp}.${ext}`;
 
   try {
+    // Delete old avatar if exists (to avoid orphaned files in R2)
+    const db = createDbClient(c.env.DB);
+    const [currentUser] = await db
+      .select({ image: schema.user.image })
+      .from(schema.user)
+      .where(eq(schema.user.id, user.id))
+      .limit(1);
+
+    if (currentUser?.image) {
+      await deleteAvatarFromBucket(bucket, currentUser.image, c.env.R2_PUBLIC_URL);
+    }
+
     // Upload to R2
     const arrayBuffer = await file.arrayBuffer();
     await bucket.put(key, arrayBuffer, {
@@ -227,7 +292,6 @@ uploads.post('/avatar', requireAuth, requireVerifiedEmail, async (c) => {
     const url = buildFileUrl(c, key);
 
     // Update user's image in database
-    const db = createDbClient(c.env.DB);
     await db
       .update(schema.user)
       .set({
@@ -288,30 +352,16 @@ uploads.delete('/avatar', requireAuth, async (c) => {
     .limit(1);
 
   if (currentUser?.image) {
-    // Extract key from URL if it's a full URL
-    let key = currentUser.image;
-    
-    // Handle R2_PUBLIC_URL format
-    const publicUrl = c.env.R2_PUBLIC_URL;
-    if (publicUrl && key.startsWith(publicUrl)) {
-      key = key.slice(publicUrl.length + 1);
+    const deleted = await deleteAvatarFromBucket(
+      bucket,
+      currentUser.image,
+      c.env.R2_PUBLIC_URL
+    );
+    if (!deleted) {
+      console.warn('Avatar deletion from R2 failed or was skipped for:', currentUser.image);
     }
-    
-    // Handle API proxy format (/api/v1/uploads/files/...)
-    const apiPrefix = '/api/v1/uploads/files/';
-    if (key.includes(apiPrefix)) {
-      key = key.substring(key.indexOf(apiPrefix) + apiPrefix.length);
-    }
-
-    // Only delete if it's our avatar (starts with avatars/)
-    if (key.startsWith('avatars/')) {
-      try {
-        await bucket.delete(key);
-      } catch (error) {
-        console.warn('Failed to delete avatar from R2:', error);
-        // Continue anyway to clear the database reference
-      }
-    }
+  } else {
+    console.log('No avatar to delete for user:', user.id);
   }
 
   // Clear image in database
