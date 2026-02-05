@@ -181,6 +181,9 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
+            <a href={`/dashboard/events/${event.uuid}/guests`}>Guest List</a>
+          </Button>
+          <Button variant="outline" asChild>
             <a href={`/dashboard/events/${event.uuid}/edit`}>Edit</a>
           </Button>
           <DeleteEventDialog
@@ -313,6 +316,14 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
                 <dd className="font-medium">{event.guestCountConfirmed ?? 0}</dd>
               </div>
             </dl>
+            <div className="mt-4 flex gap-2">
+              <Button size="sm" asChild>
+                <a href={`/dashboard/events/${event.uuid}/guests`}>Manage Guests</a>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <a href={`/dashboard/events/${event.uuid}/checkin`}>Check-In</a>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

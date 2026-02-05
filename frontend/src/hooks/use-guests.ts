@@ -192,7 +192,7 @@ export function useGuests(
       if (filters?.sortBy) params.set('sortBy', filters.sortBy);
       if (filters?.sortOrder) params.set('sortOrder', filters.sortOrder);
 
-      const url = `${API_URL}/api/v1/events/${eventUuid}/guests${params.toString() ? `?${params}` : ''}`;
+      const url = `${API_URL}/events/${eventUuid}/guests${params.toString() ? `?${params}` : ''}`;
       const response = await fetch(url, {
         credentials: 'include',
       });
@@ -218,7 +218,7 @@ export function useGuestStats(eventUuid: string, options?: UseGuestsOptions) {
   return useQuery<GuestStatsResponse | undefined>({
     queryKey: guestKeys.stats(eventUuid),
     queryFn: async (): Promise<GuestStatsResponse | undefined> => {
-      const response = await fetch(`${API_URL}/api/v1/events/${eventUuid}/guests/stats`, {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/guests/stats`, {
         credentials: 'include',
       });
 
@@ -241,7 +241,7 @@ export function useGuest(eventUuid: string, guestUuid: string | undefined) {
       if (!guestUuid) throw new Error('Guest UUID is required');
 
       const response = await fetch(
-        `${API_URL}/api/v1/events/${eventUuid}/guests/${guestUuid}`,
+        `${API_URL}/events/${eventUuid}/guests/${guestUuid}`,
         { credentials: 'include' }
       );
 
@@ -261,7 +261,7 @@ export function useCreateGuest(eventUuid: string) {
 
   return useMutation({
     mutationFn: async (data: CreateGuestInput) => {
-      const response = await fetch(`${API_URL}/api/v1/events/${eventUuid}/guests`, {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/guests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -287,7 +287,7 @@ export function useUpdateGuest(eventUuid: string, guestUuid: string) {
   return useMutation({
     mutationFn: async (data: UpdateGuestInput) => {
       const response = await fetch(
-        `${API_URL}/api/v1/events/${eventUuid}/guests/${guestUuid}`,
+        `${API_URL}/events/${eventUuid}/guests/${guestUuid}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -318,7 +318,7 @@ export function useDeleteGuest(eventUuid: string) {
   return useMutation({
     mutationFn: async (guestUuid: string) => {
       const response = await fetch(
-        `${API_URL}/api/v1/events/${eventUuid}/guests/${guestUuid}`,
+        `${API_URL}/events/${eventUuid}/guests/${guestUuid}`,
         {
           method: 'DELETE',
           credentials: 'include',
@@ -345,7 +345,7 @@ export function useCheckInGuest(eventUuid: string) {
   return useMutation({
     mutationFn: async (guestUuid: string) => {
       const response = await fetch(
-        `${API_URL}/api/v1/events/${eventUuid}/guests/${guestUuid}/checkin`,
+        `${API_URL}/events/${eventUuid}/guests/${guestUuid}/checkin`,
         {
           method: 'POST',
           credentials: 'include',
@@ -369,7 +369,7 @@ export function useResendRsvp(eventUuid: string) {
   return useMutation({
     mutationFn: async (guestUuid: string) => {
       const response = await fetch(
-        `${API_URL}/api/v1/events/${eventUuid}/guests/${guestUuid}/resend-rsvp`,
+        `${API_URL}/events/${eventUuid}/guests/${guestUuid}/resend-rsvp`,
         {
           method: 'POST',
           credentials: 'include',
@@ -390,7 +390,7 @@ export function useImportGuests(eventUuid: string) {
 
   return useMutation({
     mutationFn: async (csvContent: string) => {
-      const response = await fetch(`${API_URL}/api/v1/events/${eventUuid}/guests/import`, {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/guests/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/csv' },
         credentials: 'include',
@@ -416,7 +416,7 @@ export function useRsvpData(token: string | undefined) {
     queryFn: async () => {
       if (!token) throw new Error('RSVP token is required');
 
-      const response = await fetch(`${API_URL}/api/v1/rsvp/${token}`);
+      const response = await fetch(`${API_URL}/rsvp/${token}`);
       const result = await handleResponse<RsvpPageData>(response);
       return result.data;
     },
@@ -433,7 +433,7 @@ export function useSubmitRsvp(token: string) {
 
   return useMutation({
     mutationFn: async (data: RsvpSubmitInput) => {
-      const response = await fetch(`${API_URL}/api/v1/rsvp/${token}`, {
+      const response = await fetch(`${API_URL}/rsvp/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -460,7 +460,7 @@ export function buildRsvpUrl(rsvpToken: string): string {
  * Helper to export guests (triggers download)
  */
 export async function exportGuests(eventUuid: string): Promise<void> {
-  const response = await fetch(`${API_URL}/api/v1/events/${eventUuid}/guests/export`, {
+  const response = await fetch(`${API_URL}/events/${eventUuid}/guests/export`, {
     credentials: 'include',
   });
 

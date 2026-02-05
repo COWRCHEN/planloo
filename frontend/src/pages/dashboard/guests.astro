@@ -1,0 +1,25 @@
+---
+/**
+ * Guests Landing Page
+ *
+ * Shows a list of events with links to their guest lists.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { GuestsLandingView } from '@/components/guests/GuestsLandingView';
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Guest Management" description="Manage guests across your events">
+  <div class="space-y-6">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">Guest Management</h1>
+      <p class="text-muted-foreground">
+        Select an event to manage its guest list.
+      </p>
+    </div>
+
+    <GuestsLandingView client:load />
+  </div>
+</DashboardLayout>

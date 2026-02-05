@@ -18,3 +18,4 @@ export { GuestExportButton } from './GuestExportButton';
 export { EmptyGuestState } from './EmptyGuestState';
 export { RsvpView } from './RsvpView';
 export { CheckInView } from './CheckInView';
+export { GuestsLandingView } from './GuestsLandingView';

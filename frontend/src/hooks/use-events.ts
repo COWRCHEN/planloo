@@ -155,7 +155,7 @@ export function useEvents(filters?: Partial<ListEventsQuery>) {
       if (filters?.sortBy) params.set('sortBy', filters.sortBy);
       if (filters?.sortOrder) params.set('sortOrder', filters.sortOrder);
 
-      const url = `${API_URL}/api/v1/events${params.toString() ? `?${params}` : ''}`;
+      const url = `${API_URL}/events${params.toString() ? `?${params}` : ''}`;
       const response = await fetch(url, {
         credentials: 'include',
       });
@@ -179,7 +179,7 @@ export function useEvent(uuid: string | undefined) {
     queryFn: async () => {
       if (!uuid) throw new Error('Event UUID is required');
 
-      const response = await fetch(`${API_URL}/api/v1/events/${uuid}`, {
+      const response = await fetch(`${API_URL}/events/${uuid}`, {
         credentials: 'include',
       });
 
@@ -198,7 +198,7 @@ export function useEventStats() {
   return useQuery({
     queryKey: eventKeys.stats(),
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/api/v1/events/stats`, {
+      const response = await fetch(`${API_URL}/events/stats`, {
         credentials: 'include',
       });
 
@@ -217,7 +217,7 @@ export function useCreateEvent() {
 
   return useMutation({
     mutationFn: async (data: CreateEventInput) => {
-      const response = await fetch(`${API_URL}/api/v1/events`, {
+      const response = await fetch(`${API_URL}/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -242,7 +242,7 @@ export function useUpdateEvent(uuid: string) {
 
   return useMutation({
     mutationFn: async (data: UpdateEventInput) => {
-      const response = await fetch(`${API_URL}/api/v1/events/${uuid}`, {
+      const response = await fetch(`${API_URL}/events/${uuid}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -270,7 +270,7 @@ export function useDeleteEvent() {
 
   return useMutation({
     mutationFn: async (uuid: string) => {
-      const response = await fetch(`${API_URL}/api/v1/events/${uuid}`, {
+      const response = await fetch(`${API_URL}/events/${uuid}`, {
         method: 'DELETE',
         credentials: 'include',
       });
