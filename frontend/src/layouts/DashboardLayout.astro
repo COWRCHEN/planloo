@@ -6,6 +6,7 @@
  */
 
 import BaseLayout from './BaseLayout.astro';
+import { DashboardAuthCheck, UserMenu } from '@/components/dashboard';
 
 interface Props {
   title: string;
@@ -19,8 +20,10 @@ export const prerender = false;
 ---
 
 <BaseLayout title={title} description={description}>
+  <!-- Auth check - shows loading overlay while verifying authentication -->
+  <DashboardAuthCheck client:load />
+  
   <div id="dashboard-root" class="min-h-screen">
-    <!-- This wrapper is hydrated by React with AuthGuard -->
     <div class="flex min-h-screen">
       <!-- Sidebar -->
       <aside class="hidden w-64 border-r bg-card lg:block">
@@ -85,14 +88,9 @@ export const prerender = false;
             </a>
           </nav>
 
-          <!-- User menu (placeholder) -->
+          <!-- User menu -->
           <div class="border-t p-4">
-            <div id="user-menu" class="flex items-center gap-3">
-              <div class="h-8 w-8 rounded-full bg-muted"></div>
-              <div class="flex-1">
-                <p class="text-sm font-medium">Loading...</p>
-              </div>
-            </div>
+            <UserMenu client:load />
           </div>
         </div>
       </aside>
@@ -123,7 +121,3 @@ export const prerender = false;
   </div>
 </BaseLayout>
 
-<script>
-  import { AuthProvider } from '@/components/auth/AuthProvider';
-  import { AuthGuard } from '@/components/auth/AuthGuard';
-</script>

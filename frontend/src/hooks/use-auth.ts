@@ -45,35 +45,52 @@ export function useSession() {
   return useQuery({
     queryKey: authKeys.session(),
     queryFn: async (): Promise<AuthSession | null> => {
-      const { data, error } = await authClient.getSession();
-      if (error || !data) return null;
+      try {
+        const result = await authClient.getSession();
+        
+        // Handle the response - Better Auth may return data directly or wrapped
+        const data = result?.data ?? result;
+        const error = result?.error;
+        
+        if (error) {
+          console.error('[useSession] Auth error:', error);
+          return null;
+        }
+        
+        if (!data || !data.user) {
+          return null;
+        }
 
-      // Cast to include custom fields from server
-      const user = data.user as unknown as {
-        id: string;
-        email: string;
-        name?: string | null;
-        emailVerified: boolean;
-        image?: string | null;
-        platformRole?: PlatformRole;
-        isActive?: boolean;
-      };
+        // Cast to include custom fields from server
+        const user = data.user as unknown as {
+          id: string;
+          email: string;
+          name?: string | null;
+          emailVerified: boolean;
+          image?: string | null;
+          platformRole?: PlatformRole;
+          isActive?: boolean;
+        };
 
-      return {
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name ?? null,
-          emailVerified: user.emailVerified,
-          image: user.image ?? null,
-          platformRole: user.platformRole ?? 'user',
-          isActive: user.isActive ?? true,
-        },
-        session: {
-          id: data.session.id,
-          expiresAt: data.session.expiresAt,
-        },
-      };
+        return {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name ?? null,
+            emailVerified: user.emailVerified,
+            image: user.image ?? null,
+            platformRole: user.platformRole ?? 'user',
+            isActive: user.isActive ?? true,
+          },
+          session: {
+            id: data.session.id,
+            expiresAt: data.session.expiresAt,
+          },
+        };
+      } catch (err) {
+        console.error('[useSession] Failed to fetch session:', err);
+        return null;
+      }
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
     retry: false,
