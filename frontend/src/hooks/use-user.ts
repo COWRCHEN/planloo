@@ -119,6 +119,10 @@ export function useUploadAvatar() {
       });
       // Also invalidate to eventually sync with server
       queryClient.invalidateQueries({ queryKey: authKeys.session() });
+      
+      // Dispatch custom event for cross-island communication (Astro islands)
+      // This notifies other React islands (like UserMenu) to refetch session
+      window.dispatchEvent(new CustomEvent('user-avatar-changed', { detail: { url: data.data.url } }));
     },
   });
 }
@@ -158,6 +162,9 @@ export function useDeleteAvatar() {
         };
       });
       queryClient.invalidateQueries({ queryKey: authKeys.session() });
+      
+      // Dispatch custom event for cross-island communication (Astro islands)
+      window.dispatchEvent(new CustomEvent('user-avatar-changed', { detail: { url: null } }));
     },
   });
 }

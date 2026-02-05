@@ -114,7 +114,7 @@ export function AvatarUpload({ currentImage, name, onUploadSuccess }: AvatarUplo
             {uploadAvatar.isPending ? 'Uploading...' : 'Change avatar'}
           </Button>
 
-          {currentImage && (
+          {(currentImage || uploadedUrl) && (
             <Button
               type="button"
               variant="ghost"

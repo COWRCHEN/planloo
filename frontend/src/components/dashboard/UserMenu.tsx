@@ -5,12 +5,28 @@
  * Shows avatar, name, and a sign out button.
  */
 
+import { useEffect, useState } from 'react';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { useSession, useSignOut } from '@/hooks/use-auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 function UserMenuContent() {
   const { data: session, isLoading } = useSession();
+  // Local state to track avatar changes from other islands (Astro cross-island communication)
+  const [avatarOverride, setAvatarOverride] = useState<string | null | undefined>(undefined);
+
+  // Listen for avatar changes from other React islands (Astro islands architecture)
+  useEffect(() => {
+    const handleAvatarChange = (event: CustomEvent<{ url: string | null }>) => {
+      // Use local state to immediately reflect avatar changes
+      setAvatarOverride(event.detail.url);
+    };
+
+    window.addEventListener('user-avatar-changed', handleAvatarChange as EventListener);
+    return () => {
+      window.removeEventListener('user-avatar-changed', handleAvatarChange as EventListener);
+    };
+  }, []);
   const signOut = useSignOut();
 
   const handleSignOut = async () => {
@@ -41,6 +57,8 @@ function UserMenuContent() {
   }
 
   const user = session.user;
+  // Use override if set (from cross-island event), otherwise use session data
+  const avatarUrl = avatarOverride !== undefined ? avatarOverride : user.image;
   const initials = user.name
     ? user.name
         .split(' ')
@@ -52,8 +70,8 @@ function UserMenuContent() {
 
   return (
     <div className="flex items-center gap-3">
-      <Avatar className="h-8 w-8">
-        {user.image && <AvatarImage src={user.image} alt={user.name || 'User'} />}
+      <Avatar className="h-8 w-8" key={avatarUrl || 'no-avatar'}>
+        {avatarUrl && <AvatarImage src={avatarUrl} alt={user.name || 'User'} />}
         <AvatarFallback className="text-xs">{initials}</AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
