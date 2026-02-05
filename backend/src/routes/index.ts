@@ -9,6 +9,7 @@ import type { HonoEnv } from '@/types/env';
 import { authMiddleware, requireAuth } from '@/middleware/auth';
 import users from './users';
 import uploads from './uploads';
+import events from './events';
 
 const api = new Hono<HonoEnv>();
 
@@ -46,5 +47,6 @@ api.get('/me', requireAuth, (c) => {
 // Mount route handlers
 api.route('/users', users);
 api.route('/uploads', uploads);
+api.route('/events', events);
 
 export default api;

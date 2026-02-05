@@ -1,0 +1,18 @@
+---
+/**
+ * Event Detail Page
+ *
+ * Displays full event information.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { EventDetailView } from '@/components/events';
+
+export const prerender = false;
+
+const { uuid } = Astro.params;
+---
+
+<DashboardLayout title="Event Details" description="View event details">
+  <EventDetailView client:load uuid={uuid} />
+</DashboardLayout>

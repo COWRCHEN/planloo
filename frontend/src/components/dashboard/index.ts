@@ -6,3 +6,6 @@
 
 export { DashboardAuthCheck } from './DashboardAuthCheck';
 export { UserMenu } from './UserMenu';
+export { DashboardView } from './DashboardView';
+export { DashboardStats } from './DashboardStats';
+export { RecentEvents } from './RecentEvents';

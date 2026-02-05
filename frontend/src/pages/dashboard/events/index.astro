@@ -1,0 +1,23 @@
+---
+/**
+ * Events List Page
+ *
+ * Displays all user's events with filtering and pagination.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { EventsView } from '@/components/events';
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Events" description="Manage your events">
+  <div class="space-y-6">
+    <div>
+      <h1 class="font-heading text-3xl font-bold">Events</h1>
+      <p class="text-muted-foreground">Create and manage your events.</p>
+    </div>
+
+    <EventsView client:load />
+  </div>
+</DashboardLayout>

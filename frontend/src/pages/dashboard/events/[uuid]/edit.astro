@@ -1,0 +1,18 @@
+---
+/**
+ * Edit Event Page
+ *
+ * Multi-step form for editing an existing event.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { EventEditView } from '@/components/events';
+
+export const prerender = false;
+
+const { uuid } = Astro.params;
+---
+
+<DashboardLayout title="Edit Event" description="Edit your event">
+  <EventEditView client:load uuid={uuid} />
+</DashboardLayout>
