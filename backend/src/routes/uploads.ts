@@ -18,12 +18,121 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 /**
+ * Helper to build the public URL for an uploaded file
+ */
+function buildFileUrl(
+  c: { 
+    req: { url: string; header: (name: string) => string | undefined }; 
+    env: { R2_PUBLIC_URL?: string; ENVIRONMENT?: string } 
+  },
+  key: string
+): string {
+  const publicUrl = c.env.R2_PUBLIC_URL;
+  if (publicUrl) {
+    return `${publicUrl}/${key}`;
+  }
+  
+  // In development, wrangler rewrites Host header to workers.dev URL
+  // Use localhost directly for local development
+  if (c.env.ENVIRONMENT === 'development') {
+    return `http://localhost:8787/api/v1/uploads/files/${key}`;
+  }
+  
+  // For staging/production, use the Host header
+  const host = c.req.header('host');
+  const protocol = 'https';
+  const origin = host ? `${protocol}://${host}` : new URL(c.req.url).origin;
+  
+  return `${origin}/api/v1/uploads/files/${key}`;
+}
+
+/**
+ * GET /uploads/files/*
+ * Serve files from R2 bucket (used when R2_PUBLIC_URL is not configured)
+ */
+uploads.get('/files/*', async (c) => {
+  const bucket = c.env.UPLOADS_BUCKET;
+
+  if (!bucket) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'SERVICE_UNAVAILABLE',
+          message: 'File storage is not configured',
+        },
+      },
+      503
+    );
+  }
+
+  // Extract the file key from the URL path
+  const key = c.req.path.replace('/api/v1/uploads/files/', '');
+
+  if (!key) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'No file key provided',
+        },
+      },
+      400
+    );
+  }
+
+  try {
+    const object = await bucket.get(key);
+
+    if (!object) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'File not found',
+          },
+        },
+        404
+      );
+    }
+
+    // Return the file with proper headers including CORS
+    const headers = new Headers();
+    headers.set('Content-Type', object.httpMetadata?.contentType || 'application/octet-stream');
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    headers.set('ETag', object.etag);
+    
+    // Allow cross-origin resource sharing for images
+    headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    const origin = c.req.header('origin');
+    if (origin) {
+      headers.set('Access-Control-Allow-Origin', origin);
+    }
+
+    return new Response(object.body, { headers });
+  } catch (error) {
+    console.error('Failed to serve file:', error);
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to retrieve file',
+        },
+      },
+      500
+    );
+  }
+});
+
+/**
  * POST /uploads/avatar
  * Upload user avatar image
  */
 uploads.post('/avatar', requireAuth, requireVerifiedEmail, async (c) => {
   const bucket = c.env.UPLOADS_BUCKET;
-  const publicUrl = c.env.R2_PUBLIC_URL;
 
   if (!bucket) {
     return c.json(
@@ -114,8 +223,8 @@ uploads.post('/avatar', requireAuth, requireVerifiedEmail, async (c) => {
       },
     });
 
-    // Build the public URL
-    const url = publicUrl ? `${publicUrl}/${key}` : key;
+    // Build the public URL (uses R2_PUBLIC_URL if set, otherwise API proxy endpoint)
+    const url = buildFileUrl(c, key);
 
     // Update user's image in database
     const db = createDbClient(c.env.DB);
@@ -180,10 +289,18 @@ uploads.delete('/avatar', requireAuth, async (c) => {
 
   if (currentUser?.image) {
     // Extract key from URL if it's a full URL
-    const publicUrl = c.env.R2_PUBLIC_URL;
     let key = currentUser.image;
+    
+    // Handle R2_PUBLIC_URL format
+    const publicUrl = c.env.R2_PUBLIC_URL;
     if (publicUrl && key.startsWith(publicUrl)) {
       key = key.slice(publicUrl.length + 1);
+    }
+    
+    // Handle API proxy format (/api/v1/uploads/files/...)
+    const apiPrefix = '/api/v1/uploads/files/';
+    if (key.includes(apiPrefix)) {
+      key = key.substring(key.indexOf(apiPrefix) + apiPrefix.length);
     }
 
     // Only delete if it's our avatar (starts with avatars/)

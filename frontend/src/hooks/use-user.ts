@@ -102,8 +102,22 @@ export function useUploadAvatar() {
 
       return response.json();
     },
-    onSuccess: () => {
-      // Invalidate session to refresh user data with new avatar
+    onSuccess: (data) => {
+      // Update the cached session data with new avatar URL immediately
+      // This bypasses Better Auth's cookie cache which may have stale data
+      queryClient.setQueryData(authKeys.session(), (oldData: unknown) => {
+        if (!oldData || typeof oldData !== 'object') return oldData;
+        const session = oldData as { user?: { image?: string | null } };
+        if (!session.user) return oldData;
+        return {
+          ...session,
+          user: {
+            ...session.user,
+            image: data.data.url,
+          },
+        };
+      });
+      // Also invalidate to eventually sync with server
       queryClient.invalidateQueries({ queryKey: authKeys.session() });
     },
   });
@@ -130,6 +144,19 @@ export function useDeleteAvatar() {
       return response.json();
     },
     onSuccess: () => {
+      // Clear the avatar in cached session data immediately
+      queryClient.setQueryData(authKeys.session(), (oldData: unknown) => {
+        if (!oldData || typeof oldData !== 'object') return oldData;
+        const session = oldData as { user?: { image?: string | null } };
+        if (!session.user) return oldData;
+        return {
+          ...session,
+          user: {
+            ...session.user,
+            image: null,
+          },
+        };
+      });
       queryClient.invalidateQueries({ queryKey: authKeys.session() });
     },
   });

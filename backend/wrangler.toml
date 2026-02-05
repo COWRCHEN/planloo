@@ -27,11 +27,13 @@ FRONTEND_URL = "http://localhost:4321"
 # id = ""  # Add ID after creating namespace
 # preview_id = ""  # Add preview ID after creating namespace
 
-# R2 bucket for uploads (optional in dev)
+# R2 bucket for uploads
 # Create with: wrangler r2 bucket create planloo-uploads-dev
-# [[env.development.r2_buckets]]
-# binding = "UPLOADS_BUCKET"
-# bucket_name = "planloo-uploads-dev"
+[[env.development.r2_buckets]]
+binding = "UPLOADS_BUCKET"
+bucket_name = "planloo-uploads-dev"
+# Need to add preview_bucket_name for local development
+preview_bucket_name = "planloo-uploads-dev"
 
 # Staging environment
 [env.staging]

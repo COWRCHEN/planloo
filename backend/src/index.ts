@@ -17,6 +17,13 @@ const app = new Hono<HonoEnv>();
 
 // Global middleware
 app.use('*', logger());
+
+// Use permissive CORP for file uploads endpoint
+app.use('/api/v1/uploads/files/*', secureHeaders({
+  crossOriginResourcePolicy: 'cross-origin',
+}));
+
+// Standard secure headers for everything else
 app.use('*', secureHeaders());
 
 // CORS configuration

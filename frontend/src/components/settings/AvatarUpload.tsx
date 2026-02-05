@@ -18,6 +18,7 @@ interface AvatarUploadProps {
 export function AvatarUpload({ currentImage, name, onUploadSuccess }: AvatarUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const uploadAvatar = useUploadAvatar();
   const deleteAvatar = useDeleteAvatar();
 
@@ -48,6 +49,8 @@ export function AvatarUpload({ currentImage, name, onUploadSuccess }: AvatarUplo
     // Upload file
     uploadAvatar.mutate(file, {
       onSuccess: (response) => {
+        // Store the uploaded URL locally for immediate display
+        setUploadedUrl(response.data.url);
         onUploadSuccess?.(response.data.url);
         setPreviewUrl(null);
         if (fileInputRef.current) {
@@ -67,11 +70,13 @@ export function AvatarUpload({ currentImage, name, onUploadSuccess }: AvatarUplo
     deleteAvatar.mutate(undefined, {
       onSuccess: () => {
         setPreviewUrl(null);
+        setUploadedUrl(null);
       },
     });
   };
 
-  const displayImage = previewUrl || currentImage;
+  // Priority: preview (during upload) > uploaded URL (after success) > prop from parent
+  const displayImage = previewUrl || uploadedUrl || currentImage;
   const initials = name
     ?.split(' ')
     .map((n) => n[0])
