@@ -1,0 +1,43 @@
+---
+/**
+ * Event Guests Page
+ *
+ * Displays guest list management for an event.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { GuestListView } from '@/components/guests';
+
+export const prerender = false;
+
+const { uuid } = Astro.params;
+---
+
+<DashboardLayout title="Guest List" description="Manage event guests">
+  <div class="space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">Guest List</h1>
+        <p class="text-muted-foreground">
+          Manage guests, track RSVPs, and handle check-ins.
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a
+          href={`/dashboard/events/${uuid}`}
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+        >
+          Back to Event
+        </a>
+        <a
+          href={`/dashboard/events/${uuid}/checkin`}
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2"
+        >
+          Check-In Mode
+        </a>
+      </div>
+    </div>
+
+    <GuestListView client:load eventUuid={uuid} />
+  </div>
+</DashboardLayout>

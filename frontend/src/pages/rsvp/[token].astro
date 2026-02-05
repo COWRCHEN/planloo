@@ -1,0 +1,32 @@
+---
+/**
+ * Public RSVP Page
+ *
+ * Allows guests to respond to event invitations.
+ * This is a public page - no authentication required.
+ */
+
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { RsvpView } from '@/components/guests';
+
+export const prerender = false;
+
+const { token } = Astro.params;
+---
+
+<BaseLayout title="RSVP" description="Respond to your event invitation">
+  <div class="min-h-screen bg-muted/30 py-8 px-4">
+    <div class="max-w-2xl mx-auto">
+      <div class="text-center mb-8">
+        <a href="/" class="inline-flex items-center gap-2 text-primary font-semibold text-xl">
+          <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+          </svg>
+          Planloo
+        </a>
+      </div>
+
+      <RsvpView client:load token={token} />
+    </div>
+  </div>
+</BaseLayout>

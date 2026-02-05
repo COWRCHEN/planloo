@@ -10,6 +10,8 @@ import { authMiddleware, requireAuth } from '@/middleware/auth';
 import users from './users';
 import uploads from './uploads';
 import events from './events';
+import guests from './guests';
+import rsvp from './rsvp';
 
 const api = new Hono<HonoEnv>();
 
@@ -48,5 +50,7 @@ api.get('/me', requireAuth, (c) => {
 api.route('/users', users);
 api.route('/uploads', uploads);
 api.route('/events', events);
+api.route('/events/:eventUuid/guests', guests);
+api.route('/rsvp', rsvp); // Public routes (auth middleware is applied but not required)
 
 export default api;
