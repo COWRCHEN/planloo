@@ -50,6 +50,9 @@ export type NewTask = InferInsertModel<typeof schema.tasks>;
 export type EventGuestSettings = InferSelectModel<typeof schema.eventGuestSettings>;
 export type NewEventGuestSettings = InferInsertModel<typeof schema.eventGuestSettings>;
 
+export type GuestAudit = InferSelectModel<typeof schema.guestAudit>;
+export type NewGuestAudit = InferInsertModel<typeof schema.guestAudit>;
+
 // ==================== GUEST DETAILS TYPES ====================
 
 export type WeddingGuestDetails = InferSelectModel<typeof schema.weddingGuestDetails>;

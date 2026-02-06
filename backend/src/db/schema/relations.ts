@@ -11,6 +11,7 @@ import {
 import { budgetItems, payments } from './budget';
 import { serviceProviders, venues, eventServiceProviders, eventVenues, reviews } from './providers';
 import { auditLog, impersonationSession } from './admin';
+import { guestAudit } from './guestAudit';
 
 /**
  * User Relations
@@ -28,6 +29,7 @@ export const userRelations = relations(user, ({ many }) => ({
   venues: many(venues),
   reviews: many(reviews),
   auditLogs: many(auditLog),
+  guestAuditEntries: many(guestAudit),
   impersonationSessionsAsAdmin: many(impersonationSession, { relationName: 'impersonationAdmin' }),
   impersonationSessionsAsTarget: many(impersonationSession, { relationName: 'impersonationTarget' })
 }));
@@ -128,11 +130,12 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
 /**
  * Guests Relations
  */
-export const guestsRelations = relations(guests, ({ one }) => ({
+export const guestsRelations = relations(guests, ({ one, many }) => ({
   event: one(events, {
     fields: [guests.eventId],
     references: [events.id]
   }),
+  auditEntries: many(guestAudit),
   // Event-type-specific detail tables (1:1, only one will be populated based on event type)
   weddingDetails: one(weddingGuestDetails, {
     fields: [guests.id],
@@ -278,6 +281,20 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   event: one(events, {
     fields: [reviews.eventId],
     references: [events.id]
+  })
+}));
+
+/**
+ * Guest Audit Relations
+ */
+export const guestAuditRelations = relations(guestAudit, ({ one }) => ({
+  guest: one(guests, {
+    fields: [guestAudit.guestId],
+    references: [guests.id]
+  }),
+  user: one(user, {
+    fields: [guestAudit.userId],
+    references: [user.id]
   })
 }));
 

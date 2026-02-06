@@ -11,6 +11,7 @@ import { GuestStats } from './GuestStats';
 import { GuestFilters } from './GuestFilters';
 import { GuestTable } from './GuestTable';
 import { DeleteGuestDialog } from './DeleteGuestDialog';
+import { GuestAuditDialog } from './GuestAuditDialog';
 import { GuestImportDialog } from './GuestImportDialog';
 import { GuestExportButton } from './GuestExportButton';
 import { EmptyGuestState } from './EmptyGuestState';
@@ -45,6 +46,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
   // Dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [guestToDelete, setGuestToDelete] = useState<GuestResponse | null>(null);
+  const [guestForAudit, setGuestForAudit] = useState<GuestResponse | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [customFieldsDialogOpen, setCustomFieldsDialogOpen] = useState(false);
@@ -118,6 +120,10 @@ export function GuestList({ eventUuid }: GuestListProps) {
   const handleDeleteGuest = (guest: GuestResponse) => {
     setGuestToDelete(guest);
     setDeleteDialogOpen(true);
+  };
+
+  const handleAuditGuest = (guest: GuestResponse) => {
+    setGuestForAudit(guest);
   };
 
   const handleConfirmDelete = async () => {
@@ -247,6 +253,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
             onCheckIn={handleCheckIn}
             onResendRsvp={handleResendRsvp}
             onUpdateRsvpStatus={handleUpdateRsvpStatus}
+            onAudit={handleAuditGuest}
             eventType={eventType}
             guestSettings={guestSettings}
           />
@@ -285,6 +292,14 @@ export function GuestList({ eventUuid }: GuestListProps) {
         guest={guestToDelete}
         onConfirm={handleConfirmDelete}
         isDeleting={deleteGuest.isPending}
+      />
+
+      <GuestAuditDialog
+        eventUuid={eventUuid}
+        guest={guestForAudit}
+        guestSettings={guestSettings}
+        open={!!guestForAudit}
+        onOpenChange={(open) => !open && setGuestForAudit(null)}
       />
 
       <GuestImportDialog

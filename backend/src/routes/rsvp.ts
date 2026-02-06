@@ -130,12 +130,15 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
 
   const db = createDbClient(c.env.DB);
 
-  // Find guest by token
+  // Find guest by token (include current values for audit diff)
   const [guest] = await db
     .select({
       id: schema.guests.id,
       uuid: schema.guests.uuid,
       plusOnesAllowed: schema.guests.plusOnesAllowed,
+      rsvpStatus: schema.guests.rsvpStatus,
+      plusOnesCount: schema.guests.plusOnesCount,
+      dietaryRestrictions: schema.guests.dietaryRestrictions,
     })
     .from(schema.guests)
     .where(and(eq(schema.guests.rsvpToken, token), isNull(schema.guests.deletedAt)))
@@ -161,6 +164,23 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
       },
       400
     );
+  }
+
+  // Build audit changes for RSVP update
+  const auditChanges: { field: string; from: unknown; to: unknown }[] = [];
+  if (guest.rsvpStatus !== data.rsvpStatus) {
+    auditChanges.push({ field: 'rsvpStatus', from: guest.rsvpStatus, to: data.rsvpStatus });
+  }
+  const newPlusOnes = data.rsvpStatus === 'confirmed' ? plusOnesCount : 0;
+  if (guest.plusOnesCount !== newPlusOnes) {
+    auditChanges.push({ field: 'plusOnesCount', from: guest.plusOnesCount, to: newPlusOnes });
+  }
+  if (JSON.stringify(guest.dietaryRestrictions ?? null) !== JSON.stringify(data.dietaryRestrictions ?? null)) {
+    auditChanges.push({
+      field: 'dietaryRestrictions',
+      from: guest.dietaryRestrictions ?? null,
+      to: data.dietaryRestrictions ?? null,
+    });
   }
 
   // Update guest RSVP
@@ -189,6 +209,16 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
       { success: false, error: { code: 'NOT_FOUND', message: 'Failed to update RSVP' } },
       500
     );
+  }
+
+  // Audit: record RSVP update (no userId = guest self-response)
+  if (auditChanges.length > 0) {
+    await db.insert(schema.guestAudit).values({
+      guestId: guest.id,
+      userId: null,
+      action: 'update',
+      details: JSON.stringify({ source: 'rsvp', changes: auditChanges }),
+    });
   }
 
   // TODO: Send confirmation email

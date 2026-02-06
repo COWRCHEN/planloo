@@ -14,6 +14,9 @@ export * from './organization';
 // Event schemas (5 tables: events, guests, eventCollaborators, tasks, eventGuestSettings)
 export * from './events';
 
+// Guest audit (1 table)
+export * from './guestAudit';
+
 // Guest Details extension schemas (4 tables)
 export * from './guestDetails';
 

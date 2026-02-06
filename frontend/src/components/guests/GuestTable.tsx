@@ -34,6 +34,7 @@ interface GuestTableProps {
   onCheckIn: (guest: GuestResponse) => void;
   onResendRsvp: (guest: GuestResponse) => void;
   onUpdateRsvpStatus?: (guest: GuestResponse, status: RsvpStatus) => void;
+  onAudit?: (guest: GuestResponse) => void;
   eventType?: string | null;
   guestSettings?: GuestSettingsResponse;
 }
@@ -75,6 +76,7 @@ export function GuestTable({
   onCheckIn,
   onResendRsvp,
   onUpdateRsvpStatus,
+  onAudit,
   eventType: _eventType,
   guestSettings: _guestSettings,
 }: GuestTableProps) {
@@ -219,6 +221,11 @@ export function GuestTable({
                       <DropdownMenuItem onClick={() => onEdit(guest)}>
                         Edit
                       </DropdownMenuItem>
+                      {onAudit && (
+                        <DropdownMenuItem onClick={() => onAudit(guest)}>
+                          Audit
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => handleCopyRsvpLink(guest)}>
                         {copiedToken === guest.rsvpToken
                           ? 'Copied!'

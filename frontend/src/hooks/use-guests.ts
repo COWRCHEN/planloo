@@ -140,6 +140,18 @@ export interface RsvpSubmitInput {
   dietaryRestrictions?: string | null;
 }
 
+/** Audit entry for guest history (who created/updated, when, what changed) */
+export interface GuestAuditEntryResponse {
+  id: number;
+  action: 'create' | 'update';
+  createdAt: string;
+  actor: { id: string; name: string | null; email: string | null } | null;
+  details: {
+    source?: 'dashboard' | 'rsvp';
+    changes?: { field: string; from: unknown; to: unknown }[];
+  };
+}
+
 // Query keys
 export const guestKeys = {
   all: ['guests'] as const,
@@ -150,6 +162,8 @@ export const guestKeys = {
   detail: (eventUuid: string, guestUuid: string) =>
     [...guestKeys.details(), eventUuid, guestUuid] as const,
   stats: (eventUuid: string) => [...guestKeys.all, 'stats', eventUuid] as const,
+  audit: (eventUuid: string, guestUuid: string) =>
+    [...guestKeys.all, 'audit', eventUuid, guestUuid] as const,
 };
 
 export const rsvpKeys = {
@@ -353,6 +367,26 @@ export function useUpdateGuestSettings(eventUuid: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: guestSettingsKeys.detail(eventUuid) });
     },
+  });
+}
+
+/**
+ * Hook to fetch audit history for a guest
+ */
+export function useGuestAudit(eventUuid: string, guestUuid: string | undefined) {
+  return useQuery<GuestAuditEntryResponse[]>({
+    queryKey: guestKeys.audit(eventUuid, guestUuid ?? ''),
+    queryFn: async (): Promise<GuestAuditEntryResponse[]> => {
+      if (!eventUuid || !guestUuid) throw new Error('Event and guest UUIDs are required');
+      const response = await fetch(
+        `${API_URL}/events/${eventUuid}/guests/${guestUuid}/audit`,
+        { credentials: 'include' }
+      );
+      const result = await handleResponse<GuestAuditEntryResponse[]>(response);
+      return result.data ?? [];
+    },
+    enabled: !!eventUuid && !!guestUuid,
+    staleTime: 1000 * 60,
   });
 }
 

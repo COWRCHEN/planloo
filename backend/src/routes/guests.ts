@@ -867,6 +867,82 @@ guests.get('/export', requireAuth, async (c) => {
  * GET /events/:eventUuid/guests/:guestUuid
  * Get single guest by UUID with extension table data
  */
+/**
+ * GET /events/:eventUuid/guests/:guestUuid/audit
+ * List audit history for a guest (who created/updated and when, with field changes)
+ */
+guests.get('/:guestUuid/audit', requireAuth, async (c) => {
+  const user = c.get('user')!;
+  const eventUuid = c.req.param('eventUuid')!;
+  const guestUuid = c.req.param('guestUuid')!;
+
+  const db = createDbClient(c.env.DB);
+
+  const event = await getEventByUuidForUser(db, eventUuid, user.id);
+  if (!event) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
+      404
+    );
+  }
+
+  const [guest] = await db
+    .select({ id: schema.guests.id })
+    .from(schema.guests)
+    .where(
+      and(
+        eq(schema.guests.uuid, guestUuid),
+        eq(schema.guests.eventId, event.id),
+        isNull(schema.guests.deletedAt)
+      )
+    )
+    .limit(1);
+
+  if (!guest) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'Guest not found' } },
+      404
+    );
+  }
+
+  const entries = await db
+    .select({
+      id: schema.guestAudit.id,
+      action: schema.guestAudit.action,
+      details: schema.guestAudit.details,
+      createdAt: schema.guestAudit.createdAt,
+      actorId: schema.guestAudit.userId,
+      actorName: schema.user.name,
+      actorEmail: schema.user.email,
+    })
+    .from(schema.guestAudit)
+    .leftJoin(schema.user, eq(schema.guestAudit.userId, schema.user.id))
+    .where(eq(schema.guestAudit.guestId, guest.id))
+    .orderBy(desc(schema.guestAudit.createdAt));
+
+  const data = entries.map((row) => {
+    let details: { source?: string; changes?: { field: string; from: unknown; to: unknown }[] } = {};
+    if (row.details) {
+      try {
+        details = JSON.parse(row.details) as typeof details;
+      } catch {
+        details = {};
+      }
+    }
+    return {
+      id: row.id,
+      action: row.action,
+      createdAt: row.createdAt,
+      actor: row.actorId
+        ? { id: row.actorId, name: row.actorName ?? null, email: row.actorEmail ?? null }
+        : null,
+      details,
+    };
+  });
+
+  return c.json({ success: true, data });
+});
+
 guests.get('/:guestUuid', requireAuth, async (c) => {
   const user = c.get('user')!;
   const eventUuid = c.req.param('eventUuid')!;
@@ -1068,6 +1144,21 @@ guests.post(
       .insert(schema.guests)
       .values(guestData)
       .returning();
+
+    // Audit: record create
+    await db.insert(schema.guestAudit).values({
+      guestId: newGuest.id,
+      userId: user.id,
+      action: 'create',
+      details: JSON.stringify({
+        source: 'dashboard',
+        snapshot: {
+          firstName: newGuest.firstName,
+          lastName: newGuest.lastName,
+          email: newGuest.email,
+        },
+      }),
+    });
 
     // Insert extension table data based on event type
     let extensionData: Record<string, unknown> | null = null;
@@ -1298,9 +1389,9 @@ guests.patch(
       );
     }
 
-    // Check guest exists
-    const [existingGuest] = await db
-      .select({ id: schema.guests.id })
+    // Check guest exists and load current row for audit diff
+    const [currentGuest] = await db
+      .select()
       .from(schema.guests)
       .where(
         and(
@@ -1311,12 +1402,14 @@ guests.patch(
       )
       .limit(1);
 
-    if (!existingGuest) {
+    if (!currentGuest) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Guest not found' } },
         404
       );
     }
+
+    const existingGuest = { id: currentGuest.id };
 
     // Validate custom field data if present
     if (updates.customFieldData) {
@@ -1389,12 +1482,35 @@ guests.patch(
       updateData.customFieldData = updates.customFieldData ? JSON.stringify(updates.customFieldData) : null;
     }
 
+    // Build audit changes (from currentGuest to updateData, excluding updatedAt)
+    const auditChanges: { field: string; from: unknown; to: unknown }[] = [];
+    const skipKeys = new Set(['updatedAt']);
+    for (const [key, toVal] of Object.entries(updateData)) {
+      if (skipKeys.has(key)) continue;
+      const fromVal = (currentGuest as Record<string, unknown>)[key];
+      const fromNorm = fromVal instanceof Date ? fromVal.getTime() : fromVal;
+      const toNorm = toVal instanceof Date ? (toVal as Date).getTime() : toVal;
+      if (fromNorm !== toNorm && JSON.stringify(fromNorm) !== JSON.stringify(toNorm)) {
+        auditChanges.push({ field: key, from: fromVal ?? null, to: toVal ?? null });
+      }
+    }
+
     // Update base guest
     const [updatedGuest] = await db
       .update(schema.guests)
       .set(updateData)
       .where(eq(schema.guests.uuid, guestUuid))
       .returning();
+
+    // Audit: record update when there were changes
+    if (auditChanges.length > 0) {
+      await db.insert(schema.guestAudit).values({
+        guestId: currentGuest.id,
+        userId: user.id,
+        action: 'update',
+        details: JSON.stringify({ source: 'dashboard', changes: auditChanges }),
+      });
+    }
 
     // Update extension table data based on event type
     let extensionData: Record<string, unknown> | null = null;
