@@ -74,6 +74,7 @@ import {
   ATTENDEE_TYPES,
   BADGE_TYPES,
   AGE_GROUPS,
+  useGuestSettings,
   type GuestResponse,
   type CreateGuestInput,
   type EventType,
@@ -143,6 +144,9 @@ interface GuestFormProps {
   onSubmit: (data: CreateGuestInput) => Promise<void>;
   isSubmitting: boolean;
   eventType?: EventType | null;
+  /** Event UUID – when provided, form fetches guest settings so optional/custom fields always match settings page */
+  eventUuid?: string | null;
+  /** Optional: pre-fetched guest settings (used when eventUuid not provided); otherwise form fetches via eventUuid */
   guestSettings?: EventGuestSettings | null;
 }
 
@@ -161,12 +165,24 @@ export function GuestForm({
   onSubmit,
   isSubmitting,
   eventType,
-  guestSettings,
+  eventUuid,
+  guestSettings: guestSettingsProp,
 }: GuestFormProps) {
   const isEditing = !!guest;
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>({});
   const [eventFieldsOpen, setEventFieldsOpen] = useState(true);
   const [optionalFieldsOpen, setOptionalFieldsOpen] = useState(false);
+
+  // Fetch guest settings when form has eventUuid so optional/custom fields always reflect event settings
+  const { data: guestSettingsFromHook, refetch: refetchGuestSettings } = useGuestSettings(eventUuid ?? '');
+  const guestSettings = eventUuid ? (guestSettingsFromHook ?? guestSettingsProp) : guestSettingsProp;
+
+  // Refetch guest settings when opening the dialog so fields added on the settings page are shown
+  useEffect(() => {
+    if (open && eventUuid) {
+      refetchGuestSettings();
+    }
+  }, [open, eventUuid, refetchGuestSettings]);
 
   const form = useForm<GuestFormData>({
     resolver: zodResolver(guestFormSchema),

@@ -271,7 +271,8 @@ export interface CustomFieldDefinition {
   label: string;
   type: CustomFieldType;
   required: boolean;
-  options?: string[];
+  helpText?: string;
+  options?: string[]; // For select/multiselect types
 }
 
 export interface GuestSettingsResponse {

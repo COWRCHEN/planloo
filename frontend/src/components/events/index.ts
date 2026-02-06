@@ -14,4 +14,5 @@ export { EventForm } from './EventForm';
 export { EventFormView } from './EventFormView';
 export { EventDetailView } from './EventDetailView';
 export { EventEditView } from './EventEditView';
+export { EventSettingsView } from './EventSettingsView';
 export { DeleteEventDialog } from './DeleteEventDialog';

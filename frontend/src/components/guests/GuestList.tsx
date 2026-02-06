@@ -306,6 +306,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
         onSubmit={handleFormSubmit}
         isSubmitting={createGuest.isPending || updateGuest.isPending}
         eventType={eventType}
+        eventUuid={eventUuid}
         guestSettings={guestSettings}
       />
 

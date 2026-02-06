@@ -1,0 +1,18 @@
+---
+/**
+ * Event Settings Page
+ *
+ * Configure guest fields and custom fields for an event.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { EventSettingsView } from '@/components/events';
+
+export const prerender = false;
+
+const { uuid } = Astro.params;
+---
+
+<DashboardLayout title="Event Settings" description="Configure event settings">
+  <EventSettingsView client:load uuid={uuid} />
+</DashboardLayout>

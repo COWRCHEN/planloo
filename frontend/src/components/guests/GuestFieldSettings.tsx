@@ -102,8 +102,9 @@ function MealChoiceEditor({ options, onChange, disabled }: MealChoiceEditorProps
       <div className="space-y-2">
         {options.map((option) => (
           <div key={option.key} className="flex items-center gap-2">
-            <span className="flex-1 text-sm px-3 py-2 bg-muted rounded-md">
-              {option.label}
+            <span className="flex-1 text-sm px-3 py-2 bg-muted rounded-md flex items-center gap-2">
+              <span className="font-medium">{option.label}</span>
+              <span className="text-muted-foreground text-xs">({option.key})</span>
             </span>
             <Button
               variant="ghost"
