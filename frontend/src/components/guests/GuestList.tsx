@@ -23,6 +23,7 @@ import {
   useCheckInGuest,
   useResendRsvp,
   useImportGuests,
+  useUpdateRsvpStatus,
   type GuestResponse,
   type GuestCategory,
   type RsvpStatus,
@@ -81,6 +82,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
   const checkInGuest = useCheckInGuest(eventUuid);
   const resendRsvp = useResendRsvp(eventUuid);
   const importGuests = useImportGuests(eventUuid);
+  const updateRsvpStatus = useUpdateRsvpStatus(eventUuid);
 
   // For update mutation, we need the guest UUID
   const updateGuest = useUpdateGuest(eventUuid, editingGuest?.uuid ?? '');
@@ -132,6 +134,10 @@ export function GuestList({ eventUuid }: GuestListProps) {
 
   const handleResendRsvp = async (guest: GuestResponse) => {
     await resendRsvp.mutateAsync(guest.uuid);
+  };
+
+  const handleUpdateRsvpStatus = async (guest: GuestResponse, status: RsvpStatus) => {
+    await updateRsvpStatus.mutateAsync({ guestUuid: guest.uuid, rsvpStatus: status });
   };
 
   const handleImport = async (csvContent: string) => {
@@ -219,6 +225,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
             onDelete={handleDeleteGuest}
             onCheckIn={handleCheckIn}
             onResendRsvp={handleResendRsvp}
+            onUpdateRsvpStatus={handleUpdateRsvpStatus}
           />
 
           {/* Pagination */}

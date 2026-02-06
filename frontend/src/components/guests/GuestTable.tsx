@@ -24,7 +24,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { GuestCategoryBadge } from './GuestCategoryBadge';
 import { RsvpStatusBadge } from './RsvpStatusBadge';
-import { buildRsvpUrl, type GuestResponse } from '@/hooks/use-guests';
+import { buildRsvpUrl, type GuestResponse, type RsvpStatus, RSVP_STATUSES } from '@/hooks/use-guests';
 
 interface GuestTableProps {
   guests: GuestResponse[];
@@ -33,6 +33,7 @@ interface GuestTableProps {
   onDelete: (guest: GuestResponse) => void;
   onCheckIn: (guest: GuestResponse) => void;
   onResendRsvp: (guest: GuestResponse) => void;
+  onUpdateRsvpStatus?: (guest: GuestResponse, status: RsvpStatus) => void;
 }
 
 function TableSkeleton() {
@@ -71,8 +72,16 @@ export function GuestTable({
   onDelete,
   onCheckIn,
   onResendRsvp,
+  onUpdateRsvpStatus,
 }: GuestTableProps) {
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  const rsvpStatusLabels: Record<RsvpStatus, string> = {
+    pending: 'Pending',
+    confirmed: 'Confirmed',
+    declined: 'Declined',
+    maybe: 'Maybe',
+  };
 
   const handleCopyRsvpLink = async (guest: GuestResponse) => {
     const url = buildRsvpUrl(guest.rsvpToken);
@@ -134,16 +143,53 @@ export function GuestTable({
                   <GuestCategoryBadge category={guest.category} />
                 </TableCell>
                 <TableCell>
-                  <RsvpStatusBadge status={guest.rsvpStatus} />
+                  {onUpdateRsvpStatus ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="cursor-pointer">
+                          <RsvpStatusBadge status={guest.rsvpStatus} />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {RSVP_STATUSES.map((status) => (
+                          <DropdownMenuItem
+                            key={status}
+                            onClick={() => onUpdateRsvpStatus(guest, status)}
+                            className={guest.rsvpStatus === status ? 'bg-accent' : ''}
+                          >
+                            {rsvpStatusLabels[status]}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <RsvpStatusBadge status={guest.rsvpStatus} />
+                  )}
                 </TableCell>
                 <TableCell>
                   <Button
-                    variant={guest.checkedIn ? 'default' : 'outline'}
+                    variant="outline"
                     size="sm"
                     onClick={() => onCheckIn(guest)}
-                    className="min-w-[80px]"
+                    className={`min-w-[80px] ${guest.checkedIn ? 'border-transparent text-green-600 hover:bg-green-50 hover:text-green-700' : ''}`}
                   >
-                    {guest.checkedIn ? 'Checked In' : 'Check In'}
+                    {guest.checkedIn ? (
+                      <svg
+                        className="h-8 w-8"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    ) : (
+                      'Check In'
+                    )}
                   </Button>
                 </TableCell>
                 <TableCell>

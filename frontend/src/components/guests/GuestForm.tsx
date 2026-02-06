@@ -4,6 +4,7 @@
  * Form for adding/editing guests using react-hook-form + Zod.
  */
 
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -69,16 +70,32 @@ export function GuestForm({
   const form = useForm<GuestFormData>({
     resolver: zodResolver(guestFormSchema),
     defaultValues: {
-      firstName: guest?.firstName ?? '',
-      lastName: guest?.lastName ?? '',
-      email: guest?.email ?? '',
-      phone: guest?.phone ?? '',
-      category: guest?.category ?? null,
-      plusOnesAllowed: guest?.plusOnesAllowed ?? 0,
-      dietaryRestrictions: guest?.dietaryRestrictions ?? '',
-      notes: guest?.notes ?? '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      category: null,
+      plusOnesAllowed: 0,
+      dietaryRestrictions: '',
+      notes: '',
     },
   });
+
+  // Reset form when dialog opens or guest changes
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        firstName: guest?.firstName ?? '',
+        lastName: guest?.lastName ?? '',
+        email: guest?.email ?? '',
+        phone: guest?.phone ?? '',
+        category: guest?.category ?? null,
+        plusOnesAllowed: guest?.plusOnesAllowed ?? 0,
+        dietaryRestrictions: guest?.dietaryRestrictions ?? '',
+        notes: guest?.notes ?? '',
+      });
+    }
+  }, [open, guest, form]);
 
   const handleSubmit = async (data: GuestFormData) => {
     // Clean up empty strings to null

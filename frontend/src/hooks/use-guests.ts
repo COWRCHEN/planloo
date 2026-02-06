@@ -363,6 +363,34 @@ export function useCheckInGuest(eventUuid: string) {
 }
 
 /**
+ * Hook to update RSVP status for a guest (inline update)
+ */
+export function useUpdateRsvpStatus(eventUuid: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ guestUuid, rsvpStatus }: { guestUuid: string; rsvpStatus: RsvpStatus }) => {
+      const response = await fetch(
+        `${API_URL}/events/${eventUuid}/guests/${guestUuid}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ rsvpStatus }),
+        }
+      );
+
+      const result = await handleResponse<GuestResponse>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: guestKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: guestKeys.stats(eventUuid) });
+    },
+  });
+}
+
+/**
  * Hook to resend RSVP invitation
  */
 export function useResendRsvp(eventUuid: string) {

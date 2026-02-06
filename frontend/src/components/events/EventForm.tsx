@@ -174,8 +174,14 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
     }
   };
 
-  const nextStep = () => setCurrentStep((s) => Math.min(s + 1, STEPS.length - 1));
-  const prevStep = () => setCurrentStep((s) => Math.max(s - 1, 0));
+  const nextStep = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setCurrentStep((s) => Math.min(s + 1, STEPS.length - 1));
+  };
+  const prevStep = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setCurrentStep((s) => Math.max(s - 1, 0));
+  };
 
   const canProceed = () => {
     switch (currentStep) {
