@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Card,
@@ -43,20 +44,57 @@ interface FieldToggleProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   disabled?: boolean;
+  /** When true, show a "Required" toggle (only applies when field is enabled) */
+  required?: boolean;
+  onRequiredChange?: (checked: boolean) => void;
+  showRequired?: boolean;
 }
 
-function FieldToggle({ label, description, checked, onCheckedChange, disabled }: FieldToggleProps) {
+function FieldToggle({
+  label,
+  description,
+  checked,
+  onCheckedChange,
+  disabled,
+  required = false,
+  onRequiredChange,
+  showRequired = false,
+}: FieldToggleProps) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="space-y-0.5">
-        <Label className="text-base">{label}</Label>
-        <p className="text-sm text-muted-foreground">{description}</p>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2">
+            <Label className="text-base">{label}</Label>
+            {showRequired && required && (
+              <Badge variant="destructive" className="text-xs">
+                Required
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+        <Switch
+          checked={checked}
+          onCheckedChange={onCheckedChange}
+          disabled={disabled}
+        />
       </div>
-      <Switch
-        checked={checked}
-        onCheckedChange={onCheckedChange}
-        disabled={disabled}
-      />
+      {showRequired && onRequiredChange && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id={`required-${label.replace(/\s+/g, '-')}`}
+              checked={required}
+              onCheckedChange={onRequiredChange}
+              disabled={disabled}
+            />
+            <Label htmlFor={`required-${label.replace(/\s+/g, '-')}`} className="font-normal">
+              Required field
+            </Label>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -168,7 +206,7 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
   const [localSettings, setLocalSettings] = useState<Partial<EventGuestSettings>>({});
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Merge server settings with local changes
+  // Merge server settings with local changes (required* default false for backwards compatibility)
   const currentSettings: EventGuestSettings = {
     id: settings?.id ?? 0,
     eventId: settings?.eventId ?? 0,
@@ -179,6 +217,13 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
     enableTableAssignment: localSettings.enableTableAssignment ?? settings?.enableTableAssignment ?? false,
     enableTransportation: localSettings.enableTransportation ?? settings?.enableTransportation ?? false,
     enableAccessibility: localSettings.enableAccessibility ?? settings?.enableAccessibility ?? false,
+    requiredAddress: localSettings.requiredAddress ?? (settings as { requiredAddress?: boolean })?.requiredAddress ?? false,
+    requiredMealChoice: localSettings.requiredMealChoice ?? (settings as { requiredMealChoice?: boolean })?.requiredMealChoice ?? false,
+    requiredAccommodation: localSettings.requiredAccommodation ?? (settings as { requiredAccommodation?: boolean })?.requiredAccommodation ?? false,
+    requiredPlusOneName: localSettings.requiredPlusOneName ?? (settings as { requiredPlusOneName?: boolean })?.requiredPlusOneName ?? false,
+    requiredTableAssignment: localSettings.requiredTableAssignment ?? (settings as { requiredTableAssignment?: boolean })?.requiredTableAssignment ?? false,
+    requiredTransportation: localSettings.requiredTransportation ?? (settings as { requiredTransportation?: boolean })?.requiredTransportation ?? false,
+    requiredAccessibility: localSettings.requiredAccessibility ?? (settings as { requiredAccessibility?: boolean })?.requiredAccessibility ?? false,
     mealChoiceOptions: localSettings.mealChoiceOptions ?? settings?.mealChoiceOptions ?? [],
     customFieldDefinitions: settings?.customFieldDefinitions ?? [],
     createdAt: settings?.createdAt ?? '',
@@ -237,6 +282,9 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
             checked={currentSettings.enableAddress}
             onCheckedChange={(checked) => handleChange('enableAddress', checked)}
             disabled={updateSettings.isPending}
+            required={currentSettings.requiredAddress}
+            onRequiredChange={(checked) => handleChange('requiredAddress', checked)}
+            showRequired={currentSettings.enableAddress}
           />
         </div>
 
@@ -254,6 +302,9 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
             checked={currentSettings.enableMealChoice}
             onCheckedChange={(checked) => handleChange('enableMealChoice', checked)}
             disabled={updateSettings.isPending}
+            required={currentSettings.requiredMealChoice}
+            onRequiredChange={(checked) => handleChange('requiredMealChoice', checked)}
+            showRequired={currentSettings.enableMealChoice}
           />
 
           {currentSettings.enableMealChoice && (
@@ -270,6 +321,9 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
             checked={currentSettings.enableTableAssignment}
             onCheckedChange={(checked) => handleChange('enableTableAssignment', checked)}
             disabled={updateSettings.isPending}
+            required={currentSettings.requiredTableAssignment}
+            onRequiredChange={(checked) => handleChange('requiredTableAssignment', checked)}
+            showRequired={currentSettings.enableTableAssignment}
           />
         </div>
 
@@ -287,6 +341,9 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
             checked={currentSettings.enableAccommodation}
             onCheckedChange={(checked) => handleChange('enableAccommodation', checked)}
             disabled={updateSettings.isPending}
+            required={currentSettings.requiredAccommodation}
+            onRequiredChange={(checked) => handleChange('requiredAccommodation', checked)}
+            showRequired={currentSettings.enableAccommodation}
           />
 
           <FieldToggle
@@ -295,6 +352,9 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
             checked={currentSettings.enableTransportation}
             onCheckedChange={(checked) => handleChange('enableTransportation', checked)}
             disabled={updateSettings.isPending}
+            required={currentSettings.requiredTransportation}
+            onRequiredChange={(checked) => handleChange('requiredTransportation', checked)}
+            showRequired={currentSettings.enableTransportation}
           />
         </div>
 
@@ -312,6 +372,9 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
             checked={currentSettings.enablePlusOneName}
             onCheckedChange={(checked) => handleChange('enablePlusOneName', checked)}
             disabled={updateSettings.isPending}
+            required={currentSettings.requiredPlusOneName}
+            onRequiredChange={(checked) => handleChange('requiredPlusOneName', checked)}
+            showRequired={currentSettings.enablePlusOneName}
           />
 
           <FieldToggle
@@ -320,6 +383,9 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
             checked={currentSettings.enableAccessibility}
             onCheckedChange={(checked) => handleChange('enableAccessibility', checked)}
             disabled={updateSettings.isPending}
+            required={currentSettings.requiredAccessibility}
+            onRequiredChange={(checked) => handleChange('requiredAccessibility', checked)}
+            showRequired={currentSettings.enableAccessibility}
           />
         </div>
 

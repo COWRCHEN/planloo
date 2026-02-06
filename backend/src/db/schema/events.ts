@@ -206,6 +206,15 @@ export const eventGuestSettings = sqliteTable('event_guest_settings', {
   enableTransportation: integer('enable_transportation', { mode: 'boolean' }).default(false).notNull(),
   enableAccessibility: integer('enable_accessibility', { mode: 'boolean' }).default(false).notNull(),
 
+  // Required flag for each optional field (only applies when the field is enabled)
+  requiredAddress: integer('required_address', { mode: 'boolean' }).default(false).notNull(),
+  requiredMealChoice: integer('required_meal_choice', { mode: 'boolean' }).default(false).notNull(),
+  requiredAccommodation: integer('required_accommodation', { mode: 'boolean' }).default(false).notNull(),
+  requiredPlusOneName: integer('required_plus_one_name', { mode: 'boolean' }).default(false).notNull(),
+  requiredTableAssignment: integer('required_table_assignment', { mode: 'boolean' }).default(false).notNull(),
+  requiredTransportation: integer('required_transportation', { mode: 'boolean' }).default(false).notNull(),
+  requiredAccessibility: integer('required_accessibility', { mode: 'boolean' }).default(false).notNull(),
+
   // === MEAL CHOICE OPTIONS ===
   // JSON array of meal options with keys and labels
   // Example: [{"key": "option1", "label": "Beef"}, {"key": "option2", "label": "Chicken"}, {"key": "vegetarian", "label": "Vegetarian"}]

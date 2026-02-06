@@ -9,7 +9,7 @@
  * - Custom user-defined fields (Phase 3)
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -138,6 +138,37 @@ const guestFormSchema = z.object({
 
 type GuestFormData = z.infer<typeof guestFormSchema>;
 
+/** Build schema with optional guest-field required validation (reads settings from ref at validate time) */
+function buildGuestFormSchemaWithRequired(
+  baseSchema: typeof guestFormSchema,
+  settingsRef: { current: EventGuestSettings | null | undefined }
+) {
+  return baseSchema.superRefine((data, ctx) => {
+    const s = settingsRef.current;
+    if (!s) return;
+    const req = (s as { requiredAddress?: boolean })?.requiredAddress ?? false;
+    const reqMeal = (s as { requiredMealChoice?: boolean })?.requiredMealChoice ?? false;
+    const reqPlus = (s as { requiredPlusOneName?: boolean })?.requiredPlusOneName ?? false;
+    const reqTable = (s as { requiredTableAssignment?: boolean })?.requiredTableAssignment ?? false;
+    const reqAccess = (s as { requiredAccessibility?: boolean })?.requiredAccessibility ?? false;
+    if (s.enableAddress && req && !(data.addressStreet?.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Street address is required', path: ['addressStreet'] });
+    }
+    if (s.enableMealChoice && reqMeal && !(data.mealChoice?.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Meal choice is required', path: ['mealChoice'] });
+    }
+    if (s.enablePlusOneName && reqPlus && !(data.plusOneName?.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Plus-one name is required', path: ['plusOneName'] });
+    }
+    if (s.enableTableAssignment && reqTable && !(data.tableAssignment?.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Table assignment is required', path: ['tableAssignment'] });
+    }
+    if (s.enableAccessibility && reqAccess && !(data.accessibilityNeeds?.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Accessibility needs is required', path: ['accessibilityNeeds'] });
+    }
+  });
+}
+
 interface GuestFormProps {
   /** When false (default), form is shown in a dialog. When true, form is shown as a full page (no dialog). */
   open?: boolean;
@@ -189,6 +220,14 @@ export function GuestForm({
   const { data: guestSettingsFromHook, refetch: refetchGuestSettings } = useGuestSettings(eventUuid ?? '');
   const guestSettings = eventUuid ? (guestSettingsFromHook ?? guestSettingsProp) : guestSettingsProp;
 
+  const guestSettingsRef = useRef(guestSettings);
+  guestSettingsRef.current = guestSettings;
+
+  const guestFormSchemaWithRequired = useMemo(
+    () => buildGuestFormSchemaWithRequired(guestFormSchema, guestSettingsRef),
+    []
+  );
+
   // Refetch guest settings when opening the form (dialog or page) so fields added on the settings page are shown
   useEffect(() => {
     if (isOpen && eventUuid) {
@@ -197,7 +236,7 @@ export function GuestForm({
   }, [isOpen, eventUuid, refetchGuestSettings]);
 
   const form = useForm<GuestFormData>({
-    resolver: zodResolver(guestFormSchema),
+    resolver: zodResolver(guestFormSchemaWithRequired),
     defaultValues: {
       firstName: '',
       lastName: '',
@@ -750,11 +789,19 @@ export function GuestForm({
                     {/* Address */}
                     {guestSettings?.enableAddress && (
                       <div className="space-y-4">
-                        <Label className="text-sm font-medium">Address</Label>
+                        <Label className="text-sm font-medium">
+                          Address
+                          {(guestSettings as { requiredAddress?: boolean })?.requiredAddress && (
+                            <span className="ml-1 text-destructive">*</span>
+                          )}
+                        </Label>
                         <Input
                           {...form.register('addressStreet')}
                           placeholder="Street address"
                         />
+                        {form.formState.errors.addressStreet && (
+                          <p className="text-sm text-destructive">{form.formState.errors.addressStreet.message}</p>
+                        )}
                         <div className="grid grid-cols-2 gap-4">
                           <Input
                             {...form.register('addressCity')}
@@ -781,7 +828,12 @@ export function GuestForm({
                     {/* Meal Choice */}
                     {guestSettings?.enableMealChoice && (
                       <div className="space-y-2">
-                        <Label>Meal Choice</Label>
+                        <Label>
+                          Meal Choice
+                          {(guestSettings as { requiredMealChoice?: boolean })?.requiredMealChoice && (
+                            <span className="ml-1 text-destructive">*</span>
+                          )}
+                        </Label>
                         <Select
                           value={form.watch('mealChoice') ?? '_none'}
                           onValueChange={(value) =>
@@ -800,6 +852,9 @@ export function GuestForm({
                             ))}
                           </SelectContent>
                         </Select>
+                        {form.formState.errors.mealChoice && (
+                          <p className="text-sm text-destructive">{form.formState.errors.mealChoice.message}</p>
+                        )}
                       </div>
                     )}
 
@@ -843,22 +898,38 @@ export function GuestForm({
                     {/* Plus-One Name */}
                     {guestSettings?.enablePlusOneName && (
                       <div className="space-y-2">
-                        <Label>Plus-One Name</Label>
+                        <Label>
+                          Plus-One Name
+                          {(guestSettings as { requiredPlusOneName?: boolean })?.requiredPlusOneName && (
+                            <span className="ml-1 text-destructive">*</span>
+                          )}
+                        </Label>
                         <Input
                           {...form.register('plusOneName')}
                           placeholder="Name of plus-one"
                         />
+                        {form.formState.errors.plusOneName && (
+                          <p className="text-sm text-destructive">{form.formState.errors.plusOneName.message}</p>
+                        )}
                       </div>
                     )}
 
                     {/* Table Assignment */}
                     {guestSettings?.enableTableAssignment && (
                       <div className="space-y-2">
-                        <Label>Table Assignment</Label>
+                        <Label>
+                          Table Assignment
+                          {(guestSettings as { requiredTableAssignment?: boolean })?.requiredTableAssignment && (
+                            <span className="ml-1 text-destructive">*</span>
+                          )}
+                        </Label>
                         <Input
                           {...form.register('tableAssignment')}
                           placeholder="Table number or name"
                         />
+                        {form.formState.errors.tableAssignment && (
+                          <p className="text-sm text-destructive">{form.formState.errors.tableAssignment.message}</p>
+                        )}
                       </div>
                     )}
 
@@ -876,12 +947,20 @@ export function GuestForm({
                     {/* Accessibility */}
                     {guestSettings?.enableAccessibility && (
                       <div className="space-y-2">
-                        <Label>Accessibility Needs</Label>
+                        <Label>
+                          Accessibility Needs
+                          {(guestSettings as { requiredAccessibility?: boolean })?.requiredAccessibility && (
+                            <span className="ml-1 text-destructive">*</span>
+                          )}
+                        </Label>
                         <Textarea
                           {...form.register('accessibilityNeeds')}
                           placeholder="Describe accessibility requirements"
                           rows={2}
                         />
+                        {form.formState.errors.accessibilityNeeds && (
+                          <p className="text-sm text-destructive">{form.formState.errors.accessibilityNeeds.message}</p>
+                        )}
                       </div>
                     )}
                 </CollapsibleSection>

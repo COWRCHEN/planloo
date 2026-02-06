@@ -477,6 +477,14 @@ const updateGuestSettingsSchema = z.object({
   enableTableAssignment: z.boolean().optional(),
   enableTransportation: z.boolean().optional(),
   enableAccessibility: z.boolean().optional(),
+  // Required flag for each optional field
+  requiredAddress: z.boolean().optional(),
+  requiredMealChoice: z.boolean().optional(),
+  requiredAccommodation: z.boolean().optional(),
+  requiredPlusOneName: z.boolean().optional(),
+  requiredTableAssignment: z.boolean().optional(),
+  requiredTransportation: z.boolean().optional(),
+  requiredAccessibility: z.boolean().optional(),
   // Meal options
   mealChoiceOptions: z.array(mealChoiceOptionSchema).max(20).optional(),
   // Custom field definitions (max 10)
@@ -572,6 +580,13 @@ events.get('/:uuid/guest-settings', requireAuth, async (c) => {
       enableTableAssignment: settings!.enableTableAssignment,
       enableTransportation: settings!.enableTransportation,
       enableAccessibility: settings!.enableAccessibility,
+      requiredAddress: settings!.requiredAddress,
+      requiredMealChoice: settings!.requiredMealChoice,
+      requiredAccommodation: settings!.requiredAccommodation,
+      requiredPlusOneName: settings!.requiredPlusOneName,
+      requiredTableAssignment: settings!.requiredTableAssignment,
+      requiredTransportation: settings!.requiredTransportation,
+      requiredAccessibility: settings!.requiredAccessibility,
       mealChoiceOptions,
       customFieldDefinitions,
       createdAt: settings!.createdAt,
@@ -635,6 +650,14 @@ events.patch(
     if (updates.enableTableAssignment !== undefined) updateData.enableTableAssignment = updates.enableTableAssignment;
     if (updates.enableTransportation !== undefined) updateData.enableTransportation = updates.enableTransportation;
     if (updates.enableAccessibility !== undefined) updateData.enableAccessibility = updates.enableAccessibility;
+
+    if (updates.requiredAddress !== undefined) updateData.requiredAddress = updates.requiredAddress;
+    if (updates.requiredMealChoice !== undefined) updateData.requiredMealChoice = updates.requiredMealChoice;
+    if (updates.requiredAccommodation !== undefined) updateData.requiredAccommodation = updates.requiredAccommodation;
+    if (updates.requiredPlusOneName !== undefined) updateData.requiredPlusOneName = updates.requiredPlusOneName;
+    if (updates.requiredTableAssignment !== undefined) updateData.requiredTableAssignment = updates.requiredTableAssignment;
+    if (updates.requiredTransportation !== undefined) updateData.requiredTransportation = updates.requiredTransportation;
+    if (updates.requiredAccessibility !== undefined) updateData.requiredAccessibility = updates.requiredAccessibility;
 
     if (updates.mealChoiceOptions !== undefined) {
       updateData.mealChoiceOptions = updates.mealChoiceOptions
@@ -701,6 +724,13 @@ events.patch(
           enableTableAssignment: updates.enableTableAssignment ?? false,
           enableTransportation: updates.enableTransportation ?? false,
           enableAccessibility: updates.enableAccessibility ?? false,
+          requiredAddress: updates.requiredAddress ?? false,
+          requiredMealChoice: updates.requiredMealChoice ?? false,
+          requiredAccommodation: updates.requiredAccommodation ?? false,
+          requiredPlusOneName: updates.requiredPlusOneName ?? false,
+          requiredTableAssignment: updates.requiredTableAssignment ?? false,
+          requiredTransportation: updates.requiredTransportation ?? false,
+          requiredAccessibility: updates.requiredAccessibility ?? false,
           mealChoiceOptions: updates.mealChoiceOptions ? JSON.stringify(updates.mealChoiceOptions) : null,
           customFieldDefinitions: updates.customFieldDefinitions ? JSON.stringify(updates.customFieldDefinitions) : null,
         })
@@ -739,6 +769,13 @@ events.patch(
         enableTableAssignment: settings.enableTableAssignment,
         enableTransportation: settings.enableTransportation,
         enableAccessibility: settings.enableAccessibility,
+        requiredAddress: settings.requiredAddress,
+        requiredMealChoice: settings.requiredMealChoice,
+        requiredAccommodation: settings.requiredAccommodation,
+        requiredPlusOneName: settings.requiredPlusOneName,
+        requiredTableAssignment: settings.requiredTableAssignment,
+        requiredTransportation: settings.requiredTransportation,
+        requiredAccessibility: settings.requiredAccessibility,
         mealChoiceOptions,
         customFieldDefinitions,
         createdAt: settings.createdAt,

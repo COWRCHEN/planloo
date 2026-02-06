@@ -300,6 +300,13 @@ export interface GuestSettingsResponse {
   enableTableAssignment: boolean;
   enableTransportation: boolean;
   enableAccessibility: boolean;
+  requiredAddress: boolean;
+  requiredMealChoice: boolean;
+  requiredAccommodation: boolean;
+  requiredPlusOneName: boolean;
+  requiredTableAssignment: boolean;
+  requiredTransportation: boolean;
+  requiredAccessibility: boolean;
   mealChoiceOptions: MealChoiceOption[] | null;
   customFieldDefinitions: CustomFieldDefinition[] | null;
   createdAt: string;
@@ -323,6 +330,13 @@ export interface UpdateGuestSettingsInput {
   enableTableAssignment?: boolean;
   enableTransportation?: boolean;
   enableAccessibility?: boolean;
+  requiredAddress?: boolean;
+  requiredMealChoice?: boolean;
+  requiredAccommodation?: boolean;
+  requiredPlusOneName?: boolean;
+  requiredTableAssignment?: boolean;
+  requiredTransportation?: boolean;
+  requiredAccessibility?: boolean;
   mealChoiceOptions?: MealChoiceOption[];
   customFieldDefinitions?: CustomFieldDefinition[];
 }
