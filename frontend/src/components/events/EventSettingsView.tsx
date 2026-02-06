@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GuestFieldSettings } from '@/components/guests/GuestFieldSettings';
+import { CommonFieldSettings } from '@/components/guests/CommonFieldSettings';
 import { CustomFieldManager } from '@/components/guests/CustomFieldManager';
 import { useEvent } from '@/hooks/use-events';
 import { useSession } from '@/hooks/use-auth';
@@ -138,8 +139,9 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
       </div>
 
       {/* Settings Tabs */}
-      <Tabs defaultValue="guest-fields" className="space-y-6">
+      <Tabs defaultValue="common-fields" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="common-fields">Common Fields</TabsTrigger>
           <TabsTrigger value="guest-fields">Guest Fields</TabsTrigger>
           <TabsTrigger value="custom-fields">Custom Fields</TabsTrigger>
         </TabsList>
@@ -168,7 +170,7 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
                       {eventTypeLabels[event.eventType]} Event
                     </p>
                     <p className="text-sm text-blue-700 dark:text-blue-300">
-                      This event includes specialized fields for {eventTypeLabels[event.eventType].toLowerCase()} events.
+                      This event includes specialized fields for {eventTypeLabels[event.eventType]?.toLowerCase() ?? 'this'} events.
                       These fields are automatically available in guest forms based on your event type.
                     </p>
                   </div>
@@ -178,6 +180,38 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
           )}
 
           <GuestFieldSettings eventUuid={uuid} />
+        </TabsContent>
+
+        <TabsContent value="common-fields" className="space-y-6">
+          <Card className="border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="h-5 w-5 text-slate-600 dark:text-slate-400 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+                <div>
+                  <p className="font-medium text-slate-900 dark:text-slate-100">
+                    Common Fields
+                  </p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">
+                    Mark which base fields (first name, last name, email, phone) are required when guests are added or updated.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <CommonFieldSettings eventUuid={uuid} />
         </TabsContent>
 
         <TabsContent value="custom-fields" className="space-y-6">

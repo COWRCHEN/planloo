@@ -307,6 +307,10 @@ export interface GuestSettingsResponse {
   requiredTableAssignment: boolean;
   requiredTransportation: boolean;
   requiredAccessibility: boolean;
+  requiredFirstName: boolean;
+  requiredLastName: boolean;
+  requiredEmail: boolean;
+  requiredPhone: boolean;
   mealChoiceOptions: MealChoiceOption[] | null;
   customFieldDefinitions: CustomFieldDefinition[] | null;
   createdAt: string;
@@ -337,6 +341,10 @@ export interface UpdateGuestSettingsInput {
   requiredTableAssignment?: boolean;
   requiredTransportation?: boolean;
   requiredAccessibility?: boolean;
+  requiredFirstName?: boolean;
+  requiredLastName?: boolean;
+  requiredEmail?: boolean;
+  requiredPhone?: boolean;
   mealChoiceOptions?: MealChoiceOption[];
   customFieldDefinitions?: CustomFieldDefinition[];
 }

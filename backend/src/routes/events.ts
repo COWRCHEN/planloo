@@ -485,6 +485,11 @@ const updateGuestSettingsSchema = z.object({
   requiredTableAssignment: z.boolean().optional(),
   requiredTransportation: z.boolean().optional(),
   requiredAccessibility: z.boolean().optional(),
+  // Common field required flags
+  requiredFirstName: z.boolean().optional(),
+  requiredLastName: z.boolean().optional(),
+  requiredEmail: z.boolean().optional(),
+  requiredPhone: z.boolean().optional(),
   // Meal options
   mealChoiceOptions: z.array(mealChoiceOptionSchema).max(20).optional(),
   // Custom field definitions (max 10)
@@ -541,6 +546,10 @@ events.get('/:uuid/guest-settings', requireAuth, async (c) => {
         enableTableAssignment: false,
         enableTransportation: false,
         enableAccessibility: false,
+        requiredFirstName: true,
+        requiredLastName: false,
+        requiredEmail: false,
+        requiredPhone: false,
         mealChoiceOptions: null,
         customFieldDefinitions: null,
       })
@@ -587,6 +596,10 @@ events.get('/:uuid/guest-settings', requireAuth, async (c) => {
       requiredTableAssignment: settings!.requiredTableAssignment,
       requiredTransportation: settings!.requiredTransportation,
       requiredAccessibility: settings!.requiredAccessibility,
+      requiredFirstName: settings!.requiredFirstName,
+      requiredLastName: settings!.requiredLastName,
+      requiredEmail: settings!.requiredEmail,
+      requiredPhone: settings!.requiredPhone,
       mealChoiceOptions,
       customFieldDefinitions,
       createdAt: settings!.createdAt,
@@ -658,6 +671,10 @@ events.patch(
     if (updates.requiredTableAssignment !== undefined) updateData.requiredTableAssignment = updates.requiredTableAssignment;
     if (updates.requiredTransportation !== undefined) updateData.requiredTransportation = updates.requiredTransportation;
     if (updates.requiredAccessibility !== undefined) updateData.requiredAccessibility = updates.requiredAccessibility;
+    if (updates.requiredFirstName !== undefined) updateData.requiredFirstName = updates.requiredFirstName;
+    if (updates.requiredLastName !== undefined) updateData.requiredLastName = updates.requiredLastName;
+    if (updates.requiredEmail !== undefined) updateData.requiredEmail = updates.requiredEmail;
+    if (updates.requiredPhone !== undefined) updateData.requiredPhone = updates.requiredPhone;
 
     if (updates.mealChoiceOptions !== undefined) {
       updateData.mealChoiceOptions = updates.mealChoiceOptions
@@ -731,6 +748,10 @@ events.patch(
           requiredTableAssignment: updates.requiredTableAssignment ?? false,
           requiredTransportation: updates.requiredTransportation ?? false,
           requiredAccessibility: updates.requiredAccessibility ?? false,
+          requiredFirstName: updates.requiredFirstName ?? true,
+          requiredLastName: updates.requiredLastName ?? false,
+          requiredEmail: updates.requiredEmail ?? false,
+          requiredPhone: updates.requiredPhone ?? false,
           mealChoiceOptions: updates.mealChoiceOptions ? JSON.stringify(updates.mealChoiceOptions) : null,
           customFieldDefinitions: updates.customFieldDefinitions ? JSON.stringify(updates.customFieldDefinitions) : null,
         })
@@ -776,6 +797,10 @@ events.patch(
         requiredTableAssignment: settings.requiredTableAssignment,
         requiredTransportation: settings.requiredTransportation,
         requiredAccessibility: settings.requiredAccessibility,
+        requiredFirstName: settings.requiredFirstName,
+        requiredLastName: settings.requiredLastName,
+        requiredEmail: settings.requiredEmail,
+        requiredPhone: settings.requiredPhone,
         mealChoiceOptions,
         customFieldDefinitions,
         createdAt: settings.createdAt,

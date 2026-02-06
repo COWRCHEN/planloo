@@ -215,6 +215,12 @@ export const eventGuestSettings = sqliteTable('event_guest_settings', {
   requiredTransportation: integer('required_transportation', { mode: 'boolean' }).default(false).notNull(),
   requiredAccessibility: integer('required_accessibility', { mode: 'boolean' }).default(false).notNull(),
 
+  // === COMMON FIELDS (required flags for base guest fields) ===
+  requiredFirstName: integer('required_first_name', { mode: 'boolean' }).default(false).notNull(),
+  requiredLastName: integer('required_last_name', { mode: 'boolean' }).default(false).notNull(),
+  requiredEmail: integer('required_email', { mode: 'boolean' }).default(false).notNull(),
+  requiredPhone: integer('required_phone', { mode: 'boolean' }).default(false).notNull(),
+
   // === MEAL CHOICE OPTIONS ===
   // JSON array of meal options with keys and labels
   // Example: [{"key": "option1", "label": "Beef"}, {"key": "option2", "label": "Chicken"}, {"key": "vegetarian", "label": "Vegetarian"}]

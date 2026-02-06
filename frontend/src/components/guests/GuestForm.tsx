@@ -86,8 +86,8 @@ import { CustomFields } from './fields/CustomFields';
 // ==================== SCHEMA ====================
 
 const guestFormSchema = z.object({
-  // Core fields
-  firstName: z.string().min(1, 'First name is required').max(100),
+  // Core fields (required-ness driven by event settings in superRefine)
+  firstName: z.string().max(100),
   lastName: z.string().max(100).optional().nullable(),
   email: z.string().email('Invalid email').max(255).optional().nullable().or(z.literal('')),
   phone: z.string().max(50).optional().nullable(),
@@ -146,6 +146,24 @@ function buildGuestFormSchemaWithRequired(
   return baseSchema.superRefine((data, ctx) => {
     const s = settingsRef.current;
     if (!s) return;
+    // Common field required (backward compat: requiredFirstName default true, others false)
+    const reqFirst = (s as { requiredFirstName?: boolean })?.requiredFirstName ?? true;
+    const reqLast = (s as { requiredLastName?: boolean })?.requiredLastName ?? false;
+    const reqEmail = (s as { requiredEmail?: boolean })?.requiredEmail ?? false;
+    const reqPhone = (s as { requiredPhone?: boolean })?.requiredPhone ?? false;
+    if (reqFirst && !(data.firstName?.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'First name is required', path: ['firstName'] });
+    }
+    if (reqLast && !(data.lastName?.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Last name is required', path: ['lastName'] });
+    }
+    if (reqEmail && !(data.email?.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Email is required', path: ['email'] });
+    }
+    if (reqPhone && !(data.phone?.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phone is required', path: ['phone'] });
+    }
+    // Optional feature fields
     const req = (s as { requiredAddress?: boolean })?.requiredAddress ?? false;
     const reqMeal = (s as { requiredMealChoice?: boolean })?.requiredMealChoice ?? false;
     const reqPlus = (s as { requiredPlusOneName?: boolean })?.requiredPlusOneName ?? false;
@@ -438,56 +456,77 @@ export function GuestForm({
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             {/* ==================== CORE FIELDS ==================== */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name *</Label>
-                <Input
-                  id="firstName"
-                  {...form.register('firstName')}
-                  placeholder="John"
-                />
-                {form.formState.errors.firstName && (
-                  <p className="text-sm text-destructive">
-                    {form.formState.errors.firstName.message}
-                  </p>
-                )}
-              </div>
+            {(() => {
+              const s = guestSettings as { requiredFirstName?: boolean; requiredLastName?: boolean; requiredEmail?: boolean; requiredPhone?: boolean } | null | undefined;
+              const reqFirst = s?.requiredFirstName ?? true;
+              const reqLast = s?.requiredLastName ?? false;
+              const reqEmail = s?.requiredEmail ?? false;
+              const reqPhone = s?.requiredPhone ?? false;
+              return (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name{reqFirst ? ' *' : ''}</Label>
+                      <Input
+                        id="firstName"
+                        {...form.register('firstName')}
+                        placeholder="John"
+                      />
+                      {form.formState.errors.firstName && (
+                        <p className="text-sm text-destructive">
+                          {form.formState.errors.firstName.message}
+                        </p>
+                      )}
+                    </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input
-                  id="lastName"
-                  {...form.register('lastName')}
-                  placeholder="Doe"
-                />
-              </div>
-            </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name{reqLast ? ' *' : ''}</Label>
+                      <Input
+                        id="lastName"
+                        {...form.register('lastName')}
+                        placeholder="Doe"
+                      />
+                      {form.formState.errors.lastName && (
+                        <p className="text-sm text-destructive">
+                          {form.formState.errors.lastName.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  {...form.register('email')}
-                  placeholder="john@example.com"
-                />
-                {form.formState.errors.email && (
-                  <p className="text-sm text-destructive">
-                    {form.formState.errors.email.message}
-                  </p>
-                )}
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email{reqEmail ? ' *' : ''}</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        {...form.register('email')}
+                        placeholder="john@example.com"
+                      />
+                      {form.formState.errors.email && (
+                        <p className="text-sm text-destructive">
+                          {form.formState.errors.email.message}
+                        </p>
+                      )}
+                    </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  {...form.register('phone')}
-                  placeholder="+1 555-123-4567"
-                />
-              </div>
-            </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone{reqPhone ? ' *' : ''}</Label>
+                      <Input
+                        id="phone"
+                        {...form.register('phone')}
+                        placeholder="+1 555-123-4567"
+                      />
+                      {form.formState.errors.phone && (
+                        <p className="text-sm text-destructive">
+                          {form.formState.errors.phone.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

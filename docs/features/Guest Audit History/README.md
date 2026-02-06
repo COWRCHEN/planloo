@@ -167,3 +167,10 @@ Existing guests have no audit rows before this feature. The UI shows “No audit
 cd backend && npm run db:generate (if you change schema again)
 npm run db:migrate:local (local D1) or npm run db:migrate (remote)
 ```
+
+
+###  https://local.drizzle.studio
+
+```
+npm run db:studio
+```
