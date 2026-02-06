@@ -51,7 +51,7 @@ function CollapsibleSection({
     <div>
       <button
         type="button"
-        className="flex w-full items-center justify-between py-2 text-left"
+        className="flex w-full items-center justify-between rounded-md bg-muted/60 px-3 py-2.5 text-left transition-colors hover:bg-muted"
         onClick={() => onOpenChange(!open)}
       >
         <h3 className="text-sm font-medium">{title}</h3>
@@ -233,6 +233,7 @@ export function GuestForm({
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>({});
   const [eventFieldsOpen, setEventFieldsOpen] = useState(true);
   const [optionalFieldsOpen, setOptionalFieldsOpen] = useState(false);
+  const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
 
   // Fetch guest settings when form has eventUuid so optional/custom fields always reflect event settings
   const { data: guestSettingsFromHook, refetch: refetchGuestSettings } = useGuestSettings(eventUuid ?? '');
@@ -1009,12 +1010,18 @@ export function GuestForm({
             {/* ==================== CUSTOM FIELDS ==================== */}
             {hasCustomFields && (
               <>
-                <Separator />
-                <CustomFields
-                  definitions={guestSettings?.customFieldDefinitions ?? []}
-                  values={customFieldValues}
-                  onChange={setCustomFieldValues}
-                />
+
+                <CollapsibleSection
+                  title="Custom Fields"
+                  open={customFieldsOpen}
+                  onOpenChange={setCustomFieldsOpen}
+                >
+                  <CustomFields
+                    definitions={guestSettings?.customFieldDefinitions ?? []}
+                    values={customFieldValues}
+                    onChange={setCustomFieldValues}
+                  />
+                </CollapsibleSection>
               </>
             )}
 
