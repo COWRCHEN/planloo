@@ -1,0 +1,18 @@
+---
+/**
+ * Edit Guest Page
+ *
+ * Full-page form to edit an existing guest.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { GuestFormPageView } from '@/components/guests';
+
+export const prerender = false;
+
+const { uuid, guestUuid } = Astro.params;
+---
+
+<DashboardLayout title="Edit Guest" description="Edit guest information">
+  <GuestFormPageView client:load eventUuid={uuid} guestUuid={guestUuid} />
+</DashboardLayout>

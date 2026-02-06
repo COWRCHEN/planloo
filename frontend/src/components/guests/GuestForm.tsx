@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -138,8 +139,9 @@ const guestFormSchema = z.object({
 type GuestFormData = z.infer<typeof guestFormSchema>;
 
 interface GuestFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  /** When false (default), form is shown in a dialog. When true, form is shown as a full page (no dialog). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   guest?: GuestResponse | null;
   onSubmit: (data: CreateGuestInput) => Promise<void>;
   isSubmitting: boolean;
@@ -148,6 +150,12 @@ interface GuestFormProps {
   eventUuid?: string | null;
   /** Optional: pre-fetched guest settings (used when eventUuid not provided); otherwise form fetches via eventUuid */
   guestSettings?: EventGuestSettings | null;
+  /** When true, render as a standalone page (no dialog). Requires onCancel and optionally onSuccess. */
+  asPage?: boolean;
+  /** Called when user clicks Cancel (required when asPage is true). */
+  onCancel?: () => void;
+  /** Called after successful submit (e.g. to navigate back). Used when asPage is true. */
+  onSuccess?: () => void;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -159,7 +167,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 export function GuestForm({
-  open,
+  open = false,
   onOpenChange,
   guest,
   onSubmit,
@@ -167,8 +175,12 @@ export function GuestForm({
   eventType,
   eventUuid,
   guestSettings: guestSettingsProp,
+  asPage = false,
+  onCancel,
+  onSuccess,
 }: GuestFormProps) {
   const isEditing = !!guest;
+  const isOpen = open || asPage;
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>({});
   const [eventFieldsOpen, setEventFieldsOpen] = useState(true);
   const [optionalFieldsOpen, setOptionalFieldsOpen] = useState(false);
@@ -177,12 +189,12 @@ export function GuestForm({
   const { data: guestSettingsFromHook, refetch: refetchGuestSettings } = useGuestSettings(eventUuid ?? '');
   const guestSettings = eventUuid ? (guestSettingsFromHook ?? guestSettingsProp) : guestSettingsProp;
 
-  // Refetch guest settings when opening the dialog so fields added on the settings page are shown
+  // Refetch guest settings when opening the form (dialog or page) so fields added on the settings page are shown
   useEffect(() => {
-    if (open && eventUuid) {
+    if (isOpen && eventUuid) {
       refetchGuestSettings();
     }
-  }, [open, eventUuid, refetchGuestSettings]);
+  }, [isOpen, eventUuid, refetchGuestSettings]);
 
   const form = useForm<GuestFormData>({
     resolver: zodResolver(guestFormSchema),
@@ -198,9 +210,9 @@ export function GuestForm({
     },
   });
 
-  // Reset form when dialog opens or guest changes
+  // Reset form when form opens (dialog or page) or guest changes
   useEffect(() => {
-    if (open) {
+    if (isOpen) {
       // Parse custom field data if exists
       let parsedCustomData: Record<string, unknown> = {};
       if (guest?.customFieldData) {
@@ -267,7 +279,7 @@ export function GuestForm({
         accessibilityNeeds: guest?.accessibilityNeeds ?? '',
       });
     }
-  }, [open, guest, form]);
+  }, [isOpen, guest, form]);
 
   const handleSubmit = async (data: GuestFormData) => {
     // Build the cleaned data object
@@ -365,6 +377,7 @@ export function GuestForm({
     await onSubmit(cleanedData);
     form.reset();
     setCustomFieldValues({});
+    onSuccess?.();
   };
 
   // Check if there are any event-type-specific fields to show
@@ -382,20 +395,9 @@ export function GuestForm({
   // Check if there are custom fields
   const hasCustomFields = (guestSettings?.customFieldDefinitions ?? []).length > 0;
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Guest' : 'Add Guest'}</DialogTitle>
-          <DialogDescription>
-            {isEditing
-              ? 'Update guest information.'
-              : 'Add a new guest to your event.'}
-          </DialogDescription>
-        </DialogHeader>
-
-        <FormProvider {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+  const formContent = (
+    <FormProvider {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             {/* ==================== CORE FIELDS ==================== */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -898,20 +900,67 @@ export function GuestForm({
               </>
             )}
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Guest'}
-              </Button>
-            </DialogFooter>
+            {asPage ? (
+              <div className="flex flex-wrap items-center gap-2 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={onCancel}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Guest'}
+                </Button>
+              </div>
+            ) : (
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange?.(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Guest'}
+                </Button>
+              </DialogFooter>
+            )}
           </form>
         </FormProvider>
+  );
+
+  if (asPage) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {isEditing ? 'Edit Guest' : 'Add Guest'}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {isEditing
+              ? 'Update guest information.'
+              : 'Add a new guest to your event.'}
+          </p>
+        </div>
+        <Card className="max-w-2xl">
+          <CardContent className="pt-6">
+            {formContent}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange ?? (() => {})}>
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? 'Edit Guest' : 'Add Guest'}</DialogTitle>
+          <DialogDescription>
+            {isEditing
+              ? 'Update guest information.'
+              : 'Add a new guest to your event.'}
+          </DialogDescription>
+        </DialogHeader>
+        {formContent}
       </DialogContent>
     </Dialog>
   );

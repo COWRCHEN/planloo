@@ -8,6 +8,7 @@ export { GuestListView } from './GuestListView';
 export { GuestList } from './GuestList';
 export { GuestTable } from './GuestTable';
 export { GuestForm } from './GuestForm';
+export { GuestFormPageView } from './GuestFormPageView';
 export { GuestStats } from './GuestStats';
 export { GuestFilters } from './GuestFilters';
 export { GuestCategoryBadge } from './GuestCategoryBadge';

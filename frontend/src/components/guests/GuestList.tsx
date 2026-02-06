@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { GuestStats } from './GuestStats';
 import { GuestFilters } from './GuestFilters';
 import { GuestTable } from './GuestTable';
-import { GuestForm } from './GuestForm';
 import { DeleteGuestDialog } from './DeleteGuestDialog';
 import { GuestImportDialog } from './GuestImportDialog';
 import { GuestExportButton } from './GuestExportButton';
@@ -22,8 +21,6 @@ import {
   useGuests,
   useGuestStats,
   useGuestSettings,
-  useCreateGuest,
-  useUpdateGuest,
   useDeleteGuest,
   useCheckInGuest,
   useResendRsvp,
@@ -31,7 +28,6 @@ import {
   useUpdateRsvpStatus,
   type GuestResponse,
   type RsvpStatus,
-  type CreateGuestInput,
   type ListGuestsQuery,
 } from '@/hooks/use-guests';
 
@@ -47,8 +43,6 @@ export function GuestList({ eventUuid }: GuestListProps) {
   const [page, setPage] = useState(0);
 
   // Dialog state
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingGuest, setEditingGuest] = useState<GuestResponse | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [guestToDelete, setGuestToDelete] = useState<GuestResponse | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -86,15 +80,11 @@ export function GuestList({ eventUuid }: GuestListProps) {
   const eventType = event?.eventType ?? null;
 
   // Mutations
-  const createGuest = useCreateGuest(eventUuid);
   const deleteGuest = useDeleteGuest(eventUuid);
   const checkInGuest = useCheckInGuest(eventUuid);
   const resendRsvp = useResendRsvp(eventUuid);
   const importGuests = useImportGuests(eventUuid);
   const updateRsvpStatus = useUpdateRsvpStatus(eventUuid);
-
-  // For update mutation, we need the guest UUID
-  const updateGuest = useUpdateGuest(eventUuid, editingGuest?.uuid ?? '');
 
   const handleClearFilters = () => {
     setFilters({});
@@ -118,28 +108,16 @@ export function GuestList({ eventUuid }: GuestListProps) {
   };
 
   const handleAddGuest = () => {
-    setEditingGuest(null);
-    setFormOpen(true);
+    window.location.href = `/dashboard/events/${eventUuid}/guests/new`;
   };
 
   const handleEditGuest = (guest: GuestResponse) => {
-    setEditingGuest(guest);
-    setFormOpen(true);
+    window.location.href = `/dashboard/events/${eventUuid}/guests/${guest.uuid}/edit`;
   };
 
   const handleDeleteGuest = (guest: GuestResponse) => {
     setGuestToDelete(guest);
     setDeleteDialogOpen(true);
-  };
-
-  const handleFormSubmit = async (data: CreateGuestInput) => {
-    if (editingGuest) {
-      await updateGuest.mutateAsync(data);
-    } else {
-      await createGuest.mutateAsync(data);
-    }
-    setFormOpen(false);
-    setEditingGuest(null);
   };
 
   const handleConfirmDelete = async () => {
@@ -231,21 +209,23 @@ export function GuestList({ eventUuid }: GuestListProps) {
             Import
           </Button>
           <GuestExportButton eventUuid={eventUuid} disabled={guests.length === 0} />
-          <Button onClick={handleAddGuest}>
-            <svg
-              className="mr-2 h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add Guest
+          <Button asChild>
+            <a href={`/dashboard/events/${eventUuid}/guests/new`}>
+              <svg
+                className="mr-2 h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Add Guest
+            </a>
           </Button>
         </div>
       </div>
@@ -299,17 +279,6 @@ export function GuestList({ eventUuid }: GuestListProps) {
       )}
 
       {/* Dialogs */}
-      <GuestForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        guest={editingGuest}
-        onSubmit={handleFormSubmit}
-        isSubmitting={createGuest.isPending || updateGuest.isPending}
-        eventType={eventType}
-        eventUuid={eventUuid}
-        guestSettings={guestSettings}
-      />
-
       <DeleteGuestDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}

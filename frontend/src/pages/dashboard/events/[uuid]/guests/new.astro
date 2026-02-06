@@ -1,0 +1,18 @@
+---
+/**
+ * Add Guest Page
+ *
+ * Full-page form to add a new guest to an event.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { GuestFormPageView } from '@/components/guests';
+
+export const prerender = false;
+
+const { uuid } = Astro.params;
+---
+
+<DashboardLayout title="Add Guest" description="Add a new guest to your event">
+  <GuestFormPageView client:load eventUuid={uuid} />
+</DashboardLayout>
