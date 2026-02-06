@@ -1,15 +1,14 @@
 /**
  * Common Field Settings Component
  *
- * Configure which base guest fields (First Name, Last Name, Email, Phone)
- * are required for this event.
+ * Configure which base guest fields (Last Name, Email, Phone)
+ * are required for this event. First name is always required.
  */
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
@@ -48,9 +47,7 @@ function RequiredRow({
         <div className="flex items-center gap-2">
           <Label className="text-base">{label}</Label>
           {required && (
-            <Badge variant="destructive" className="text-xs">
-              Required
-            </Badge>
+            <span className="ml-1 text-destructive">*</span>
           )}
         </div>
         <p className="text-sm text-muted-foreground">{description}</p>
@@ -81,13 +78,12 @@ export function CommonFieldSettings({ eventUuid }: CommonFieldSettingsProps) {
   const [hasChanges, setHasChanges] = useState(false);
 
   const currentSettings = {
-    requiredFirstName: localSettings.requiredFirstName ?? settings?.requiredFirstName ?? true,
     requiredLastName: localSettings.requiredLastName ?? settings?.requiredLastName ?? false,
     requiredEmail: localSettings.requiredEmail ?? settings?.requiredEmail ?? false,
     requiredPhone: localSettings.requiredPhone ?? settings?.requiredPhone ?? false,
   };
 
-  const handleChange = (key: 'requiredFirstName' | 'requiredLastName' | 'requiredEmail' | 'requiredPhone', value: boolean) => {
+  const handleChange = (key: 'requiredLastName' | 'requiredEmail' | 'requiredPhone', value: boolean) => {
     setLocalSettings((prev) => ({ ...prev, [key]: value }));
     setHasChanges(true);
   };
@@ -95,7 +91,7 @@ export function CommonFieldSettings({ eventUuid }: CommonFieldSettingsProps) {
   const handleSave = async () => {
     try {
       await updateSettings.mutateAsync({
-        requiredFirstName: currentSettings.requiredFirstName,
+        requiredFirstName: true,
         requiredLastName: currentSettings.requiredLastName,
         requiredEmail: currentSettings.requiredEmail,
         requiredPhone: currentSettings.requiredPhone,
@@ -129,18 +125,11 @@ export function CommonFieldSettings({ eventUuid }: CommonFieldSettingsProps) {
         <CardTitle>Common Fields</CardTitle>
         <CardDescription>
           Choose which base guest fields are required when adding or editing guests.
-          First name is required by default; you can require last name, email, or phone as needed.
+          First name is always required; you can require last name, email, or phone as needed.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-0 divide-y">
-          <RequiredRow
-            label="First Name"
-            description="Guest's first name"
-            required={currentSettings.requiredFirstName}
-            onRequiredChange={(checked) => handleChange('requiredFirstName', checked)}
-            disabled={updateSettings.isPending}
-          />
           <RequiredRow
             label="Last Name"
             description="Guest's last name"

@@ -466,7 +466,7 @@ export function GuestForm({
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name{reqFirst ? ' *' : ''}</Label>
+                      <Label htmlFor="firstName">First Name{reqFirst ? <span className="ml-1 text-destructive">*</span> : null}</Label>
                       <Input
                         id="firstName"
                         {...form.register('firstName')}
@@ -480,7 +480,7 @@ export function GuestForm({
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name{reqLast ? ' *' : ''}</Label>
+                      <Label htmlFor="lastName">Last Name{reqLast ? <span className="ml-1 text-destructive">*</span> : null}</Label>
                       <Input
                         id="lastName"
                         {...form.register('lastName')}
@@ -496,7 +496,7 @@ export function GuestForm({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email{reqEmail ? ' *' : ''}</Label>
+                      <Label htmlFor="email">Email{reqEmail ? <span className="ml-1 text-destructive">*</span> : null}</Label>
                       <Input
                         id="email"
                         type="email"
@@ -511,7 +511,7 @@ export function GuestForm({
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone{reqPhone ? ' *' : ''}</Label>
+                      <Label htmlFor="phone">Phone{reqPhone ? <span className="ml-1 text-destructive">*</span> : null}</Label>
                       <Input
                         id="phone"
                         {...form.register('phone')}

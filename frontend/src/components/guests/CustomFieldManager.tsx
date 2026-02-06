@@ -263,9 +263,7 @@ function FieldListItem({
             {FIELD_TYPE_LABELS[field.type]}
           </Badge>
           {field.required && (
-            <Badge variant="destructive" className="text-xs">
-              Required
-            </Badge>
+            <span className="ml-1 text-destructive">*</span>
           )}
         </div>
         {field.helpText && (

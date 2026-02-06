@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Card,
@@ -67,9 +66,7 @@ function FieldToggle({
           <div className="flex items-center gap-2">
             <Label className="text-base">{label}</Label>
             {showRequired && required && (
-              <Badge variant="destructive" className="text-xs">
-                Required
-              </Badge>
+               <span className="ml-1 text-destructive">*</span>
             )}
           </div>
           <p className="text-sm text-muted-foreground">{description}</p>
