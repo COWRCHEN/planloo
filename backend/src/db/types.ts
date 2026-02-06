@@ -47,6 +47,23 @@ export type NewEventCollaborator = InferInsertModel<typeof schema.eventCollabora
 export type Task = InferSelectModel<typeof schema.tasks>;
 export type NewTask = InferInsertModel<typeof schema.tasks>;
 
+export type EventGuestSettings = InferSelectModel<typeof schema.eventGuestSettings>;
+export type NewEventGuestSettings = InferInsertModel<typeof schema.eventGuestSettings>;
+
+// ==================== GUEST DETAILS TYPES ====================
+
+export type WeddingGuestDetails = InferSelectModel<typeof schema.weddingGuestDetails>;
+export type NewWeddingGuestDetails = InferInsertModel<typeof schema.weddingGuestDetails>;
+
+export type CorporateGuestDetails = InferSelectModel<typeof schema.corporateGuestDetails>;
+export type NewCorporateGuestDetails = InferInsertModel<typeof schema.corporateGuestDetails>;
+
+export type ConferenceGuestDetails = InferSelectModel<typeof schema.conferenceGuestDetails>;
+export type NewConferenceGuestDetails = InferInsertModel<typeof schema.conferenceGuestDetails>;
+
+export type BirthdayGuestDetails = InferSelectModel<typeof schema.birthdayGuestDetails>;
+export type NewBirthdayGuestDetails = InferInsertModel<typeof schema.birthdayGuestDetails>;
+
 // ==================== BUDGET TYPES ====================
 
 export type BudgetItem = InferSelectModel<typeof schema.budgetItems>;
@@ -105,3 +122,29 @@ export type EntityType = 'event' | 'venue' | 'service_provider' | 'user';
 export type ReviewEntityType = 'service_provider' | 'venue';
 export type EventCollaboratorRole = 'owner' | 'editor' | 'viewer';
 export type AuditLogActorRole = 'super_admin' | 'operator';
+
+// Guest Details Enums (re-export from schema for convenience)
+export type WeddingGuestSide = 'bride' | 'groom' | 'both';
+export type WeddingInvitedTo = 'ceremony' | 'reception' | 'both';
+export type AgeGroup = 'child' | 'teen' | 'adult';
+export type AttendeeType = 'employee' | 'client' | 'vendor' | 'partner' | 'other';
+export type BadgeType = 'speaker' | 'vip' | 'standard' | 'press' | 'exhibitor' | 'staff';
+
+// Custom Field Types (for Phase 3)
+export type CustomFieldType = 'text' | 'number' | 'select' | 'multiselect' | 'date' | 'checkbox';
+
+// Custom field definition structure
+export interface CustomFieldDefinition {
+  id: string;
+  type: CustomFieldType;
+  label: string;
+  required: boolean;
+  helpText?: string;
+  options?: string[]; // For select/multiselect types
+}
+
+// Meal choice option structure
+export interface MealChoiceOption {
+  key: string;
+  label: string;
+}

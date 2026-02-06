@@ -24,7 +24,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { GuestCategoryBadge } from './GuestCategoryBadge';
 import { RsvpStatusBadge } from './RsvpStatusBadge';
-import { buildRsvpUrl, type GuestResponse, type RsvpStatus, RSVP_STATUSES } from '@/hooks/use-guests';
+import { buildRsvpUrl, type GuestResponse, type GuestSettingsResponse, type RsvpStatus, RSVP_STATUSES } from '@/hooks/use-guests';
 
 interface GuestTableProps {
   guests: GuestResponse[];
@@ -34,6 +34,8 @@ interface GuestTableProps {
   onCheckIn: (guest: GuestResponse) => void;
   onResendRsvp: (guest: GuestResponse) => void;
   onUpdateRsvpStatus?: (guest: GuestResponse, status: RsvpStatus) => void;
+  eventType?: string | null;
+  guestSettings?: GuestSettingsResponse;
 }
 
 function TableSkeleton() {
@@ -73,6 +75,8 @@ export function GuestTable({
   onCheckIn,
   onResendRsvp,
   onUpdateRsvpStatus,
+  eventType: _eventType,
+  guestSettings: _guestSettings,
 }: GuestTableProps) {
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 

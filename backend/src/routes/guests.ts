@@ -3,6 +3,12 @@
  *
  * CRUD endpoints for guest management within events.
  * Routes are scoped to /events/:eventUuid/guests
+ *
+ * Supports:
+ * - Core guest fields (always present)
+ * - Event-type-specific fields via extension tables (wedding, corporate, conference, birthday)
+ * - User-configurable optional fields (address, meal, accommodation, etc.)
+ * - Custom user-defined fields (Phase 3)
  */
 
 import { Hono } from 'hono';
@@ -11,9 +17,10 @@ import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and, isNull, desc, asc, sql, count, like, or } from 'drizzle-orm';
+import { eq, and, isNull, desc, asc, sql, count, like, or, inArray } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { parseGuestsCsv, generateGuestsCsv } from '@/lib/csv';
+import type { EventType, CustomFieldDefinition } from '@/db/types';
 
 const guests = new Hono<HonoEnv>();
 
@@ -22,9 +29,76 @@ const guests = new Hono<HonoEnv>();
 const GUEST_CATEGORIES = ['vip', 'family', 'friend', 'colleague', 'other'] as const;
 const RSVP_STATUSES = ['pending', 'confirmed', 'declined', 'maybe'] as const;
 
+// Event-type-specific enums
+const WEDDING_GUEST_SIDES = ['bride', 'groom', 'both'] as const;
+const WEDDING_INVITED_TO = ['ceremony', 'reception', 'both'] as const;
+const AGE_GROUPS = ['child', 'teen', 'adult'] as const;
+const ATTENDEE_TYPES = ['employee', 'client', 'vendor', 'partner', 'other'] as const;
+const BADGE_TYPES = ['speaker', 'vip', 'standard', 'press', 'exhibitor', 'staff'] as const;
+
 // ==================== SCHEMAS ====================
 
+// Wedding fields schema
+const weddingFieldsSchema = z.object({
+  guestSide: z.enum(WEDDING_GUEST_SIDES).optional().nullable(),
+  invitedTo: z.enum(WEDDING_INVITED_TO).optional().nullable(),
+  weddingGiftDescription: z.string().max(500).optional().nullable(),
+  weddingGiftThankYouSent: z.boolean().optional(),
+  showerGiftDescription: z.string().max(500).optional().nullable(),
+  showerGiftThankYouSent: z.boolean().optional(),
+});
+
+// Corporate fields schema
+const corporateFieldsSchema = z.object({
+  companyName: z.string().max(200).optional().nullable(),
+  jobTitle: z.string().max(100).optional().nullable(),
+  department: z.string().max(100).optional().nullable(),
+  attendeeType: z.enum(ATTENDEE_TYPES).optional().nullable(),
+});
+
+// Conference fields schema
+const conferenceFieldsSchema = z.object({
+  badgeType: z.enum(BADGE_TYPES).optional().nullable(),
+  organization: z.string().max(200).optional().nullable(),
+  sessionRegistrations: z.array(z.string()).optional().nullable(),
+  specialAccess: z.boolean().optional(),
+  attendingDays: z.array(z.string()).optional().nullable(),
+});
+
+// Birthday fields schema
+const birthdayFieldsSchema = z.object({
+  relationshipToBirthdayPerson: z.string().max(100).optional().nullable(),
+  ageGroup: z.enum(AGE_GROUPS).optional().nullable(),
+  giftContribution: z.coerce.number().min(0).optional().nullable(),
+});
+
+// Optional fields schema (Phase 2)
+const optionalFieldsSchema = z.object({
+  // Address
+  addressStreet: z.string().max(255).optional().nullable(),
+  addressCity: z.string().max(100).optional().nullable(),
+  addressState: z.string().max(100).optional().nullable(),
+  addressZipCode: z.string().max(20).optional().nullable(),
+  addressCountry: z.string().max(100).optional().nullable(),
+  // Meal
+  mealChoice: z.string().max(100).optional().nullable(),
+  // Accommodation
+  needsAccommodation: z.boolean().optional().nullable(),
+  hotelName: z.string().max(200).optional().nullable(),
+  checkInDate: z.coerce.date().optional().nullable(),
+  checkOutDate: z.coerce.date().optional().nullable(),
+  // Additional
+  plusOneName: z.string().max(200).optional().nullable(),
+  tableAssignment: z.string().max(50).optional().nullable(),
+  transportationNeeded: z.boolean().optional().nullable(),
+  accessibilityNeeds: z.string().max(500).optional().nullable(),
+});
+
+// Custom fields schema (Phase 3)
+const customFieldDataSchema = z.record(z.string(), z.unknown()).optional().nullable();
+
 const createGuestSchema = z.object({
+  // Core fields
   firstName: z.string().min(1).max(100),
   lastName: z.string().max(100).optional().nullable(),
   email: z.string().email().max(255).optional().nullable(),
@@ -33,9 +107,22 @@ const createGuestSchema = z.object({
   plusOnesAllowed: z.coerce.number().int().min(0).max(10).default(0),
   dietaryRestrictions: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+
+  // Event-type-specific fields (nested)
+  weddingDetails: weddingFieldsSchema.optional(),
+  corporateDetails: corporateFieldsSchema.optional(),
+  conferenceDetails: conferenceFieldsSchema.optional(),
+  birthdayDetails: birthdayFieldsSchema.optional(),
+
+  // Optional fields (flat on guest)
+  ...optionalFieldsSchema.shape,
+
+  // Custom field data
+  customFieldData: customFieldDataSchema,
 });
 
 const updateGuestSchema = z.object({
+  // Core fields
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().max(100).optional().nullable(),
   email: z.string().email().max(255).optional().nullable(),
@@ -46,31 +133,61 @@ const updateGuestSchema = z.object({
   plusOnesCount: z.coerce.number().int().min(0).optional(),
   dietaryRestrictions: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+
+  // Event-type-specific fields (nested)
+  weddingDetails: weddingFieldsSchema.optional(),
+  corporateDetails: corporateFieldsSchema.optional(),
+  conferenceDetails: conferenceFieldsSchema.optional(),
+  birthdayDetails: birthdayFieldsSchema.optional(),
+
+  // Optional fields (flat on guest)
+  ...optionalFieldsSchema.shape,
+
+  // Custom field data
+  customFieldData: customFieldDataSchema,
 });
 
 const listGuestsQuerySchema = z.object({
+  // Core filters
   category: z.enum(GUEST_CATEGORIES).optional(),
   rsvpStatus: z.enum(RSVP_STATUSES).optional(),
   search: z.string().max(100).optional(),
   checkedIn: z.enum(['true', 'false']).optional(),
+
+  // Event-type-specific filters
+  weddingGuestSide: z.enum(WEDDING_GUEST_SIDES).optional(),
+  weddingInvitedTo: z.enum(WEDDING_INVITED_TO).optional(),
+  attendeeType: z.enum(ATTENDEE_TYPES).optional(),
+  badgeType: z.enum(BADGE_TYPES).optional(),
+  ageGroup: z.enum(AGE_GROUPS).optional(),
+
+  // Optional field filters
+  needsAccommodation: z.enum(['true', 'false']).optional(),
+  tableAssignment: z.string().max(50).optional(),
+  transportationNeeded: z.enum(['true', 'false']).optional(),
+
+  // Pagination and sorting
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
-  sortBy: z.enum(['firstName', 'lastName', 'createdAt', 'rsvpStatus']).default('createdAt'),
+  sortBy: z.enum(['firstName', 'lastName', 'createdAt', 'rsvpStatus', 'tableAssignment']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
 // ==================== HELPERS ====================
 
 /**
- * Verify event ownership and return event ID
+ * Verify event ownership and return event info including type
  */
 async function getEventByUuidForUser(
   db: ReturnType<typeof createDbClient>,
   eventUuid: string,
   userId: string
-): Promise<{ id: number } | null> {
+): Promise<{ id: number; eventType: EventType } | null> {
   const [event] = await db
-    .select({ id: schema.events.id })
+    .select({
+      id: schema.events.id,
+      eventType: schema.events.eventType,
+    })
     .from(schema.events)
     .where(
       and(
@@ -94,11 +211,110 @@ function generateRsvpToken(): string {
   return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * Get the appropriate extension table for an event type
+ */
+function getExtensionTable(eventType: EventType) {
+  switch (eventType) {
+    case 'wedding':
+      return schema.weddingGuestDetails;
+    case 'corporate':
+      return schema.corporateGuestDetails;
+    case 'conference':
+      return schema.conferenceGuestDetails;
+    case 'birthday':
+      return schema.birthdayGuestDetails;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Parse JSON fields from extension table data
+ */
+function parseExtensionData<T extends Record<string, unknown>>(data: T): T {
+  const result = { ...data };
+  // Parse JSON arrays for conference details
+  if ('sessionRegistrations' in result && typeof result.sessionRegistrations === 'string') {
+    try {
+      result.sessionRegistrations = JSON.parse(result.sessionRegistrations as string);
+    } catch {
+      result.sessionRegistrations = [];
+    }
+  }
+  if ('attendingDays' in result && typeof result.attendingDays === 'string') {
+    try {
+      result.attendingDays = JSON.parse(result.attendingDays as string);
+    } catch {
+      result.attendingDays = [];
+    }
+  }
+  return result;
+}
+
+/**
+ * Validate custom field data against definitions
+ */
+function validateCustomFieldData(
+  data: Record<string, unknown> | null | undefined,
+  definitions: CustomFieldDefinition[] | null
+): { valid: boolean; errors: string[] } {
+  if (!data) return { valid: true, errors: [] };
+  if (!definitions || definitions.length === 0) return { valid: true, errors: [] };
+
+  const errors: string[] = [];
+
+  for (const def of definitions) {
+    const value = data[def.id];
+
+    if (def.required && (value === undefined || value === null || value === '')) {
+      errors.push(`Field "${def.label}" is required`);
+      continue;
+    }
+
+    if (value !== undefined && value !== null) {
+      switch (def.type) {
+        case 'number':
+          if (typeof value !== 'number' && isNaN(Number(value))) {
+            errors.push(`Field "${def.label}" must be a number`);
+          }
+          break;
+        case 'select':
+          if (def.options && !def.options.includes(String(value))) {
+            errors.push(`Field "${def.label}" must be one of: ${def.options.join(', ')}`);
+          }
+          break;
+        case 'multiselect':
+          if (Array.isArray(value)) {
+            const invalid = value.filter((v) => def.options && !def.options.includes(String(v)));
+            if (invalid.length > 0) {
+              errors.push(`Field "${def.label}" contains invalid options`);
+            }
+          }
+          break;
+        case 'checkbox':
+          if (typeof value !== 'boolean') {
+            errors.push(`Field "${def.label}" must be a boolean`);
+          }
+          break;
+        case 'date':
+          if (isNaN(Date.parse(String(value)))) {
+            errors.push(`Field "${def.label}" must be a valid date`);
+          }
+          break;
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
 // ==================== ROUTES ====================
 
 /**
  * GET /events/:eventUuid/guests
  * List guests for an event (paginated, filterable)
+ * Includes event-type-specific fields from extension tables
  */
 guests.get(
   '/',
@@ -107,8 +323,13 @@ guests.get(
   async (c) => {
     const user = c.get('user')!;
     const eventUuid = c.req.param('eventUuid')!;
-    const { category, rsvpStatus, search, checkedIn, limit, offset, sortBy, sortOrder } =
-      c.req.valid('query');
+    const query = c.req.valid('query');
+    const {
+      category, rsvpStatus, search, checkedIn,
+      weddingGuestSide, weddingInvitedTo, attendeeType, badgeType, ageGroup,
+      needsAccommodation, tableAssignment, transportationNeeded,
+      limit, offset, sortBy, sortOrder
+    } = query;
 
     const db = createDbClient(c.env.DB);
 
@@ -147,25 +368,38 @@ guests.get(
       );
     }
 
+    // Optional field filters
+    if (needsAccommodation !== undefined) {
+      conditions.push(eq(schema.guests.needsAccommodation, needsAccommodation === 'true'));
+    }
+    if (tableAssignment) {
+      conditions.push(eq(schema.guests.tableAssignment, tableAssignment));
+    }
+    if (transportationNeeded !== undefined) {
+      conditions.push(eq(schema.guests.transportationNeeded, transportationNeeded === 'true'));
+    }
+
     // Determine sort column
     const sortColumnMap = {
       firstName: schema.guests.firstName,
       lastName: schema.guests.lastName,
       createdAt: schema.guests.createdAt,
       rsvpStatus: schema.guests.rsvpStatus,
+      tableAssignment: schema.guests.tableAssignment,
     };
     const sortColumn = sortColumnMap[sortBy];
     const orderFn = sortOrder === 'desc' ? desc : asc;
 
-    // Get total count
+    // Get total count (base query without extension table filters for now)
     const [countResult] = await db
       .select({ count: count() })
       .from(schema.guests)
       .where(and(...conditions));
 
-    // Get guests
-    const guestsList = await db
+    // Get guests with all fields
+    let guestsList = await db
       .select({
+        // Core fields
         id: schema.guests.id,
         uuid: schema.guests.uuid,
         eventId: schema.guests.eventId,
@@ -183,6 +417,22 @@ guests.get(
         notes: schema.guests.notes,
         checkedIn: schema.guests.checkedIn,
         checkedInAt: schema.guests.checkedInAt,
+        // Optional fields
+        addressStreet: schema.guests.addressStreet,
+        addressCity: schema.guests.addressCity,
+        addressState: schema.guests.addressState,
+        addressZipCode: schema.guests.addressZipCode,
+        addressCountry: schema.guests.addressCountry,
+        mealChoice: schema.guests.mealChoice,
+        needsAccommodation: schema.guests.needsAccommodation,
+        hotelName: schema.guests.hotelName,
+        checkInDate: schema.guests.checkInDate,
+        checkOutDate: schema.guests.checkOutDate,
+        plusOneName: schema.guests.plusOneName,
+        tableAssignment: schema.guests.tableAssignment,
+        transportationNeeded: schema.guests.transportationNeeded,
+        accessibilityNeeds: schema.guests.accessibilityNeeds,
+        customFieldData: schema.guests.customFieldData,
         createdAt: schema.guests.createdAt,
         updatedAt: schema.guests.updatedAt,
       })
@@ -192,13 +442,132 @@ guests.get(
       .limit(limit)
       .offset(offset);
 
+    // Fetch extension table data based on event type
+    const guestIds = guestsList.map((g) => g.id);
+    let extensionData: Record<number, Record<string, unknown>> = {};
+
+    if (guestIds.length > 0) {
+      switch (event.eventType) {
+        case 'wedding': {
+          const details = await db
+            .select()
+            .from(schema.weddingGuestDetails)
+            .where(inArray(schema.weddingGuestDetails.guestId, guestIds));
+          extensionData = Object.fromEntries(details.map((d) => [d.guestId, d]));
+
+          // Apply wedding-specific filters
+          if (weddingGuestSide || weddingInvitedTo) {
+            guestsList = guestsList.filter((g) => {
+              const ext = extensionData[g.id] as Record<string, unknown> | undefined;
+              if (!ext) return false;
+              if (weddingGuestSide && ext.guestSide !== weddingGuestSide) return false;
+              if (weddingInvitedTo && ext.invitedTo !== weddingInvitedTo) return false;
+              return true;
+            });
+          }
+          break;
+        }
+        case 'corporate': {
+          const details = await db
+            .select()
+            .from(schema.corporateGuestDetails)
+            .where(inArray(schema.corporateGuestDetails.guestId, guestIds));
+          extensionData = Object.fromEntries(details.map((d) => [d.guestId, d]));
+
+          // Apply corporate-specific filters
+          if (attendeeType) {
+            guestsList = guestsList.filter((g) => {
+              const ext = extensionData[g.id] as Record<string, unknown> | undefined;
+              return ext && ext.attendeeType === attendeeType;
+            });
+          }
+          break;
+        }
+        case 'conference': {
+          const details = await db
+            .select()
+            .from(schema.conferenceGuestDetails)
+            .where(inArray(schema.conferenceGuestDetails.guestId, guestIds));
+          extensionData = Object.fromEntries(details.map((d) => [d.guestId, parseExtensionData(d)]));
+
+          // Apply conference-specific filters
+          if (badgeType) {
+            guestsList = guestsList.filter((g) => {
+              const ext = extensionData[g.id] as Record<string, unknown> | undefined;
+              return ext && ext.badgeType === badgeType;
+            });
+          }
+          break;
+        }
+        case 'birthday': {
+          const details = await db
+            .select()
+            .from(schema.birthdayGuestDetails)
+            .where(inArray(schema.birthdayGuestDetails.guestId, guestIds));
+          extensionData = Object.fromEntries(details.map((d) => [d.guestId, d]));
+
+          // Apply birthday-specific filters
+          if (ageGroup) {
+            guestsList = guestsList.filter((g) => {
+              const ext = extensionData[g.id] as Record<string, unknown> | undefined;
+              return ext && ext.ageGroup === ageGroup;
+            });
+          }
+          break;
+        }
+      }
+    }
+
+    // Merge extension data into guest response
+    const responseData = guestsList.map((guest) => {
+      const ext = extensionData[guest.id];
+      // Parse customFieldData if it's a string
+      let parsedCustomFieldData = null;
+      if (guest.customFieldData) {
+        try {
+          parsedCustomFieldData = JSON.parse(guest.customFieldData);
+        } catch {
+          parsedCustomFieldData = null;
+        }
+      }
+
+      // Get the appropriate details key based on event type
+      const detailsKey = `${event.eventType}Details` as const;
+
+      return {
+        ...guest,
+        customFieldData: parsedCustomFieldData,
+        [detailsKey]: ext ? {
+          guestSide: (ext as Record<string, unknown>).guestSide,
+          invitedTo: (ext as Record<string, unknown>).invitedTo,
+          weddingGiftDescription: (ext as Record<string, unknown>).weddingGiftDescription,
+          weddingGiftThankYouSent: (ext as Record<string, unknown>).weddingGiftThankYouSent,
+          showerGiftDescription: (ext as Record<string, unknown>).showerGiftDescription,
+          showerGiftThankYouSent: (ext as Record<string, unknown>).showerGiftThankYouSent,
+          companyName: (ext as Record<string, unknown>).companyName,
+          jobTitle: (ext as Record<string, unknown>).jobTitle,
+          department: (ext as Record<string, unknown>).department,
+          attendeeType: (ext as Record<string, unknown>).attendeeType,
+          badgeType: (ext as Record<string, unknown>).badgeType,
+          organization: (ext as Record<string, unknown>).organization,
+          sessionRegistrations: (ext as Record<string, unknown>).sessionRegistrations,
+          specialAccess: (ext as Record<string, unknown>).specialAccess,
+          attendingDays: (ext as Record<string, unknown>).attendingDays,
+          relationshipToBirthdayPerson: (ext as Record<string, unknown>).relationshipToBirthdayPerson,
+          ageGroup: (ext as Record<string, unknown>).ageGroup,
+          giftContribution: (ext as Record<string, unknown>).giftContribution,
+        } : null,
+      };
+    });
+
     return c.json({
       success: true,
-      data: guestsList,
+      data: responseData,
       meta: {
         total: countResult?.count ?? 0,
         limit,
         offset,
+        eventType: event.eventType,
       },
     });
   }
@@ -207,6 +576,7 @@ guests.get(
 /**
  * GET /events/:eventUuid/guests/stats
  * Guest statistics for an event
+ * Includes event-type-specific breakdowns
  */
 guests.get('/stats', requireAuth, async (c) => {
   const user = c.get('user')!;
@@ -249,6 +619,18 @@ guests.get('/stats', requireAuth, async (c) => {
     .from(schema.guests)
     .where(and(baseConditions, eq(schema.guests.rsvpStatus, 'confirmed')));
 
+  // Get accommodation needs count
+  const [accommodationResult] = await db
+    .select({ count: count() })
+    .from(schema.guests)
+    .where(and(baseConditions, eq(schema.guests.needsAccommodation, true)));
+
+  // Get transportation needs count
+  const [transportationResult] = await db
+    .select({ count: count() })
+    .from(schema.guests)
+    .where(and(baseConditions, eq(schema.guests.transportationNeeded, true)));
+
   // Build stats object
   const statusCounts: Record<string, number> = {};
   let total = 0;
@@ -257,16 +639,190 @@ guests.get('/stats', requireAuth, async (c) => {
     total += stat.count;
   }
 
+  // Build base stats
+  const baseStats = {
+    total,
+    pending: statusCounts['pending'] ?? 0,
+    confirmed: statusCounts['confirmed'] ?? 0,
+    declined: statusCounts['declined'] ?? 0,
+    maybe: statusCounts['maybe'] ?? 0,
+    checkedIn: checkedInResult?.count ?? 0,
+    totalPlusOnes: plusOnesResult?.total ?? 0,
+    needsAccommodation: accommodationResult?.count ?? 0,
+    needsTransportation: transportationResult?.count ?? 0,
+    eventType: event.eventType,
+  };
+
+  // Event-type-specific stats
+  let eventTypeStats: Record<string, unknown> = {};
+
+  // Get guest IDs for extension table queries
+  const guestIds = await db
+    .select({ id: schema.guests.id })
+    .from(schema.guests)
+    .where(baseConditions);
+  const ids = guestIds.map((g) => g.id);
+
+  if (ids.length > 0) {
+    switch (event.eventType) {
+      case 'wedding': {
+        // Stats by wedding side
+        const sideStats = await db
+          .select({
+            guestSide: schema.weddingGuestDetails.guestSide,
+            count: count(),
+          })
+          .from(schema.weddingGuestDetails)
+          .where(inArray(schema.weddingGuestDetails.guestId, ids))
+          .groupBy(schema.weddingGuestDetails.guestSide);
+
+        const byWeddingSide: Record<string, number> = {};
+        for (const stat of sideStats) {
+          byWeddingSide[stat.guestSide ?? 'unassigned'] = stat.count;
+        }
+
+        // Stats by invited to
+        const invitedToStats = await db
+          .select({
+            invitedTo: schema.weddingGuestDetails.invitedTo,
+            count: count(),
+          })
+          .from(schema.weddingGuestDetails)
+          .where(inArray(schema.weddingGuestDetails.guestId, ids))
+          .groupBy(schema.weddingGuestDetails.invitedTo);
+
+        const byInvitedTo: Record<string, number> = {};
+        for (const stat of invitedToStats) {
+          byInvitedTo[stat.invitedTo ?? 'both'] = stat.count;
+        }
+
+        // Thank you cards stats
+        const [thankYouStats] = await db
+          .select({
+            weddingThankYouSent: sql<number>`SUM(CASE WHEN ${schema.weddingGuestDetails.weddingGiftThankYouSent} = 1 THEN 1 ELSE 0 END)`,
+            showerThankYouSent: sql<number>`SUM(CASE WHEN ${schema.weddingGuestDetails.showerGiftThankYouSent} = 1 THEN 1 ELSE 0 END)`,
+          })
+          .from(schema.weddingGuestDetails)
+          .where(inArray(schema.weddingGuestDetails.guestId, ids));
+
+        eventTypeStats = {
+          byWeddingSide,
+          byInvitedTo,
+          thankYouCards: {
+            weddingGiftSent: thankYouStats?.weddingThankYouSent ?? 0,
+            showerGiftSent: thankYouStats?.showerThankYouSent ?? 0,
+          },
+        };
+        break;
+      }
+      case 'corporate': {
+        // Stats by attendee type
+        const attendeeStats = await db
+          .select({
+            attendeeType: schema.corporateGuestDetails.attendeeType,
+            count: count(),
+          })
+          .from(schema.corporateGuestDetails)
+          .where(inArray(schema.corporateGuestDetails.guestId, ids))
+          .groupBy(schema.corporateGuestDetails.attendeeType);
+
+        const byAttendeeType: Record<string, number> = {};
+        for (const stat of attendeeStats) {
+          byAttendeeType[stat.attendeeType ?? 'other'] = stat.count;
+        }
+
+        // Stats by company (top 10)
+        const companyStats = await db
+          .select({
+            companyName: schema.corporateGuestDetails.companyName,
+            count: count(),
+          })
+          .from(schema.corporateGuestDetails)
+          .where(inArray(schema.corporateGuestDetails.guestId, ids))
+          .groupBy(schema.corporateGuestDetails.companyName)
+          .orderBy(desc(count()))
+          .limit(10);
+
+        eventTypeStats = {
+          byAttendeeType,
+          topCompanies: companyStats.filter((s) => s.companyName).map((s) => ({
+            name: s.companyName,
+            count: s.count,
+          })),
+        };
+        break;
+      }
+      case 'conference': {
+        // Stats by badge type
+        const badgeStats = await db
+          .select({
+            badgeType: schema.conferenceGuestDetails.badgeType,
+            count: count(),
+          })
+          .from(schema.conferenceGuestDetails)
+          .where(inArray(schema.conferenceGuestDetails.guestId, ids))
+          .groupBy(schema.conferenceGuestDetails.badgeType);
+
+        const byBadgeType: Record<string, number> = {};
+        for (const stat of badgeStats) {
+          byBadgeType[stat.badgeType ?? 'standard'] = stat.count;
+        }
+
+        // Special access count
+        const [specialAccessResult] = await db
+          .select({ count: count() })
+          .from(schema.conferenceGuestDetails)
+          .where(
+            and(
+              inArray(schema.conferenceGuestDetails.guestId, ids),
+              eq(schema.conferenceGuestDetails.specialAccess, true)
+            )
+          );
+
+        eventTypeStats = {
+          byBadgeType,
+          specialAccessCount: specialAccessResult?.count ?? 0,
+        };
+        break;
+      }
+      case 'birthday': {
+        // Stats by age group
+        const ageStats = await db
+          .select({
+            ageGroup: schema.birthdayGuestDetails.ageGroup,
+            count: count(),
+          })
+          .from(schema.birthdayGuestDetails)
+          .where(inArray(schema.birthdayGuestDetails.guestId, ids))
+          .groupBy(schema.birthdayGuestDetails.ageGroup);
+
+        const byAgeGroup: Record<string, number> = {};
+        for (const stat of ageStats) {
+          byAgeGroup[stat.ageGroup ?? 'adult'] = stat.count;
+        }
+
+        // Total gift contributions
+        const [contributionResult] = await db
+          .select({
+            total: sql<number>`COALESCE(SUM(${schema.birthdayGuestDetails.giftContribution}), 0)`,
+          })
+          .from(schema.birthdayGuestDetails)
+          .where(inArray(schema.birthdayGuestDetails.guestId, ids));
+
+        eventTypeStats = {
+          byAgeGroup,
+          totalGiftContributions: contributionResult?.total ?? 0,
+        };
+        break;
+      }
+    }
+  }
+
   return c.json({
     success: true,
     data: {
-      total,
-      pending: statusCounts['pending'] ?? 0,
-      confirmed: statusCounts['confirmed'] ?? 0,
-      declined: statusCounts['declined'] ?? 0,
-      maybe: statusCounts['maybe'] ?? 0,
-      checkedIn: checkedInResult?.count ?? 0,
-      totalPlusOnes: plusOnesResult?.total ?? 0,
+      ...baseStats,
+      eventTypeStats,
     },
   });
 });
@@ -309,7 +865,7 @@ guests.get('/export', requireAuth, async (c) => {
 
 /**
  * GET /events/:eventUuid/guests/:guestUuid
- * Get single guest by UUID
+ * Get single guest by UUID with extension table data
  */
 guests.get('/:guestUuid', requireAuth, async (c) => {
   const user = c.get('user')!;
@@ -346,15 +902,75 @@ guests.get('/:guestUuid', requireAuth, async (c) => {
     );
   }
 
+  // Fetch extension table data based on event type
+  let extensionData: Record<string, unknown> | null = null;
+  const detailsKey = `${event.eventType}Details`;
+
+  switch (event.eventType) {
+    case 'wedding': {
+      const [details] = await db
+        .select()
+        .from(schema.weddingGuestDetails)
+        .where(eq(schema.weddingGuestDetails.guestId, guest.id))
+        .limit(1);
+      extensionData = details ?? null;
+      break;
+    }
+    case 'corporate': {
+      const [details] = await db
+        .select()
+        .from(schema.corporateGuestDetails)
+        .where(eq(schema.corporateGuestDetails.guestId, guest.id))
+        .limit(1);
+      extensionData = details ?? null;
+      break;
+    }
+    case 'conference': {
+      const [details] = await db
+        .select()
+        .from(schema.conferenceGuestDetails)
+        .where(eq(schema.conferenceGuestDetails.guestId, guest.id))
+        .limit(1);
+      extensionData = details ? parseExtensionData(details) : null;
+      break;
+    }
+    case 'birthday': {
+      const [details] = await db
+        .select()
+        .from(schema.birthdayGuestDetails)
+        .where(eq(schema.birthdayGuestDetails.guestId, guest.id))
+        .limit(1);
+      extensionData = details ?? null;
+      break;
+    }
+  }
+
+  // Parse customFieldData
+  let parsedCustomFieldData = null;
+  if (guest.customFieldData) {
+    try {
+      parsedCustomFieldData = JSON.parse(guest.customFieldData);
+    } catch {
+      parsedCustomFieldData = null;
+    }
+  }
+
   return c.json({
     success: true,
-    data: guest,
+    data: {
+      ...guest,
+      customFieldData: parsedCustomFieldData,
+      [detailsKey]: extensionData,
+    },
+    meta: {
+      eventType: event.eventType,
+    },
   });
 });
 
 /**
  * POST /events/:eventUuid/guests
- * Create a new guest
+ * Create a new guest with optional extension table data
  */
 guests.post(
   '/',
@@ -377,33 +993,177 @@ guests.post(
       );
     }
 
+    // Validate custom field data if present
+    if (data.customFieldData) {
+      const [eventSettings] = await db
+        .select({ customFieldDefinitions: schema.eventGuestSettings.customFieldDefinitions })
+        .from(schema.eventGuestSettings)
+        .where(eq(schema.eventGuestSettings.eventId, event.id))
+        .limit(1);
+
+      let definitions: CustomFieldDefinition[] = [];
+      if (eventSettings?.customFieldDefinitions) {
+        try {
+          definitions = JSON.parse(eventSettings.customFieldDefinitions);
+        } catch {
+          definitions = [];
+        }
+      }
+
+      const validation = validateCustomFieldData(data.customFieldData, definitions);
+      if (!validation.valid) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Custom field validation failed',
+              details: validation.errors,
+            },
+          },
+          400
+        );
+      }
+    }
+
     const uuid = crypto.randomUUID();
     const rsvpToken = generateRsvpToken();
 
+    // Prepare base guest data
+    const guestData = {
+      uuid,
+      eventId: event.id,
+      firstName: data.firstName,
+      lastName: data.lastName ?? null,
+      email: data.email ?? null,
+      phone: data.phone ?? null,
+      category: data.category ?? null,
+      rsvpStatus: 'pending' as const,
+      rsvpToken,
+      plusOnesAllowed: data.plusOnesAllowed,
+      plusOnesCount: 0,
+      dietaryRestrictions: data.dietaryRestrictions ?? null,
+      notes: data.notes ?? null,
+      checkedIn: false,
+      // Optional fields
+      addressStreet: data.addressStreet ?? null,
+      addressCity: data.addressCity ?? null,
+      addressState: data.addressState ?? null,
+      addressZipCode: data.addressZipCode ?? null,
+      addressCountry: data.addressCountry ?? null,
+      mealChoice: data.mealChoice ?? null,
+      needsAccommodation: data.needsAccommodation ?? null,
+      hotelName: data.hotelName ?? null,
+      checkInDate: data.checkInDate ?? null,
+      checkOutDate: data.checkOutDate ?? null,
+      plusOneName: data.plusOneName ?? null,
+      tableAssignment: data.tableAssignment ?? null,
+      transportationNeeded: data.transportationNeeded ?? null,
+      accessibilityNeeds: data.accessibilityNeeds ?? null,
+      customFieldData: data.customFieldData ? JSON.stringify(data.customFieldData) : null,
+    };
+
+    // Insert guest
     const [newGuest] = await db
       .insert(schema.guests)
-      .values({
-        uuid,
-        eventId: event.id,
-        firstName: data.firstName,
-        lastName: data.lastName ?? null,
-        email: data.email ?? null,
-        phone: data.phone ?? null,
-        category: data.category ?? null,
-        rsvpStatus: 'pending',
-        rsvpToken,
-        plusOnesAllowed: data.plusOnesAllowed,
-        plusOnesCount: 0,
-        dietaryRestrictions: data.dietaryRestrictions ?? null,
-        notes: data.notes ?? null,
-        checkedIn: false,
-      })
+      .values(guestData)
       .returning();
+
+    // Insert extension table data based on event type
+    let extensionData: Record<string, unknown> | null = null;
+    const detailsKey = `${event.eventType}Details`;
+
+    switch (event.eventType) {
+      case 'wedding': {
+        if (data.weddingDetails) {
+          const [details] = await db
+            .insert(schema.weddingGuestDetails)
+            .values({
+              guestId: newGuest.id,
+              guestSide: data.weddingDetails.guestSide ?? null,
+              invitedTo: data.weddingDetails.invitedTo ?? 'both',
+              weddingGiftDescription: data.weddingDetails.weddingGiftDescription ?? null,
+              weddingGiftThankYouSent: data.weddingDetails.weddingGiftThankYouSent ?? false,
+              showerGiftDescription: data.weddingDetails.showerGiftDescription ?? null,
+              showerGiftThankYouSent: data.weddingDetails.showerGiftThankYouSent ?? false,
+            })
+            .returning();
+          extensionData = details;
+        }
+        break;
+      }
+      case 'corporate': {
+        if (data.corporateDetails) {
+          const [details] = await db
+            .insert(schema.corporateGuestDetails)
+            .values({
+              guestId: newGuest.id,
+              companyName: data.corporateDetails.companyName ?? null,
+              jobTitle: data.corporateDetails.jobTitle ?? null,
+              department: data.corporateDetails.department ?? null,
+              attendeeType: data.corporateDetails.attendeeType ?? null,
+            })
+            .returning();
+          extensionData = details;
+        }
+        break;
+      }
+      case 'conference': {
+        if (data.conferenceDetails) {
+          const [details] = await db
+            .insert(schema.conferenceGuestDetails)
+            .values({
+              guestId: newGuest.id,
+              badgeType: data.conferenceDetails.badgeType ?? 'standard',
+              organization: data.conferenceDetails.organization ?? null,
+              sessionRegistrations: data.conferenceDetails.sessionRegistrations
+                ? JSON.stringify(data.conferenceDetails.sessionRegistrations)
+                : null,
+              specialAccess: data.conferenceDetails.specialAccess ?? false,
+              attendingDays: data.conferenceDetails.attendingDays
+                ? JSON.stringify(data.conferenceDetails.attendingDays)
+                : null,
+            })
+            .returning();
+          extensionData = details ? parseExtensionData(details) : null;
+        }
+        break;
+      }
+      case 'birthday': {
+        if (data.birthdayDetails) {
+          const [details] = await db
+            .insert(schema.birthdayGuestDetails)
+            .values({
+              guestId: newGuest.id,
+              relationshipToBirthdayPerson: data.birthdayDetails.relationshipToBirthdayPerson ?? null,
+              ageGroup: data.birthdayDetails.ageGroup ?? null,
+              giftContribution: data.birthdayDetails.giftContribution ?? null,
+            })
+            .returning();
+          extensionData = details;
+        }
+        break;
+      }
+    }
+
+    // Parse customFieldData for response
+    let parsedCustomFieldData = null;
+    if (newGuest.customFieldData) {
+      try {
+        parsedCustomFieldData = JSON.parse(newGuest.customFieldData);
+      } catch {
+        parsedCustomFieldData = null;
+      }
+    }
 
     return c.json(
       {
         success: true,
-        data: newGuest,
+        data: {
+          ...newGuest,
+          customFieldData: parsedCustomFieldData,
+          [detailsKey]: extensionData,
+        },
       },
       201
     );
@@ -465,6 +1225,7 @@ guests.post('/import', requireAuth, requireVerifiedEmail, async (c) => {
   const guestsToInsert = parseResult.guests.map((g) => ({
     uuid: crypto.randomUUID(),
     eventId: event.id,
+    // Core fields
     firstName: g.firstName,
     lastName: g.lastName ?? null,
     email: g.email ?? null,
@@ -477,6 +1238,19 @@ guests.post('/import', requireAuth, requireVerifiedEmail, async (c) => {
     dietaryRestrictions: g.dietaryRestrictions ?? null,
     notes: g.notes ?? null,
     checkedIn: false,
+    // Optional fields (Phase 2)
+    addressStreet: g.addressStreet ?? null,
+    addressCity: g.addressCity ?? null,
+    addressState: g.addressState ?? null,
+    addressZipCode: g.addressZipCode ?? null,
+    addressCountry: g.addressCountry ?? null,
+    mealChoice: g.mealChoice ?? null,
+    needsAccommodation: g.needsAccommodation ?? null,
+    hotelName: g.hotelName ?? null,
+    plusOneName: g.plusOneName ?? null,
+    tableAssignment: g.tableAssignment ?? null,
+    transportationNeeded: g.transportationNeeded ?? null,
+    accessibilityNeeds: g.accessibilityNeeds ?? null,
   }));
 
   // Batch insert (D1 has a limit of ~100 parameters, so we chunk)
@@ -500,7 +1274,7 @@ guests.post('/import', requireAuth, requireVerifiedEmail, async (c) => {
 
 /**
  * PATCH /events/:eventUuid/guests/:guestUuid
- * Update an existing guest
+ * Update an existing guest with extension table data
  */
 guests.patch(
   '/:guestUuid',
@@ -544,11 +1318,45 @@ guests.patch(
       );
     }
 
-    // Build update object
+    // Validate custom field data if present
+    if (updates.customFieldData) {
+      const [eventSettings] = await db
+        .select({ customFieldDefinitions: schema.eventGuestSettings.customFieldDefinitions })
+        .from(schema.eventGuestSettings)
+        .where(eq(schema.eventGuestSettings.eventId, event.id))
+        .limit(1);
+
+      let definitions: CustomFieldDefinition[] = [];
+      if (eventSettings?.customFieldDefinitions) {
+        try {
+          definitions = JSON.parse(eventSettings.customFieldDefinitions);
+        } catch {
+          definitions = [];
+        }
+      }
+
+      const validation = validateCustomFieldData(updates.customFieldData, definitions);
+      if (!validation.valid) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Custom field validation failed',
+              details: validation.errors,
+            },
+          },
+          400
+        );
+      }
+    }
+
+    // Build update object for base guest table
     const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
     };
 
+    // Core fields
     if (updates.firstName !== undefined) updateData.firstName = updates.firstName;
     if (updates.lastName !== undefined) updateData.lastName = updates.lastName;
     if (updates.email !== undefined) updateData.email = updates.email;
@@ -557,19 +1365,255 @@ guests.patch(
     if (updates.rsvpStatus !== undefined) updateData.rsvpStatus = updates.rsvpStatus;
     if (updates.plusOnesAllowed !== undefined) updateData.plusOnesAllowed = updates.plusOnesAllowed;
     if (updates.plusOnesCount !== undefined) updateData.plusOnesCount = updates.plusOnesCount;
-    if (updates.dietaryRestrictions !== undefined)
-      updateData.dietaryRestrictions = updates.dietaryRestrictions;
+    if (updates.dietaryRestrictions !== undefined) updateData.dietaryRestrictions = updates.dietaryRestrictions;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
 
+    // Optional fields
+    if (updates.addressStreet !== undefined) updateData.addressStreet = updates.addressStreet;
+    if (updates.addressCity !== undefined) updateData.addressCity = updates.addressCity;
+    if (updates.addressState !== undefined) updateData.addressState = updates.addressState;
+    if (updates.addressZipCode !== undefined) updateData.addressZipCode = updates.addressZipCode;
+    if (updates.addressCountry !== undefined) updateData.addressCountry = updates.addressCountry;
+    if (updates.mealChoice !== undefined) updateData.mealChoice = updates.mealChoice;
+    if (updates.needsAccommodation !== undefined) updateData.needsAccommodation = updates.needsAccommodation;
+    if (updates.hotelName !== undefined) updateData.hotelName = updates.hotelName;
+    if (updates.checkInDate !== undefined) updateData.checkInDate = updates.checkInDate;
+    if (updates.checkOutDate !== undefined) updateData.checkOutDate = updates.checkOutDate;
+    if (updates.plusOneName !== undefined) updateData.plusOneName = updates.plusOneName;
+    if (updates.tableAssignment !== undefined) updateData.tableAssignment = updates.tableAssignment;
+    if (updates.transportationNeeded !== undefined) updateData.transportationNeeded = updates.transportationNeeded;
+    if (updates.accessibilityNeeds !== undefined) updateData.accessibilityNeeds = updates.accessibilityNeeds;
+
+    // Custom field data
+    if (updates.customFieldData !== undefined) {
+      updateData.customFieldData = updates.customFieldData ? JSON.stringify(updates.customFieldData) : null;
+    }
+
+    // Update base guest
     const [updatedGuest] = await db
       .update(schema.guests)
       .set(updateData)
       .where(eq(schema.guests.uuid, guestUuid))
       .returning();
 
+    // Update extension table data based on event type
+    let extensionData: Record<string, unknown> | null = null;
+    const detailsKey = `${event.eventType}Details`;
+
+    switch (event.eventType) {
+      case 'wedding': {
+        if (updates.weddingDetails) {
+          const extUpdateData: Record<string, unknown> = { updatedAt: new Date() };
+          if (updates.weddingDetails.guestSide !== undefined) extUpdateData.guestSide = updates.weddingDetails.guestSide;
+          if (updates.weddingDetails.invitedTo !== undefined) extUpdateData.invitedTo = updates.weddingDetails.invitedTo;
+          if (updates.weddingDetails.weddingGiftDescription !== undefined) extUpdateData.weddingGiftDescription = updates.weddingDetails.weddingGiftDescription;
+          if (updates.weddingDetails.weddingGiftThankYouSent !== undefined) extUpdateData.weddingGiftThankYouSent = updates.weddingDetails.weddingGiftThankYouSent;
+          if (updates.weddingDetails.showerGiftDescription !== undefined) extUpdateData.showerGiftDescription = updates.weddingDetails.showerGiftDescription;
+          if (updates.weddingDetails.showerGiftThankYouSent !== undefined) extUpdateData.showerGiftThankYouSent = updates.weddingDetails.showerGiftThankYouSent;
+
+          // Upsert: try update first, then insert if not exists
+          const [existing] = await db
+            .select({ id: schema.weddingGuestDetails.id })
+            .from(schema.weddingGuestDetails)
+            .where(eq(schema.weddingGuestDetails.guestId, existingGuest.id))
+            .limit(1);
+
+          if (existing) {
+            const [details] = await db
+              .update(schema.weddingGuestDetails)
+              .set(extUpdateData)
+              .where(eq(schema.weddingGuestDetails.guestId, existingGuest.id))
+              .returning();
+            extensionData = details;
+          } else {
+            const [details] = await db
+              .insert(schema.weddingGuestDetails)
+              .values({
+                guestId: existingGuest.id,
+                guestSide: updates.weddingDetails.guestSide ?? null,
+                invitedTo: updates.weddingDetails.invitedTo ?? 'both',
+                weddingGiftDescription: updates.weddingDetails.weddingGiftDescription ?? null,
+                weddingGiftThankYouSent: updates.weddingDetails.weddingGiftThankYouSent ?? false,
+                showerGiftDescription: updates.weddingDetails.showerGiftDescription ?? null,
+                showerGiftThankYouSent: updates.weddingDetails.showerGiftThankYouSent ?? false,
+              })
+              .returning();
+            extensionData = details;
+          }
+        } else {
+          // Fetch existing extension data for response
+          const [details] = await db
+            .select()
+            .from(schema.weddingGuestDetails)
+            .where(eq(schema.weddingGuestDetails.guestId, existingGuest.id))
+            .limit(1);
+          extensionData = details ?? null;
+        }
+        break;
+      }
+      case 'corporate': {
+        if (updates.corporateDetails) {
+          const extUpdateData: Record<string, unknown> = { updatedAt: new Date() };
+          if (updates.corporateDetails.companyName !== undefined) extUpdateData.companyName = updates.corporateDetails.companyName;
+          if (updates.corporateDetails.jobTitle !== undefined) extUpdateData.jobTitle = updates.corporateDetails.jobTitle;
+          if (updates.corporateDetails.department !== undefined) extUpdateData.department = updates.corporateDetails.department;
+          if (updates.corporateDetails.attendeeType !== undefined) extUpdateData.attendeeType = updates.corporateDetails.attendeeType;
+
+          const [existing] = await db
+            .select({ id: schema.corporateGuestDetails.id })
+            .from(schema.corporateGuestDetails)
+            .where(eq(schema.corporateGuestDetails.guestId, existingGuest.id))
+            .limit(1);
+
+          if (existing) {
+            const [details] = await db
+              .update(schema.corporateGuestDetails)
+              .set(extUpdateData)
+              .where(eq(schema.corporateGuestDetails.guestId, existingGuest.id))
+              .returning();
+            extensionData = details;
+          } else {
+            const [details] = await db
+              .insert(schema.corporateGuestDetails)
+              .values({
+                guestId: existingGuest.id,
+                companyName: updates.corporateDetails.companyName ?? null,
+                jobTitle: updates.corporateDetails.jobTitle ?? null,
+                department: updates.corporateDetails.department ?? null,
+                attendeeType: updates.corporateDetails.attendeeType ?? null,
+              })
+              .returning();
+            extensionData = details;
+          }
+        } else {
+          const [details] = await db
+            .select()
+            .from(schema.corporateGuestDetails)
+            .where(eq(schema.corporateGuestDetails.guestId, existingGuest.id))
+            .limit(1);
+          extensionData = details ?? null;
+        }
+        break;
+      }
+      case 'conference': {
+        if (updates.conferenceDetails) {
+          const extUpdateData: Record<string, unknown> = { updatedAt: new Date() };
+          if (updates.conferenceDetails.badgeType !== undefined) extUpdateData.badgeType = updates.conferenceDetails.badgeType;
+          if (updates.conferenceDetails.organization !== undefined) extUpdateData.organization = updates.conferenceDetails.organization;
+          if (updates.conferenceDetails.sessionRegistrations !== undefined) {
+            extUpdateData.sessionRegistrations = updates.conferenceDetails.sessionRegistrations
+              ? JSON.stringify(updates.conferenceDetails.sessionRegistrations)
+              : null;
+          }
+          if (updates.conferenceDetails.specialAccess !== undefined) extUpdateData.specialAccess = updates.conferenceDetails.specialAccess;
+          if (updates.conferenceDetails.attendingDays !== undefined) {
+            extUpdateData.attendingDays = updates.conferenceDetails.attendingDays
+              ? JSON.stringify(updates.conferenceDetails.attendingDays)
+              : null;
+          }
+
+          const [existing] = await db
+            .select({ id: schema.conferenceGuestDetails.id })
+            .from(schema.conferenceGuestDetails)
+            .where(eq(schema.conferenceGuestDetails.guestId, existingGuest.id))
+            .limit(1);
+
+          if (existing) {
+            const [details] = await db
+              .update(schema.conferenceGuestDetails)
+              .set(extUpdateData)
+              .where(eq(schema.conferenceGuestDetails.guestId, existingGuest.id))
+              .returning();
+            extensionData = details ? parseExtensionData(details) : null;
+          } else {
+            const [details] = await db
+              .insert(schema.conferenceGuestDetails)
+              .values({
+                guestId: existingGuest.id,
+                badgeType: updates.conferenceDetails.badgeType ?? 'standard',
+                organization: updates.conferenceDetails.organization ?? null,
+                sessionRegistrations: updates.conferenceDetails.sessionRegistrations
+                  ? JSON.stringify(updates.conferenceDetails.sessionRegistrations)
+                  : null,
+                specialAccess: updates.conferenceDetails.specialAccess ?? false,
+                attendingDays: updates.conferenceDetails.attendingDays
+                  ? JSON.stringify(updates.conferenceDetails.attendingDays)
+                  : null,
+              })
+              .returning();
+            extensionData = details ? parseExtensionData(details) : null;
+          }
+        } else {
+          const [details] = await db
+            .select()
+            .from(schema.conferenceGuestDetails)
+            .where(eq(schema.conferenceGuestDetails.guestId, existingGuest.id))
+            .limit(1);
+          extensionData = details ? parseExtensionData(details) : null;
+        }
+        break;
+      }
+      case 'birthday': {
+        if (updates.birthdayDetails) {
+          const extUpdateData: Record<string, unknown> = { updatedAt: new Date() };
+          if (updates.birthdayDetails.relationshipToBirthdayPerson !== undefined) extUpdateData.relationshipToBirthdayPerson = updates.birthdayDetails.relationshipToBirthdayPerson;
+          if (updates.birthdayDetails.ageGroup !== undefined) extUpdateData.ageGroup = updates.birthdayDetails.ageGroup;
+          if (updates.birthdayDetails.giftContribution !== undefined) extUpdateData.giftContribution = updates.birthdayDetails.giftContribution;
+
+          const [existing] = await db
+            .select({ id: schema.birthdayGuestDetails.id })
+            .from(schema.birthdayGuestDetails)
+            .where(eq(schema.birthdayGuestDetails.guestId, existingGuest.id))
+            .limit(1);
+
+          if (existing) {
+            const [details] = await db
+              .update(schema.birthdayGuestDetails)
+              .set(extUpdateData)
+              .where(eq(schema.birthdayGuestDetails.guestId, existingGuest.id))
+              .returning();
+            extensionData = details;
+          } else {
+            const [details] = await db
+              .insert(schema.birthdayGuestDetails)
+              .values({
+                guestId: existingGuest.id,
+                relationshipToBirthdayPerson: updates.birthdayDetails.relationshipToBirthdayPerson ?? null,
+                ageGroup: updates.birthdayDetails.ageGroup ?? null,
+                giftContribution: updates.birthdayDetails.giftContribution ?? null,
+              })
+              .returning();
+            extensionData = details;
+          }
+        } else {
+          const [details] = await db
+            .select()
+            .from(schema.birthdayGuestDetails)
+            .where(eq(schema.birthdayGuestDetails.guestId, existingGuest.id))
+            .limit(1);
+          extensionData = details ?? null;
+        }
+        break;
+      }
+    }
+
+    // Parse customFieldData for response
+    let parsedCustomFieldData = null;
+    if (updatedGuest.customFieldData) {
+      try {
+        parsedCustomFieldData = JSON.parse(updatedGuest.customFieldData);
+      } catch {
+        parsedCustomFieldData = null;
+      }
+    }
+
     return c.json({
       success: true,
-      data: updatedGuest,
+      data: {
+        ...updatedGuest,
+        customFieldData: parsedCustomFieldData,
+        [detailsKey]: extensionData,
+      },
     });
   }
 );

@@ -1,7 +1,13 @@
 import { relations } from 'drizzle-orm';
 import { user, session, account } from './auth';
 import { organization, organizationMember, organizationInvitation } from './organization';
-import { events, guests, eventCollaborators, tasks } from './events';
+import { events, guests, eventCollaborators, tasks, eventGuestSettings } from './events';
+import {
+  weddingGuestDetails,
+  corporateGuestDetails,
+  conferenceGuestDetails,
+  birthdayGuestDetails,
+} from './guestDetails';
 import { budgetItems, payments } from './budget';
 import { serviceProviders, venues, eventServiceProviders, eventVenues, reviews } from './providers';
 import { auditLog, impersonationSession } from './admin';
@@ -111,7 +117,12 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   budgetItems: many(budgetItems),
   serviceProviders: many(eventServiceProviders),
   venues: many(eventVenues),
-  reviews: many(reviews)
+  reviews: many(reviews),
+  // Guest field settings (1:1)
+  guestSettings: one(eventGuestSettings, {
+    fields: [events.id],
+    references: [eventGuestSettings.eventId]
+  }),
 }));
 
 /**
@@ -121,7 +132,24 @@ export const guestsRelations = relations(guests, ({ one }) => ({
   event: one(events, {
     fields: [guests.eventId],
     references: [events.id]
-  })
+  }),
+  // Event-type-specific detail tables (1:1, only one will be populated based on event type)
+  weddingDetails: one(weddingGuestDetails, {
+    fields: [guests.id],
+    references: [weddingGuestDetails.guestId]
+  }),
+  corporateDetails: one(corporateGuestDetails, {
+    fields: [guests.id],
+    references: [corporateGuestDetails.guestId]
+  }),
+  conferenceDetails: one(conferenceGuestDetails, {
+    fields: [guests.id],
+    references: [conferenceGuestDetails.guestId]
+  }),
+  birthdayDetails: one(birthdayGuestDetails, {
+    fields: [guests.id],
+    references: [birthdayGuestDetails.guestId]
+  }),
 }));
 
 /**
@@ -276,5 +304,57 @@ export const impersonationSessionRelations = relations(impersonationSession, ({ 
     fields: [impersonationSession.targetUserId],
     references: [user.id],
     relationName: 'impersonationTarget'
+  })
+}));
+
+// ==================== GUEST DETAILS EXTENSION TABLES ====================
+
+/**
+ * Event Guest Settings Relations
+ */
+export const eventGuestSettingsRelations = relations(eventGuestSettings, ({ one }) => ({
+  event: one(events, {
+    fields: [eventGuestSettings.eventId],
+    references: [events.id]
+  })
+}));
+
+/**
+ * Wedding Guest Details Relations
+ */
+export const weddingGuestDetailsRelations = relations(weddingGuestDetails, ({ one }) => ({
+  guest: one(guests, {
+    fields: [weddingGuestDetails.guestId],
+    references: [guests.id]
+  })
+}));
+
+/**
+ * Corporate Guest Details Relations
+ */
+export const corporateGuestDetailsRelations = relations(corporateGuestDetails, ({ one }) => ({
+  guest: one(guests, {
+    fields: [corporateGuestDetails.guestId],
+    references: [guests.id]
+  })
+}));
+
+/**
+ * Conference Guest Details Relations
+ */
+export const conferenceGuestDetailsRelations = relations(conferenceGuestDetails, ({ one }) => ({
+  guest: one(guests, {
+    fields: [conferenceGuestDetails.guestId],
+    references: [guests.id]
+  })
+}));
+
+/**
+ * Birthday Guest Details Relations
+ */
+export const birthdayGuestDetailsRelations = relations(birthdayGuestDetails, ({ one }) => ({
+  guest: one(guests, {
+    fields: [birthdayGuestDetails.guestId],
+    references: [guests.id]
   })
 }));

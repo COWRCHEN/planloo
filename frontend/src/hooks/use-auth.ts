@@ -8,7 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { authClient } from '@/lib/auth-client';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
 
 // Query keys
 export const authKeys = {

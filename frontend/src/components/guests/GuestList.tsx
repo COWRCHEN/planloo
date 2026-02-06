@@ -2,6 +2,7 @@
  * Guest List
  *
  * Main guest list component with filters, stats, and table.
+ * Supports event-type-specific fields, optional fields, and custom fields.
  */
 
 import { useState, useCallback } from 'react';
@@ -14,9 +15,13 @@ import { DeleteGuestDialog } from './DeleteGuestDialog';
 import { GuestImportDialog } from './GuestImportDialog';
 import { GuestExportButton } from './GuestExportButton';
 import { EmptyGuestState } from './EmptyGuestState';
+import { GuestFieldSettingsDialog } from './GuestFieldSettings';
+import { CustomFieldManagerDialog } from './CustomFieldManager';
+import { useEvent } from '@/hooks/use-events';
 import {
   useGuests,
   useGuestStats,
+  useGuestSettings,
   useCreateGuest,
   useUpdateGuest,
   useDeleteGuest,
@@ -25,9 +30,9 @@ import {
   useImportGuests,
   useUpdateRsvpStatus,
   type GuestResponse,
-  type GuestCategory,
   type RsvpStatus,
   type CreateGuestInput,
+  type ListGuestsQuery,
 } from '@/hooks/use-guests';
 
 const ITEMS_PER_PAGE = 50;
@@ -37,10 +42,8 @@ interface GuestListProps {
 }
 
 export function GuestList({ eventUuid }: GuestListProps) {
-  // Filter state
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState<GuestCategory | undefined>(undefined);
-  const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus | undefined>(undefined);
+  // Filter state - now using ListGuestsQuery type for all filters
+  const [filters, setFilters] = useState<Partial<ListGuestsQuery>>({});
   const [page, setPage] = useState(0);
 
   // Dialog state
@@ -49,32 +52,38 @@ export function GuestList({ eventUuid }: GuestListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [guestToDelete, setGuestToDelete] = useState<GuestResponse | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [customFieldsDialogOpen, setCustomFieldsDialogOpen] = useState(false);
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Debounce search input
-  const handleSearchChange = useCallback((value: string) => {
-    setSearch(value);
+  const handleSearchChange = useCallback((value: string | undefined) => {
+    setFilters((prev) => ({ ...prev, search: value }));
     const timeoutId = setTimeout(() => {
-      setDebouncedSearch(value);
+      setDebouncedSearch(value ?? '');
       setPage(0);
     }, 300);
     return () => clearTimeout(timeoutId);
   }, []);
 
-  // Build filters
-  const filters = {
-    ...(debouncedSearch && { search: debouncedSearch }),
-    ...(category && { category }),
-    ...(rsvpStatus && { rsvpStatus }),
+  // Build query filters with pagination
+  const queryFilters: Partial<ListGuestsQuery> = {
+    ...filters,
+    search: debouncedSearch || undefined,
     limit: ITEMS_PER_PAGE,
     offset: page * ITEMS_PER_PAGE,
   };
 
-  // Queries
-  const { data, isLoading: isLoadingGuests } = useGuests(eventUuid, filters);
+  // Queries - including event and guest settings
+  const { data: event } = useEvent(eventUuid);
+  const { data: guestSettings } = useGuestSettings(eventUuid);
+  const { data, isLoading: isLoadingGuests } = useGuests(eventUuid, queryFilters);
   const { data: stats, isLoading: isLoadingStats } = useGuestStats(eventUuid);
+
+  // Derive event type from event data
+  const eventType = event?.eventType ?? null;
 
   // Mutations
   const createGuest = useCreateGuest(eventUuid);
@@ -88,11 +97,24 @@ export function GuestList({ eventUuid }: GuestListProps) {
   const updateGuest = useUpdateGuest(eventUuid, editingGuest?.uuid ?? '');
 
   const handleClearFilters = () => {
-    setSearch('');
+    setFilters({});
     setDebouncedSearch('');
-    setCategory(undefined);
-    setRsvpStatus(undefined);
     setPage(0);
+  };
+
+  const handleFilterChange = (newFilters: Partial<ListGuestsQuery>) => {
+    // Handle search separately for debouncing
+    if ('search' in newFilters) {
+      handleSearchChange(newFilters.search);
+      const { search: _, ...rest } = newFilters;
+      if (Object.keys(rest).length > 0) {
+        setFilters((prev) => ({ ...prev, ...rest }));
+        setPage(0);
+      }
+    } else {
+      setFilters((prev) => ({ ...prev, ...newFilters }));
+      setPage(0);
+    }
   };
 
   const handleAddGuest = () => {
@@ -145,7 +167,8 @@ export function GuestList({ eventUuid }: GuestListProps) {
     return result;
   };
 
-  const hasFilters = !!debouncedSearch || !!category || !!rsvpStatus;
+  // Check if any filters are active
+  const hasFilters = Object.values(filters).some((v) => v !== undefined) || !!debouncedSearch;
   const totalPages = Math.ceil((data?.meta?.total ?? 0) / ITEMS_PER_PAGE);
   const guests = data?.guests ?? [];
 
@@ -157,22 +180,40 @@ export function GuestList({ eventUuid }: GuestListProps) {
       {/* Actions and Filters */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <GuestFilters
-          search={search}
-          category={category}
-          rsvpStatus={rsvpStatus}
-          onSearchChange={handleSearchChange}
-          onCategoryChange={(c) => {
-            setCategory(c);
-            setPage(0);
-          }}
-          onRsvpStatusChange={(s) => {
-            setRsvpStatus(s);
-            setPage(0);
-          }}
-          onClearFilters={handleClearFilters}
+          filters={{ ...filters, search: filters.search ?? debouncedSearch }}
+          onChange={handleFilterChange}
+          onReset={handleClearFilters}
+          eventType={eventType}
+          guestSettings={guestSettings}
         />
 
         <div className="flex items-center gap-2">
+          {/* Settings Dropdown */}
+          <div className="relative">
+            <Button variant="outline" onClick={() => setSettingsDialogOpen(true)}>
+              <svg
+                className="mr-2 h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              Fields
+            </Button>
+          </div>
+
           <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
             <svg
               className="mr-2 h-4 w-4"
@@ -187,7 +228,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
               />
             </svg>
-            Import CSV
+            Import
           </Button>
           <GuestExportButton eventUuid={eventUuid} disabled={guests.length === 0} />
           <Button onClick={handleAddGuest}>
@@ -226,6 +267,8 @@ export function GuestList({ eventUuid }: GuestListProps) {
             onCheckIn={handleCheckIn}
             onResendRsvp={handleResendRsvp}
             onUpdateRsvpStatus={handleUpdateRsvpStatus}
+            eventType={eventType}
+            guestSettings={guestSettings}
           />
 
           {/* Pagination */}
@@ -262,6 +305,8 @@ export function GuestList({ eventUuid }: GuestListProps) {
         guest={editingGuest}
         onSubmit={handleFormSubmit}
         isSubmitting={createGuest.isPending || updateGuest.isPending}
+        eventType={eventType}
+        guestSettings={guestSettings}
       />
 
       <DeleteGuestDialog
@@ -277,6 +322,20 @@ export function GuestList({ eventUuid }: GuestListProps) {
         onOpenChange={setImportDialogOpen}
         onImport={handleImport}
         isImporting={importGuests.isPending}
+      />
+
+      {/* Field Settings Dialog */}
+      <GuestFieldSettingsDialog
+        eventUuid={eventUuid}
+        open={settingsDialogOpen}
+        onOpenChange={setSettingsDialogOpen}
+      />
+
+      {/* Custom Fields Manager Dialog */}
+      <CustomFieldManagerDialog
+        eventUuid={eventUuid}
+        open={customFieldsDialogOpen}
+        onOpenChange={setCustomFieldsDialogOpen}
       />
     </div>
   );

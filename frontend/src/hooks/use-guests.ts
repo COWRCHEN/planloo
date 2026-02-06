@@ -7,12 +7,34 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
 
 // ==================== TYPES ====================
 
 export const GUEST_CATEGORIES = ['vip', 'family', 'friend', 'colleague', 'other'] as const;
 export const RSVP_STATUSES = ['pending', 'confirmed', 'declined', 'maybe'] as const;
+
+// Event types
+export const EVENT_TYPES = ['wedding', 'corporate', 'conference', 'birthday', 'other'] as const;
+export type EventType = (typeof EVENT_TYPES)[number];
+
+// Wedding-specific enums
+export const WEDDING_GUEST_SIDES = ['bride', 'groom', 'both'] as const;
+export const WEDDING_INVITED_TO = ['ceremony', 'reception', 'both'] as const;
+export type WeddingGuestSide = (typeof WEDDING_GUEST_SIDES)[number];
+export type WeddingInvitedTo = (typeof WEDDING_INVITED_TO)[number];
+
+// Corporate-specific enums
+export const ATTENDEE_TYPES = ['employee', 'client', 'vendor', 'partner', 'other'] as const;
+export type AttendeeType = (typeof ATTENDEE_TYPES)[number];
+
+// Conference-specific enums
+export const BADGE_TYPES = ['speaker', 'vip', 'standard', 'press', 'exhibitor', 'staff'] as const;
+export type BadgeType = (typeof BADGE_TYPES)[number];
+
+// Birthday-specific enums
+export const AGE_GROUPS = ['child', 'teen', 'adult'] as const;
+export type AgeGroup = (typeof AGE_GROUPS)[number];
 
 export type GuestCategory = (typeof GUEST_CATEGORIES)[number];
 export type RsvpStatus = (typeof RSVP_STATUSES)[number];
@@ -228,6 +250,108 @@ export function useGuestStats(eventUuid: string, options?: UseGuestsOptions) {
     enabled: !!eventUuid,
     staleTime: 1000 * 30, // 30 seconds
     refetchInterval: refetchInterval ?? false,
+  });
+}
+
+// ==================== GUEST SETTINGS ====================
+
+// Meal choice option type
+export interface MealChoiceOption {
+  key: string;
+  label: string;
+}
+
+// Custom field types
+export const CUSTOM_FIELD_TYPES = ['text', 'number', 'select', 'multiselect', 'checkbox', 'date'] as const;
+export type CustomFieldType = (typeof CUSTOM_FIELD_TYPES)[number];
+
+// Custom field definition type
+export interface CustomFieldDefinition {
+  id: string;
+  label: string;
+  type: CustomFieldType;
+  required: boolean;
+  options?: string[];
+}
+
+export interface GuestSettingsResponse {
+  id: number;
+  eventId: number;
+  eventType: string | null;
+  enableAddress: boolean;
+  enableMealChoice: boolean;
+  enableAccommodation: boolean;
+  enablePlusOneName: boolean;
+  enableTableAssignment: boolean;
+  enableTransportation: boolean;
+  enableAccessibility: boolean;
+  mealChoiceOptions: MealChoiceOption[] | null;
+  customFieldDefinitions: CustomFieldDefinition[] | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Alias for backward compatibility
+export type EventGuestSettings = GuestSettingsResponse;
+
+export const guestSettingsKeys = {
+  all: ['guestSettings'] as const,
+  detail: (eventUuid: string) => [...guestSettingsKeys.all, eventUuid] as const,
+};
+
+// Update guest settings input
+export interface UpdateGuestSettingsInput {
+  enableAddress?: boolean;
+  enableMealChoice?: boolean;
+  enableAccommodation?: boolean;
+  enablePlusOneName?: boolean;
+  enableTableAssignment?: boolean;
+  enableTransportation?: boolean;
+  enableAccessibility?: boolean;
+  mealChoiceOptions?: MealChoiceOption[];
+  customFieldDefinitions?: CustomFieldDefinition[];
+}
+
+/**
+ * Hook to fetch guest field settings for an event
+ */
+export function useGuestSettings(eventUuid: string) {
+  return useQuery<GuestSettingsResponse | undefined>({
+    queryKey: guestSettingsKeys.detail(eventUuid),
+    queryFn: async (): Promise<GuestSettingsResponse | undefined> => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/guest-settings`, {
+        credentials: 'include',
+      });
+
+      const result = await handleResponse<GuestSettingsResponse>(response);
+      return result.data;
+    },
+    enabled: !!eventUuid,
+    staleTime: 1000 * 60 * 5, // 5 minutes - settings don't change often
+  });
+}
+
+/**
+ * Hook to update guest field settings for an event
+ */
+export function useUpdateGuestSettings(eventUuid: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: UpdateGuestSettingsInput) => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/guest-settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+
+      const result = await handleResponse<GuestSettingsResponse>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: guestSettingsKeys.detail(eventUuid) });
+    },
   });
 }
 

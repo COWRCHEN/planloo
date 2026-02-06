@@ -50,11 +50,24 @@ export const events = sqliteTable('events', {
 /**
  * Guests Table
  * Guest list management for each event
+ *
+ * This table contains:
+ * - Core guest fields (always present)
+ * - User-configurable optional fields (controlled via eventGuestSettings)
+ * - Custom field data (JSON for Phase 3 user-defined fields)
+ *
+ * Event-type-specific fields are stored in extension tables:
+ * - wedding_guest_details
+ * - corporate_guest_details
+ * - conference_guest_details
+ * - birthday_guest_details
  */
 export const guests = sqliteTable('guests', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   uuid: text('uuid').notNull().unique(),
   eventId: integer('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+
+  // === CORE FIELDS (always present) ===
   firstName: text('first_name').notNull(),
   lastName: text('last_name'),
   email: text('email'),
@@ -69,6 +82,38 @@ export const guests = sqliteTable('guests', {
   notes: text('notes'),
   checkedIn: integer('checked_in', { mode: 'boolean' }).default(false).notNull(),
   checkedInAt: integer('checked_in_at', { mode: 'timestamp' }),
+
+  // === USER-CONFIGURABLE OPTIONAL FIELDS (Phase 2) ===
+
+  // Address fields (enabled via eventGuestSettings.enableAddress)
+  addressStreet: text('address_street'),
+  addressCity: text('address_city'),
+  addressState: text('address_state'),
+  addressZipCode: text('address_zip_code'),
+  addressCountry: text('address_country'),
+
+  // Meal choice (enabled via eventGuestSettings.enableMealChoice)
+  // Stores selected option key from eventGuestSettings.mealChoiceOptions
+  mealChoice: text('meal_choice'),
+
+  // Accommodation fields (enabled via eventGuestSettings.enableAccommodation)
+  needsAccommodation: integer('needs_accommodation', { mode: 'boolean' }),
+  hotelName: text('hotel_name'),
+  checkInDate: integer('check_in_date', { mode: 'timestamp' }),
+  checkOutDate: integer('check_out_date', { mode: 'timestamp' }),
+
+  // Additional optional fields (individual toggles)
+  plusOneName: text('plus_one_name'), // enabled via enablePlusOneName
+  tableAssignment: text('table_assignment'), // enabled via enableTableAssignment
+  transportationNeeded: integer('transportation_needed', { mode: 'boolean' }), // enabled via enableTransportation
+  accessibilityNeeds: text('accessibility_needs'), // enabled via enableAccessibility
+
+  // === CUSTOM FIELDS (Phase 3) ===
+  // JSON object storing user-defined field values
+  // Schema defined in eventGuestSettings.customFieldDefinitions
+  customFieldData: text('custom_field_data'),
+
+  // === TIMESTAMPS ===
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   deletedAt: integer('deleted_at', { mode: 'timestamp' })
@@ -77,7 +122,11 @@ export const guests = sqliteTable('guests', {
   uuidIdx: index('idx_guests_uuid').on(table.uuid),
   rsvpTokenIdx: index('idx_guests_rsvp_token').on(table.rsvpToken),
   rsvpStatusIdx: index('idx_guests_rsvp_status').on(table.rsvpStatus),
-  emailIdx: index('idx_guests_email').on(table.email)
+  emailIdx: index('idx_guests_email').on(table.email),
+  // Index for accommodation filtering
+  needsAccommodationIdx: index('idx_guests_needs_accommodation').on(table.needsAccommodation),
+  // Index for table assignment filtering/sorting
+  tableAssignmentIdx: index('idx_guests_table_assignment').on(table.tableAssignment),
 }));
 
 /**
@@ -123,4 +172,58 @@ export const tasks = sqliteTable('tasks', {
   uuidIdx: index('idx_tasks_uuid').on(table.uuid),
   statusIdx: index('idx_tasks_status').on(table.status),
   assignedToIdx: index('idx_tasks_assigned_to').on(table.assignedToUserId)
+}));
+
+/**
+ * Event Guest Settings Table
+ *
+ * Stores per-event configuration for guest fields:
+ * - Toggle controls for optional field sets (address, meal, accommodation, etc.)
+ * - Meal choice options customization
+ * - Custom field definitions (Phase 3)
+ *
+ * Each event has exactly one settings record (1:1 relationship).
+ * Settings are created automatically when first accessed or when event is created.
+ */
+export const eventGuestSettings = sqliteTable('event_guest_settings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  eventId: integer('event_id').notNull().unique().references(() => events.id, { onDelete: 'cascade' }),
+
+  // === FIELD TOGGLES (Phase 2) ===
+
+  // Address collection
+  enableAddress: integer('enable_address', { mode: 'boolean' }).default(false).notNull(),
+
+  // Meal selection with customizable options
+  enableMealChoice: integer('enable_meal_choice', { mode: 'boolean' }).default(false).notNull(),
+
+  // Accommodation tracking
+  enableAccommodation: integer('enable_accommodation', { mode: 'boolean' }).default(false).notNull(),
+
+  // Individual optional field toggles
+  enablePlusOneName: integer('enable_plus_one_name', { mode: 'boolean' }).default(false).notNull(),
+  enableTableAssignment: integer('enable_table_assignment', { mode: 'boolean' }).default(false).notNull(),
+  enableTransportation: integer('enable_transportation', { mode: 'boolean' }).default(false).notNull(),
+  enableAccessibility: integer('enable_accessibility', { mode: 'boolean' }).default(false).notNull(),
+
+  // === MEAL CHOICE OPTIONS ===
+  // JSON array of meal options with keys and labels
+  // Example: [{"key": "option1", "label": "Beef"}, {"key": "option2", "label": "Chicken"}, {"key": "vegetarian", "label": "Vegetarian"}]
+  // Default options provided when enableMealChoice is first turned on
+  mealChoiceOptions: text('meal_choice_options'),
+
+  // === CUSTOM FIELD DEFINITIONS (Phase 3) ===
+  // JSON array defining custom fields for this event
+  // Example: [
+  //   {"id": "field-1", "type": "text", "label": "T-Shirt Size", "required": false, "helpText": "S, M, L, XL"},
+  //   {"id": "field-2", "type": "select", "label": "Workshop", "required": true, "options": ["React", "Vue", "Angular"]}
+  // ]
+  // Max 10 custom fields per event
+  customFieldDefinitions: text('custom_field_definitions'),
+
+  // === TIMESTAMPS ===
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  eventIdIdx: index('idx_event_guest_settings_event_id').on(table.eventId),
 }));

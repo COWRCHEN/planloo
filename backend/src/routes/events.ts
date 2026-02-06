@@ -443,4 +443,309 @@ events.delete('/:uuid', requireAuth, async (c) => {
   });
 });
 
+// ==================== GUEST SETTINGS ENDPOINTS ====================
+
+/**
+ * Meal choice option schema
+ */
+const mealChoiceOptionSchema = z.object({
+  key: z.string().min(1).max(50),
+  label: z.string().min(1).max(100),
+});
+
+/**
+ * Custom field definition schema
+ */
+const customFieldDefinitionSchema = z.object({
+  id: z.string().min(1).max(50),
+  type: z.enum(['text', 'number', 'select', 'multiselect', 'date', 'checkbox']),
+  label: z.string().min(1).max(100),
+  required: z.boolean().default(false),
+  helpText: z.string().max(500).optional(),
+  options: z.array(z.string().max(100)).optional(),
+});
+
+/**
+ * Update guest settings schema
+ */
+const updateGuestSettingsSchema = z.object({
+  // Field toggles
+  enableAddress: z.boolean().optional(),
+  enableMealChoice: z.boolean().optional(),
+  enableAccommodation: z.boolean().optional(),
+  enablePlusOneName: z.boolean().optional(),
+  enableTableAssignment: z.boolean().optional(),
+  enableTransportation: z.boolean().optional(),
+  enableAccessibility: z.boolean().optional(),
+  // Meal options
+  mealChoiceOptions: z.array(mealChoiceOptionSchema).max(20).optional(),
+  // Custom field definitions (max 10)
+  customFieldDefinitions: z.array(customFieldDefinitionSchema).max(10).optional(),
+});
+
+/**
+ * GET /events/:uuid/guest-settings
+ * Get guest field settings for an event
+ */
+events.get('/:uuid/guest-settings', requireAuth, async (c) => {
+  const user = c.get('user')!;
+  const uuid = c.req.param('uuid');
+
+  const db = createDbClient(c.env.DB);
+
+  // Get event
+  const [event] = await db
+    .select({ id: schema.events.id, eventType: schema.events.eventType })
+    .from(schema.events)
+    .where(
+      and(
+        eq(schema.events.uuid, uuid),
+        eq(schema.events.userId, user.id),
+        isNull(schema.events.deletedAt)
+      )
+    )
+    .limit(1);
+
+  if (!event) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
+      404
+    );
+  }
+
+  // Get or create settings
+  let [settings] = await db
+    .select()
+    .from(schema.eventGuestSettings)
+    .where(eq(schema.eventGuestSettings.eventId, event.id))
+    .limit(1);
+
+  // If no settings exist, create default settings
+  if (!settings) {
+    const [newSettings] = await db
+      .insert(schema.eventGuestSettings)
+      .values({
+        eventId: event.id,
+        enableAddress: false,
+        enableMealChoice: false,
+        enableAccommodation: false,
+        enablePlusOneName: false,
+        enableTableAssignment: false,
+        enableTransportation: false,
+        enableAccessibility: false,
+        mealChoiceOptions: null,
+        customFieldDefinitions: null,
+      })
+      .returning();
+    settings = newSettings!;
+  }
+
+  // Parse JSON fields
+  let mealChoiceOptions = null;
+  if (settings!.mealChoiceOptions) {
+    try {
+      mealChoiceOptions = JSON.parse(settings!.mealChoiceOptions);
+    } catch {
+      mealChoiceOptions = null;
+    }
+  }
+
+  let customFieldDefinitions = null;
+  if (settings!.customFieldDefinitions) {
+    try {
+      customFieldDefinitions = JSON.parse(settings!.customFieldDefinitions);
+    } catch {
+      customFieldDefinitions = null;
+    }
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      id: settings!.id,
+      eventId: settings!.eventId,
+      eventType: event.eventType,
+      enableAddress: settings!.enableAddress,
+      enableMealChoice: settings!.enableMealChoice,
+      enableAccommodation: settings!.enableAccommodation,
+      enablePlusOneName: settings!.enablePlusOneName,
+      enableTableAssignment: settings!.enableTableAssignment,
+      enableTransportation: settings!.enableTransportation,
+      enableAccessibility: settings!.enableAccessibility,
+      mealChoiceOptions,
+      customFieldDefinitions,
+      createdAt: settings!.createdAt,
+      updatedAt: settings!.updatedAt,
+    },
+  });
+});
+
+/**
+ * PATCH /events/:uuid/guest-settings
+ * Update guest field settings for an event
+ */
+events.patch(
+  '/:uuid/guest-settings',
+  requireAuth,
+  requireVerifiedEmail,
+  zValidator('json', updateGuestSettingsSchema),
+  async (c) => {
+    const user = c.get('user')!;
+    const uuid = c.req.param('uuid');
+    const updates = c.req.valid('json');
+
+    const db = createDbClient(c.env.DB);
+
+    // Get event
+    const [event] = await db
+      .select({ id: schema.events.id })
+      .from(schema.events)
+      .where(
+        and(
+          eq(schema.events.uuid, uuid),
+          eq(schema.events.userId, user.id),
+          isNull(schema.events.deletedAt)
+        )
+      )
+      .limit(1);
+
+    if (!event) {
+      return c.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
+        404
+      );
+    }
+
+    // Check if settings exist
+    const [existingSettings] = await db
+      .select({ id: schema.eventGuestSettings.id })
+      .from(schema.eventGuestSettings)
+      .where(eq(schema.eventGuestSettings.eventId, event.id))
+      .limit(1);
+
+    // Build update data
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
+
+    if (updates.enableAddress !== undefined) updateData.enableAddress = updates.enableAddress;
+    if (updates.enableMealChoice !== undefined) updateData.enableMealChoice = updates.enableMealChoice;
+    if (updates.enableAccommodation !== undefined) updateData.enableAccommodation = updates.enableAccommodation;
+    if (updates.enablePlusOneName !== undefined) updateData.enablePlusOneName = updates.enablePlusOneName;
+    if (updates.enableTableAssignment !== undefined) updateData.enableTableAssignment = updates.enableTableAssignment;
+    if (updates.enableTransportation !== undefined) updateData.enableTransportation = updates.enableTransportation;
+    if (updates.enableAccessibility !== undefined) updateData.enableAccessibility = updates.enableAccessibility;
+
+    if (updates.mealChoiceOptions !== undefined) {
+      updateData.mealChoiceOptions = updates.mealChoiceOptions
+        ? JSON.stringify(updates.mealChoiceOptions)
+        : null;
+    }
+
+    if (updates.customFieldDefinitions !== undefined) {
+      // Validate custom field definitions
+      if (updates.customFieldDefinitions && updates.customFieldDefinitions.length > 10) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Maximum 10 custom fields allowed per event',
+            },
+          },
+          400
+        );
+      }
+
+      // Validate that select/multiselect fields have options
+      for (const field of updates.customFieldDefinitions || []) {
+        if ((field.type === 'select' || field.type === 'multiselect') && (!field.options || field.options.length === 0)) {
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'VALIDATION_ERROR',
+                message: `Field "${field.label}" of type ${field.type} requires at least one option`,
+              },
+            },
+            400
+          );
+        }
+      }
+
+      updateData.customFieldDefinitions = updates.customFieldDefinitions
+        ? JSON.stringify(updates.customFieldDefinitions)
+        : null;
+    }
+
+    let settings: typeof schema.eventGuestSettings.$inferSelect;
+
+    if (existingSettings) {
+      // Update existing settings
+      const [updatedSettings] = await db
+        .update(schema.eventGuestSettings)
+        .set(updateData)
+        .where(eq(schema.eventGuestSettings.eventId, event.id))
+        .returning();
+      settings = updatedSettings!;
+    } else {
+      // Create new settings with updates
+      const [newSettings] = await db
+        .insert(schema.eventGuestSettings)
+        .values({
+          eventId: event.id,
+          enableAddress: updates.enableAddress ?? false,
+          enableMealChoice: updates.enableMealChoice ?? false,
+          enableAccommodation: updates.enableAccommodation ?? false,
+          enablePlusOneName: updates.enablePlusOneName ?? false,
+          enableTableAssignment: updates.enableTableAssignment ?? false,
+          enableTransportation: updates.enableTransportation ?? false,
+          enableAccessibility: updates.enableAccessibility ?? false,
+          mealChoiceOptions: updates.mealChoiceOptions ? JSON.stringify(updates.mealChoiceOptions) : null,
+          customFieldDefinitions: updates.customFieldDefinitions ? JSON.stringify(updates.customFieldDefinitions) : null,
+        })
+        .returning();
+      settings = newSettings!;
+    }
+
+    // Parse JSON fields for response
+    let mealChoiceOptions = null;
+    if (settings.mealChoiceOptions) {
+      try {
+        mealChoiceOptions = JSON.parse(settings.mealChoiceOptions);
+      } catch {
+        mealChoiceOptions = null;
+      }
+    }
+
+    let customFieldDefinitions = null;
+    if (settings.customFieldDefinitions) {
+      try {
+        customFieldDefinitions = JSON.parse(settings.customFieldDefinitions);
+      } catch {
+        customFieldDefinitions = null;
+      }
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        id: settings.id,
+        eventId: settings.eventId,
+        enableAddress: settings.enableAddress,
+        enableMealChoice: settings.enableMealChoice,
+        enableAccommodation: settings.enableAccommodation,
+        enablePlusOneName: settings.enablePlusOneName,
+        enableTableAssignment: settings.enableTableAssignment,
+        enableTransportation: settings.enableTransportation,
+        enableAccessibility: settings.enableAccessibility,
+        mealChoiceOptions,
+        customFieldDefinitions,
+        createdAt: settings.createdAt,
+        updatedAt: settings.updatedAt,
+      },
+    });
+  }
+);
+
 export default events;

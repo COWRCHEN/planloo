@@ -15,6 +15,13 @@
       "when": 1738712400000,
       "tag": "0001_add_session_token",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1770343320374,
+      "tag": "0002_concerned_revanche",
+      "breakpoints": true
     }
   ]
 }
