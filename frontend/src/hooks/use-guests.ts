@@ -57,6 +57,22 @@ export interface GuestResponse {
   notes: string | null;
   checkedIn: boolean;
   checkedInAt: string | null;
+  // Optional fields (when enabled in event guest settings)
+  addressStreet?: string | null;
+  addressCity?: string | null;
+  addressState?: string | null;
+  addressZipCode?: string | null;
+  addressCountry?: string | null;
+  mealChoice?: string | null;
+  needsAccommodation?: boolean | null;
+  hotelName?: string | null;
+  checkInDate?: string | null;
+  checkOutDate?: string | null;
+  roomNumber?: string | null;
+  plusOneName?: string | null;
+  tableAssignment?: string | null;
+  transportationNeeded?: boolean | null;
+  accessibilityNeeds?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -80,6 +96,21 @@ export interface CreateGuestInput {
   plusOnesAllowed?: number;
   dietaryRestrictions?: string | null;
   notes?: string | null;
+  needsAccommodation?: boolean | null;
+  hotelName?: string | null;
+  checkInDate?: string | null;
+  checkOutDate?: string | null;
+  roomNumber?: string | null;
+  plusOneName?: string | null;
+  tableAssignment?: string | null;
+  transportationNeeded?: boolean | null;
+  accessibilityNeeds?: string | null;
+  addressStreet?: string | null;
+  addressCity?: string | null;
+  addressState?: string | null;
+  addressZipCode?: string | null;
+  addressCountry?: string | null;
+  mealChoice?: string | null;
 }
 
 export interface UpdateGuestInput {
@@ -93,6 +124,21 @@ export interface UpdateGuestInput {
   plusOnesCount?: number;
   dietaryRestrictions?: string | null;
   notes?: string | null;
+  needsAccommodation?: boolean | null;
+  hotelName?: string | null;
+  checkInDate?: string | null;
+  checkOutDate?: string | null;
+  roomNumber?: string | null;
+  plusOneName?: string | null;
+  tableAssignment?: string | null;
+  transportationNeeded?: boolean | null;
+  accessibilityNeeds?: string | null;
+  addressStreet?: string | null;
+  addressCity?: string | null;
+  addressState?: string | null;
+  addressZipCode?: string | null;
+  addressCountry?: string | null;
+  mealChoice?: string | null;
 }
 
 export interface ListGuestsQuery {
@@ -131,6 +177,16 @@ export interface RsvpPageData {
     plusOnesAllowed: number;
     plusOnesCount: number;
     dietaryRestrictions: string | null;
+    needsAccommodation?: boolean | null;
+    hotelName?: string | null;
+    checkInDate?: string | null;
+    checkOutDate?: string | null;
+  };
+  guestSettings?: {
+    enableAccommodation: boolean;
+    accommodationHotels: AccommodationHotel[] | null;
+    accommodationCheckInDate: string | null;
+    accommodationCheckOutDate: string | null;
   };
 }
 
@@ -138,6 +194,10 @@ export interface RsvpSubmitInput {
   rsvpStatus: 'confirmed' | 'declined' | 'maybe';
   plusOnesCount?: number;
   dietaryRestrictions?: string | null;
+  needsAccommodation?: boolean | null;
+  hotelName?: string | null;
+  checkInDate?: string | null;
+  checkOutDate?: string | null;
 }
 
 /** Audit entry for guest history (who created/updated, when, what changed) */
@@ -289,6 +349,11 @@ export interface CustomFieldDefinition {
   options?: string[]; // For select/multiselect types
 }
 
+export interface AccommodationHotel {
+  id: string;
+  name: string;
+}
+
 export interface GuestSettingsResponse {
   id: number;
   eventId: number;
@@ -312,6 +377,9 @@ export interface GuestSettingsResponse {
   requiredEmail: boolean;
   requiredPhone: boolean;
   mealChoiceOptions: MealChoiceOption[] | null;
+  accommodationCheckInDate: string | null;
+  accommodationCheckOutDate: string | null;
+  accommodationHotels: AccommodationHotel[] | null;
   customFieldDefinitions: CustomFieldDefinition[] | null;
   createdAt: string;
   updatedAt: string;
@@ -345,8 +413,11 @@ export interface UpdateGuestSettingsInput {
   requiredLastName?: boolean;
   requiredEmail?: boolean;
   requiredPhone?: boolean;
-  mealChoiceOptions?: MealChoiceOption[];
-  customFieldDefinitions?: CustomFieldDefinition[];
+  mealChoiceOptions?: MealChoiceOption[] | null;
+  accommodationCheckInDate?: string | null;
+  accommodationCheckOutDate?: string | null;
+  accommodationHotels?: AccommodationHotel[] | null;
+  customFieldDefinitions?: CustomFieldDefinition[] | null;
 }
 
 /**

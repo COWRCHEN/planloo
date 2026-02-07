@@ -4,13 +4,21 @@
  * Public RSVP form for guests to respond to event invitations.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRsvpData, useSubmitRsvp, type RsvpSubmitInput } from '@/hooks/use-guests';
@@ -53,6 +61,10 @@ function RsvpContent({ token }: RsvpViewProps) {
   const [selectedStatus, setSelectedStatus] = useState<'confirmed' | 'declined' | 'maybe' | null>(null);
   const [plusOnesCount, setPlusOnesCount] = useState(0);
   const [dietaryRestrictions, setDietaryRestrictions] = useState('');
+  const [needsAccommodation, setNeedsAccommodation] = useState(false);
+  const [hotelName, setHotelName] = useState('');
+  const [checkInDate, setCheckInDate] = useState('');
+  const [checkOutDate, setCheckOutDate] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   if (isLoading) {
@@ -95,12 +107,27 @@ function RsvpContent({ token }: RsvpViewProps) {
     );
   }
 
-  const { event, guest } = data;
+  const { event, guest, guestSettings } = data;
   const location = formatLocation(event);
   const hasResponded = !!guest.rsvpRespondedAt;
   const guestName = guest.lastName
     ? `${guest.firstName} ${guest.lastName}`
     : guest.firstName;
+
+  // Sync accommodation state from guest when data first loads; default dates from event when empty
+  useEffect(() => {
+    if (!data?.guest) return;
+    setNeedsAccommodation(!!data.guest.needsAccommodation);
+    setHotelName(data.guest.hotelName ?? '');
+    const cin = data.guest.checkInDate;
+    const cout = data.guest.checkOutDate;
+    const guestCheckIn = cin ? (typeof cin === 'string' ? cin.slice(0, 10) : new Date(cin).toISOString().slice(0, 10)) : '';
+    const guestCheckOut = cout ? (typeof cout === 'string' ? cout.slice(0, 10) : new Date(cout).toISOString().slice(0, 10)) : '';
+    setCheckInDate(guestCheckIn || (data.guestSettings?.accommodationCheckInDate ?? ''));
+    setCheckOutDate(guestCheckOut || (data.guestSettings?.accommodationCheckOutDate ?? ''));
+  }, [data?.guest, data?.guestSettings?.accommodationCheckInDate, data?.guestSettings?.accommodationCheckOutDate]);
+
+  const accommodationHotels = guestSettings?.enableAccommodation ? (guestSettings.accommodationHotels ?? []) : [];
 
   const handleSubmit = async () => {
     if (!selectedStatus) return;
@@ -110,6 +137,12 @@ function RsvpContent({ token }: RsvpViewProps) {
       plusOnesCount: selectedStatus === 'confirmed' ? plusOnesCount : 0,
       dietaryRestrictions: dietaryRestrictions || null,
     };
+    if (data.guestSettings?.enableAccommodation) {
+      submitData.needsAccommodation = needsAccommodation;
+      submitData.hotelName = needsAccommodation ? (hotelName || null) : null;
+      submitData.checkInDate = needsAccommodation && checkInDate ? checkInDate : null;
+      submitData.checkOutDate = needsAccommodation && checkOutDate ? checkOutDate : null;
+    }
 
     await submitRsvp.mutateAsync(submitData);
     setSubmitted(true);
@@ -271,6 +304,71 @@ function RsvpContent({ token }: RsvpViewProps) {
             />
           </div>
         )}
+
+        {/* Accommodation (only when enabled and confirmed/maybe) */}
+        {guestSettings?.enableAccommodation &&
+          accommodationHotels.length > 0 &&
+          (selectedStatus === 'confirmed' || selectedStatus === 'maybe') && (
+            <div className="space-y-4 rounded-lg border p-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="needsAccommodation"
+                  checked={needsAccommodation}
+                  onCheckedChange={setNeedsAccommodation}
+                />
+                <Label htmlFor="needsAccommodation" className="font-normal">
+                  I need hotel accommodation
+                </Label>
+              </div>
+              {needsAccommodation && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Hotel</Label>
+                    <Select
+                      value={hotelName}
+                      onValueChange={(value) => {
+                        setHotelName(value);
+                        if (data.guestSettings?.accommodationCheckInDate) setCheckInDate(data.guestSettings.accommodationCheckInDate);
+                        if (data.guestSettings?.accommodationCheckOutDate) setCheckOutDate(data.guestSettings.accommodationCheckOutDate);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select hotel" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">
+                          <span className="text-muted-foreground">Select hotel</span>
+                        </SelectItem>
+                        {accommodationHotels.map((h) => (
+                          <SelectItem key={h.id} value={h.name}>
+                            {h.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Check-in date</Label>
+                      <Input
+                        type="date"
+                        value={checkInDate}
+                        onChange={(e) => setCheckInDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Check-out date</Label>
+                      <Input
+                        type="date"
+                        value={checkOutDate}
+                        onChange={(e) => setCheckOutDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
         {/* Submit */}
         {submitRsvp.isError && (

@@ -80,8 +80,50 @@ import {
   type CreateGuestInput,
   type EventType,
   type EventGuestSettings,
+  type CustomFieldDefinition,
 } from '@/hooks/use-guests';
 import { CustomFields } from './fields/CustomFields';
+
+/** Normalize custom field values for API: only defined keys, coerced types. Returns null if required field is missing. */
+function normalizeCustomFieldData(
+  values: Record<string, unknown>,
+  definitions: CustomFieldDefinition[] | null
+): Record<string, unknown> | null {
+  if (!definitions || definitions.length === 0) return null;
+  const out: Record<string, unknown> = {};
+  for (const def of definitions) {
+    const raw = values[def.id];
+    const isEmpty = raw === undefined || raw === null || raw === '';
+    if (def.required && isEmpty) return null; // would fail validation; caller can omit payload
+    if (isEmpty) {
+      out[def.id] = null;
+      continue;
+    }
+    switch (def.type) {
+      case 'number':
+        out[def.id] = typeof raw === 'number' && !Number.isNaN(raw) ? raw : Number(raw);
+        if (Number.isNaN(out[def.id] as number)) out[def.id] = null;
+        break;
+      case 'checkbox':
+        out[def.id] = raw === true || raw === 'true' || raw === 1;
+        break;
+      case 'select':
+        out[def.id] = def.options?.includes(String(raw)) ? String(raw) : null;
+        break;
+      case 'multiselect':
+        out[def.id] = Array.isArray(raw)
+          ? (raw as unknown[]).filter((v) => def.options?.includes(String(v)))
+          : [];
+        break;
+      case 'date':
+        out[def.id] = typeof raw === 'string' && !Number.isNaN(Date.parse(raw)) ? raw : null;
+        break;
+      default:
+        out[def.id] = raw != null ? String(raw) : null;
+    }
+  }
+  return out;
+}
 
 // ==================== SCHEMA ====================
 
@@ -130,6 +172,7 @@ const guestFormSchema = z.object({
   hotelName: z.string().max(200).optional().nullable(),
   checkInDate: z.string().optional().nullable(),
   checkOutDate: z.string().optional().nullable(),
+  roomNumber: z.string().max(20).optional().nullable(),
   plusOneName: z.string().max(200).optional().nullable(),
   tableAssignment: z.string().max(50).optional().nullable(),
   transportationNeeded: z.boolean().optional().nullable(),
@@ -183,6 +226,14 @@ function buildGuestFormSchemaWithRequired(
     }
     if (s.enableAccessibility && reqAccess && !(data.accessibilityNeeds?.trim())) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Accessibility needs is required', path: ['accessibilityNeeds'] });
+    }
+    // Accommodation: check-out >= check-in when both set
+    if (data.checkInDate && data.checkOutDate && data.checkOutDate < data.checkInDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Check-out date must be on or after check-in date',
+        path: ['checkOutDate'],
+      });
     }
   });
 }
@@ -265,6 +316,22 @@ export function GuestForm({
       plusOnesAllowed: 0,
       dietaryRestrictions: '',
       notes: '',
+      // Optional fields so they are always in form state and included on submit
+      addressStreet: '',
+      addressCity: '',
+      addressState: '',
+      addressZipCode: '',
+      addressCountry: '',
+      mealChoice: '',
+      needsAccommodation: false,
+      hotelName: '',
+      checkInDate: '',
+      checkOutDate: '',
+      roomNumber: '',
+      plusOneName: '',
+      tableAssignment: '',
+      transportationNeeded: false,
+      accessibilityNeeds: '',
     },
   });
 
@@ -331,6 +398,7 @@ export function GuestForm({
         hotelName: guest?.hotelName ?? '',
         checkInDate: guest?.checkInDate ? new Date(guest.checkInDate).toISOString().split('T')[0] : '',
         checkOutDate: guest?.checkOutDate ? new Date(guest.checkOutDate).toISOString().split('T')[0] : '',
+        roomNumber: guest?.roomNumber ?? '',
         plusOneName: guest?.plusOneName ?? '',
         tableAssignment: guest?.tableAssignment ?? '',
         transportationNeeded: guest?.transportationNeeded ?? false,
@@ -391,8 +459,11 @@ export function GuestForm({
       };
     }
 
+    // Use ref so we always have current settings at submit time (avoids stale closure)
+    const settings = guestSettingsRef.current;
+
     // Add optional fields based on settings
-    if (guestSettings?.enableAddress) {
+    if (settings?.enableAddress) {
       cleanedData.addressStreet = data.addressStreet || null;
       cleanedData.addressCity = data.addressCity || null;
       cleanedData.addressState = data.addressState || null;
@@ -400,36 +471,42 @@ export function GuestForm({
       cleanedData.addressCountry = data.addressCountry || null;
     }
 
-    if (guestSettings?.enableMealChoice) {
+    if (settings?.enableMealChoice) {
       cleanedData.mealChoice = data.mealChoice || null;
     }
 
-    if (guestSettings?.enableAccommodation) {
-      cleanedData.needsAccommodation = data.needsAccommodation ?? null;
-      cleanedData.hotelName = data.hotelName || null;
-      cleanedData.checkInDate = data.checkInDate || null;
-      cleanedData.checkOutDate = data.checkOutDate || null;
+    if (settings?.enableAccommodation) {
+      cleanedData.needsAccommodation = data.needsAccommodation === true;
+      const hotel = data.hotelName && data.hotelName !== '__none__' ? data.hotelName : null;
+      cleanedData.hotelName = hotel ?? null;
+      cleanedData.checkInDate = (data.checkInDate && data.checkInDate.trim()) || null;
+      cleanedData.checkOutDate = (data.checkOutDate && data.checkOutDate.trim()) || null;
+      cleanedData.roomNumber = (data.roomNumber && data.roomNumber.trim()) || null;
     }
 
-    if (guestSettings?.enablePlusOneName) {
+    if (settings?.enablePlusOneName) {
       cleanedData.plusOneName = data.plusOneName || null;
     }
 
-    if (guestSettings?.enableTableAssignment) {
+    if (settings?.enableTableAssignment) {
       cleanedData.tableAssignment = data.tableAssignment || null;
     }
 
-    if (guestSettings?.enableTransportation) {
+    if (settings?.enableTransportation) {
       cleanedData.transportationNeeded = data.transportationNeeded ?? null;
     }
 
-    if (guestSettings?.enableAccessibility) {
+    if (settings?.enableAccessibility) {
       cleanedData.accessibilityNeeds = data.accessibilityNeeds || null;
     }
 
-    // Add custom field data
-    if (guestSettings?.customFieldDefinitions && guestSettings.customFieldDefinitions.length > 0) {
-      cleanedData.customFieldData = JSON.stringify(customFieldValues);
+    // Add custom field data only when normalized and valid (required fields present)
+    const defs = settings?.customFieldDefinitions ?? null;
+    if (defs && defs.length > 0) {
+      const normalized = normalizeCustomFieldData(customFieldValues, defs);
+      if (normalized !== null) {
+        cleanedData.customFieldData = normalized;
+      }
     }
 
     await onSubmit(cleanedData);
@@ -910,25 +987,65 @@ export function GuestForm({
                         </div>
                         {form.watch('needsAccommodation') && (
                           <>
-                            <Input
-                              {...form.register('hotelName')}
-                              placeholder="Hotel name"
-                            />
+                            {(guestSettings as { accommodationHotels?: Array<{ id: string; name: string }> })?.accommodationHotels &&
+                            (guestSettings as { accommodationHotels?: Array<{ id: string; name: string }> }).accommodationHotels!.length > 0 ? (
+                              <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">Hotel</Label>
+                                <Select
+                                  value={(form.watch('hotelName') ?? '') || '__none__'}
+                                  onValueChange={(value) => {
+                                    const hotel = value === '__none__' ? '' : value;
+                                    form.setValue('hotelName', hotel);
+                                    const s = guestSettings as { accommodationCheckInDate?: string | null; accommodationCheckOutDate?: string | null };
+                                    if (s?.accommodationCheckInDate) form.setValue('checkInDate', s.accommodationCheckInDate);
+                                    if (s?.accommodationCheckOutDate) form.setValue('checkOutDate', s.accommodationCheckOutDate);
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select hotel" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="__none__">
+                                      <span className="text-muted-foreground">Select hotel</span>
+                                    </SelectItem>
+                                    {(guestSettings as { accommodationHotels?: Array<{ id: string; name: string }> }).accommodationHotels?.map((h) => (
+                                      <SelectItem key={h.id} value={h.name}>
+                                        {h.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                Add hotels in Event Settings → Guest Fields → Accommodation.
+                              </p>
+                            )}
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Check-in</Label>
+                                <Label className="text-xs text-muted-foreground">Check-in date</Label>
                                 <Input
                                   type="date"
                                   {...form.register('checkInDate')}
                                 />
                               </div>
                               <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Check-out</Label>
+                                <Label className="text-xs text-muted-foreground">Check-out date</Label>
                                 <Input
                                   type="date"
                                   {...form.register('checkOutDate')}
                                 />
                               </div>
+                            </div>
+                            {form.formState.errors.checkOutDate && (
+                              <p className="text-sm text-destructive">{form.formState.errors.checkOutDate.message}</p>
+                            )}
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground">Room number</Label>
+                              <Input
+                                {...form.register('roomNumber')}
+                                placeholder="e.g. 204"
+                              />
                             </div>
                           </>
                         )}

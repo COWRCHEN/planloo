@@ -98,9 +98,10 @@ export const guests = sqliteTable('guests', {
 
   // Accommodation fields (enabled via eventGuestSettings.enableAccommodation)
   needsAccommodation: integer('needs_accommodation', { mode: 'boolean' }),
-  hotelName: text('hotel_name'),
+  hotelName: text('hotel_name'), // selected hotel from event's accommodationHotels list
   checkInDate: integer('check_in_date', { mode: 'timestamp' }),
   checkOutDate: integer('check_out_date', { mode: 'timestamp' }),
+  roomNumber: text('room_number'), // assigned on confirm, not at event check-in
 
   // Additional optional fields (individual toggles)
   plusOneName: text('plus_one_name'), // enabled via enablePlusOneName
@@ -226,6 +227,13 @@ export const eventGuestSettings = sqliteTable('event_guest_settings', {
   // Example: [{"key": "option1", "label": "Beef"}, {"key": "option2", "label": "Chicken"}, {"key": "vegetarian", "label": "Vegetarian"}]
   // Default options provided when enableMealChoice is first turned on
   mealChoiceOptions: text('meal_choice_options'),
+
+  // === ACCOMMODATION (when enableAccommodation is true) ===
+  // One check-in/check-out date for the whole event (same for all hotels)
+  accommodationCheckInDate: text('accommodation_check_in_date'),  // YYYY-MM-DD
+  accommodationCheckOutDate: text('accommodation_check_out_date'), // YYYY-MM-DD
+  // JSON array of hotels: [{ id: string, name: string }]. Guest selects one; dates come from event-level above.
+  accommodationHotels: text('accommodation_hotels'),
 
   // === CUSTOM FIELD DEFINITIONS (Phase 3) ===
   // JSON array defining custom fields for this event

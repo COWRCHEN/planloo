@@ -465,10 +465,19 @@ const customFieldDefinitionSchema = z.object({
   options: z.array(z.string().max(100)).optional(),
 });
 
+/** Accommodation hotel: id + name only. Check-in/check-out are event-level (same for all hotels). */
+const accommodationHotelSchema = z.object({
+  id: z.string().min(1).max(50),
+  name: z.string().min(1).max(200),
+});
+
+const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');
+
 /**
  * Update guest settings schema
  */
-const updateGuestSettingsSchema = z.object({
+const updateGuestSettingsSchema = z
+  .object({
   // Field toggles
   enableAddress: z.boolean().optional(),
   enableMealChoice: z.boolean().optional(),
@@ -492,9 +501,22 @@ const updateGuestSettingsSchema = z.object({
   requiredPhone: z.boolean().optional(),
   // Meal options
   mealChoiceOptions: z.array(mealChoiceOptionSchema).max(20).optional(),
+  // Accommodation: event-level dates (same for all hotels) + hotel list (id, name only)
+  accommodationCheckInDate: dateOnlySchema.optional().nullable(),
+  accommodationCheckOutDate: dateOnlySchema.optional().nullable(),
+  accommodationHotels: z.array(accommodationHotelSchema).max(50).optional(),
   // Custom field definitions (max 10)
   customFieldDefinitions: z.array(customFieldDefinitionSchema).max(10).optional(),
-});
+})
+  .refine(
+    (data) => {
+      const cin = data.accommodationCheckInDate;
+      const cout = data.accommodationCheckOutDate;
+      if (!cin || !cout) return true;
+      return cout >= cin;
+    },
+    { message: 'Check-out date must be on or after check-in date', path: ['accommodationCheckOutDate'] }
+  );
 
 /**
  * GET /events/:uuid/guest-settings
@@ -576,6 +598,15 @@ events.get('/:uuid/guest-settings', requireAuth, async (c) => {
     }
   }
 
+  let accommodationHotels = null;
+  if (settings!.accommodationHotels) {
+    try {
+      accommodationHotels = JSON.parse(settings!.accommodationHotels);
+    } catch {
+      accommodationHotels = null;
+    }
+  }
+
   return c.json({
     success: true,
     data: {
@@ -601,6 +632,9 @@ events.get('/:uuid/guest-settings', requireAuth, async (c) => {
       requiredEmail: settings!.requiredEmail,
       requiredPhone: settings!.requiredPhone,
       mealChoiceOptions,
+      accommodationCheckInDate: settings!.accommodationCheckInDate ?? null,
+      accommodationCheckOutDate: settings!.accommodationCheckOutDate ?? null,
+      accommodationHotels,
       customFieldDefinitions,
       createdAt: settings!.createdAt,
       updatedAt: settings!.updatedAt,
@@ -682,6 +716,15 @@ events.patch(
         : null;
     }
 
+    if (updates.accommodationCheckInDate !== undefined) updateData.accommodationCheckInDate = updates.accommodationCheckInDate ?? null;
+    if (updates.accommodationCheckOutDate !== undefined) updateData.accommodationCheckOutDate = updates.accommodationCheckOutDate ?? null;
+    if (updates.accommodationHotels !== undefined) {
+      updateData.accommodationHotels =
+        updates.accommodationHotels && updates.accommodationHotels.length > 0
+          ? JSON.stringify(updates.accommodationHotels)
+          : null;
+    }
+
     if (updates.customFieldDefinitions !== undefined) {
       // Validate custom field definitions
       if (updates.customFieldDefinitions && updates.customFieldDefinitions.length > 10) {
@@ -736,8 +779,13 @@ events.patch(
           eventId: event.id,
           enableAddress: updates.enableAddress ?? false,
           enableMealChoice: updates.enableMealChoice ?? false,
-          enableAccommodation: updates.enableAccommodation ?? false,
-          enablePlusOneName: updates.enablePlusOneName ?? false,
+        enableAccommodation: updates.enableAccommodation ?? false,
+        accommodationCheckInDate: updates.accommodationCheckInDate ?? null,
+        accommodationCheckOutDate: updates.accommodationCheckOutDate ?? null,
+        accommodationHotels: updates.accommodationHotels
+          ? JSON.stringify(updates.accommodationHotels)
+          : null,
+        enablePlusOneName: updates.enablePlusOneName ?? false,
           enableTableAssignment: updates.enableTableAssignment ?? false,
           enableTransportation: updates.enableTransportation ?? false,
           enableAccessibility: updates.enableAccessibility ?? false,
@@ -766,6 +814,15 @@ events.patch(
         mealChoiceOptions = JSON.parse(settings.mealChoiceOptions);
       } catch {
         mealChoiceOptions = null;
+      }
+    }
+
+    let accommodationHotels = null;
+    if (settings.accommodationHotels) {
+      try {
+        accommodationHotels = JSON.parse(settings.accommodationHotels);
+      } catch {
+        accommodationHotels = null;
       }
     }
 
@@ -802,6 +859,9 @@ events.patch(
         requiredEmail: settings.requiredEmail,
         requiredPhone: settings.requiredPhone,
         mealChoiceOptions,
+        accommodationCheckInDate: settings.accommodationCheckInDate ?? null,
+        accommodationCheckOutDate: settings.accommodationCheckOutDate ?? null,
+        accommodationHotels,
         customFieldDefinitions,
         createdAt: settings.createdAt,
         updatedAt: settings.updatedAt,

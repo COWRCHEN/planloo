@@ -27,6 +27,9 @@ interface ParsedGuest {
   mealChoice?: string | null;
   needsAccommodation?: boolean | null;
   hotelName?: string | null;
+  checkInDate?: Date | string | null;
+  checkOutDate?: Date | string | null;
+  roomNumber?: string | null;
   plusOneName?: string | null;
   tableAssignment?: string | null;
   transportationNeeded?: boolean | null;
@@ -63,6 +66,7 @@ interface GuestRow {
   hotelName?: string | null;
   checkInDate?: Date | null;
   checkOutDate?: Date | null;
+  roomNumber?: string | null;
   plusOneName?: string | null;
   tableAssignment?: string | null;
   transportationNeeded?: boolean | null;
@@ -108,6 +112,9 @@ export function parseGuestsCsv(content: string): ParseResult {
   const mealChoiceIdx = headers.indexOf('mealchoice');
   const needsAccommodationIdx = headers.indexOf('needsaccommodation');
   const hotelNameIdx = headers.indexOf('hotelname');
+  const checkInDateIdx = headers.indexOf('checkindate');
+  const checkOutDateIdx = headers.indexOf('checkoutdate');
+  const roomNumberIdx = headers.indexOf('roomnumber');
   const plusOneNameIdx = headers.indexOf('plusonename');
   const tableAssignmentIdx = headers.indexOf('tableassignment');
   const transportationNeededIdx = headers.indexOf('transportationneeded');
@@ -174,7 +181,12 @@ export function parseGuestsCsv(content: string): ParseResult {
     const mealChoice = getStr(mealChoiceIdx);
     const needsAccommodation = getBool(needsAccommodationIdx);
     const hotelName = getStr(hotelNameIdx);
+    const checkInDateRaw = getStr(checkInDateIdx);
+    const checkOutDateRaw = getStr(checkOutDateIdx);
+    const roomNumber = getStr(roomNumberIdx);
     const plusOneName = getStr(plusOneNameIdx);
+    const checkInDate = checkInDateRaw ? parseDate(checkInDateRaw) : null;
+    const checkOutDate = checkOutDateRaw ? parseDate(checkOutDateRaw) : null;
     const tableAssignment = getStr(tableAssignmentIdx);
     const transportationNeeded = getBool(transportationNeededIdx);
     const accessibilityNeeds = getStr(accessibilityNeedsIdx);
@@ -229,6 +241,9 @@ export function parseGuestsCsv(content: string): ParseResult {
       mealChoice,
       needsAccommodation,
       hotelName,
+      checkInDate,
+      checkOutDate,
+      roomNumber,
       plusOneName,
       tableAssignment,
       transportationNeeded,
@@ -272,6 +287,7 @@ export function generateGuestsCsv(guests: GuestRow[]): string {
     'hotelName',
     'checkInDate',
     'checkOutDate',
+    'roomNumber',
     'plusOneName',
     'tableAssignment',
     'transportationNeeded',
@@ -305,6 +321,7 @@ export function generateGuestsCsv(guests: GuestRow[]): string {
       escapeCSVValue(guest.hotelName ?? ''),
       guest.checkInDate ? formatDate(guest.checkInDate) : '',
       guest.checkOutDate ? formatDate(guest.checkOutDate) : '',
+      escapeCSVValue(guest.roomNumber ?? ''),
       escapeCSVValue(guest.plusOneName ?? ''),
       escapeCSVValue(guest.tableAssignment ?? ''),
       guest.transportationNeeded === true ? 'yes' : guest.transportationNeeded === false ? 'no' : '',
@@ -321,6 +338,15 @@ export function generateGuestsCsv(guests: GuestRow[]): string {
  */
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0] ?? '';
+}
+
+/**
+ * Parse a date string (YYYY-MM-DD or similar) for CSV import
+ */
+function parseDate(value: string): Date | null {
+  if (!value?.trim()) return null;
+  const d = new Date(value.trim());
+  return isNaN(d.getTime()) ? null : d;
 }
 
 /**

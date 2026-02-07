@@ -87,6 +87,7 @@ const optionalFieldsSchema = z.object({
   hotelName: z.string().max(200).optional().nullable(),
   checkInDate: z.coerce.date().optional().nullable(),
   checkOutDate: z.coerce.date().optional().nullable(),
+  roomNumber: z.string().max(20).optional().nullable(),
   // Additional
   plusOneName: z.string().max(200).optional().nullable(),
   tableAssignment: z.string().max(50).optional().nullable(),
@@ -172,6 +173,25 @@ const listGuestsQuerySchema = z.object({
   sortBy: z.enum(['firstName', 'lastName', 'createdAt', 'rsvpStatus', 'tableAssignment']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
+
+/** Validate accommodation: hotelName must be in event's list (if list non-empty); checkOutDate >= checkInDate when both set */
+function validateAccommodation(
+  accommodationHotels: Array<{ id: string; name: string }> | null,
+  hotelName: string | null | undefined,
+  checkInDate: Date | null | undefined,
+  checkOutDate: Date | null | undefined
+): { valid: true } | { valid: false; message: string } {
+  if (checkInDate && checkOutDate && checkOutDate < checkInDate) {
+    return { valid: false, message: 'Check-out date must be on or after check-in date' };
+  }
+  if (hotelName && accommodationHotels && accommodationHotels.length > 0) {
+    const names = accommodationHotels.map((h) => h.name);
+    if (!names.includes(hotelName)) {
+      return { valid: false, message: `Hotel must be one of: ${names.join(', ')}` };
+    }
+  }
+  return { valid: true };
+}
 
 // ==================== HELPERS ====================
 
@@ -428,6 +448,7 @@ guests.get(
         hotelName: schema.guests.hotelName,
         checkInDate: schema.guests.checkInDate,
         checkOutDate: schema.guests.checkOutDate,
+        roomNumber: schema.guests.roomNumber,
         plusOneName: schema.guests.plusOneName,
         tableAssignment: schema.guests.tableAssignment,
         transportationNeeded: schema.guests.transportationNeeded,
@@ -1102,6 +1123,51 @@ guests.post(
       }
     }
 
+    // Validate accommodation: hotel from event list, check-out >= check-in
+    if (data.needsAccommodation || data.hotelName || data.checkInDate || data.checkOutDate) {
+      const [guestSettings] = await db
+        .select({
+          enableAccommodation: schema.eventGuestSettings.enableAccommodation,
+          accommodationHotels: schema.eventGuestSettings.accommodationHotels,
+        })
+        .from(schema.eventGuestSettings)
+        .where(eq(schema.eventGuestSettings.eventId, event.id))
+        .limit(1);
+
+      if (guestSettings?.enableAccommodation && guestSettings.accommodationHotels) {
+        let hotels: Array<{ id: string; name: string }> = [];
+        try {
+          const parsed = JSON.parse(guestSettings.accommodationHotels);
+          hotels = Array.isArray(parsed) ? parsed.map((h: { id?: string; name?: string }) => ({ id: h.id ?? '', name: h.name ?? '' })) : [];
+        } catch {
+          hotels = [];
+        }
+        const acc = validateAccommodation(
+          hotels,
+          data.hotelName ?? null,
+          data.checkInDate ?? null,
+          data.checkOutDate ?? null
+        );
+        if (!acc.valid) {
+          return c.json(
+            { success: false, error: { code: 'VALIDATION_ERROR', message: acc.message } },
+            400
+          );
+        }
+      } else if (data.checkInDate && data.checkOutDate && data.checkOutDate < data.checkInDate) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Check-out date must be on or after check-in date',
+            },
+          },
+          400
+        );
+      }
+    }
+
     const uuid = crypto.randomUUID();
     const rsvpToken = generateRsvpToken();
 
@@ -1132,6 +1198,7 @@ guests.post(
       hotelName: data.hotelName ?? null,
       checkInDate: data.checkInDate ?? null,
       checkOutDate: data.checkOutDate ?? null,
+      roomNumber: data.roomNumber ?? null,
       plusOneName: data.plusOneName ?? null,
       tableAssignment: data.tableAssignment ?? null,
       transportationNeeded: data.transportationNeeded ?? null,
@@ -1338,6 +1405,9 @@ guests.post('/import', requireAuth, requireVerifiedEmail, async (c) => {
     mealChoice: g.mealChoice ?? null,
     needsAccommodation: g.needsAccommodation ?? null,
     hotelName: g.hotelName ?? null,
+    checkInDate: g.checkInDate ?? null,
+    checkOutDate: g.checkOutDate ?? null,
+    roomNumber: g.roomNumber ?? null,
     plusOneName: g.plusOneName ?? null,
     tableAssignment: g.tableAssignment ?? null,
     transportationNeeded: g.transportationNeeded ?? null,
@@ -1444,6 +1514,54 @@ guests.patch(
       }
     }
 
+    // Validate accommodation when updating hotel or dates
+    const effectiveHotel = updates.hotelName !== undefined ? updates.hotelName : currentGuest.hotelName;
+    const effectiveCheckIn = updates.checkInDate !== undefined ? updates.checkInDate : currentGuest.checkInDate;
+    const effectiveCheckOut = updates.checkOutDate !== undefined ? updates.checkOutDate : currentGuest.checkOutDate;
+    if (effectiveHotel !== undefined || effectiveCheckIn !== undefined || effectiveCheckOut !== undefined) {
+      const [guestSettings] = await db
+        .select({
+          enableAccommodation: schema.eventGuestSettings.enableAccommodation,
+          accommodationHotels: schema.eventGuestSettings.accommodationHotels,
+        })
+        .from(schema.eventGuestSettings)
+        .where(eq(schema.eventGuestSettings.eventId, event.id))
+        .limit(1);
+
+      if (guestSettings?.enableAccommodation && guestSettings.accommodationHotels) {
+        let hotels: Array<{ id: string; name: string }> = [];
+        try {
+          const parsed = JSON.parse(guestSettings.accommodationHotels);
+          hotels = Array.isArray(parsed) ? parsed.map((h: { id?: string; name?: string }) => ({ id: h.id ?? '', name: h.name ?? '' })) : [];
+        } catch {
+          hotels = [];
+        }
+        const acc = validateAccommodation(
+          hotels,
+          effectiveHotel ?? null,
+          effectiveCheckIn ?? null,
+          effectiveCheckOut ?? null
+        );
+        if (!acc.valid) {
+          return c.json(
+            { success: false, error: { code: 'VALIDATION_ERROR', message: acc.message } },
+            400
+          );
+        }
+      } else if (effectiveCheckIn && effectiveCheckOut && effectiveCheckOut < effectiveCheckIn) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Check-out date must be on or after check-in date',
+            },
+          },
+          400
+        );
+      }
+    }
+
     // Build update object for base guest table
     const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
@@ -1472,6 +1590,7 @@ guests.patch(
     if (updates.hotelName !== undefined) updateData.hotelName = updates.hotelName;
     if (updates.checkInDate !== undefined) updateData.checkInDate = updates.checkInDate;
     if (updates.checkOutDate !== undefined) updateData.checkOutDate = updates.checkOutDate;
+    if (updates.roomNumber !== undefined) updateData.roomNumber = updates.roomNumber;
     if (updates.plusOneName !== undefined) updateData.plusOneName = updates.plusOneName;
     if (updates.tableAssignment !== undefined) updateData.tableAssignment = updates.tableAssignment;
     if (updates.transportationNeeded !== undefined) updateData.transportationNeeded = updates.transportationNeeded;

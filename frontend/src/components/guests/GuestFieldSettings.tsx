@@ -29,8 +29,10 @@ import {
 import {
   useGuestSettings,
   useUpdateGuestSettings,
+  type AccommodationHotel,
   type EventGuestSettings,
   type MealChoiceOption,
+  type UpdateGuestSettingsInput,
 } from '@/hooks/use-guests';
 
 interface GuestFieldSettingsProps {
@@ -196,6 +198,64 @@ function MealChoiceEditor({ options, onChange, disabled }: MealChoiceEditorProps
   );
 }
 
+interface AccommodationHotelsEditorProps {
+  hotels: AccommodationHotel[];
+  onChange: (hotels: AccommodationHotel[]) => void;
+  disabled?: boolean;
+}
+
+function AccommodationHotelsEditor({ hotels, onChange, disabled }: AccommodationHotelsEditorProps) {
+  const addHotel = () => {
+    const id = `hotel-${Date.now()}`;
+    onChange([...hotels, { id, name: '' }]);
+  };
+
+  const updateHotel = (index: number, updates: Partial<AccommodationHotel>) => {
+    const next = [...hotels];
+    next[index] = { ...next[index]!, ...updates };
+    onChange(next);
+  };
+
+  const removeHotel = (index: number) => {
+    onChange(hotels.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="space-y-3 ml-4 mt-2">
+      <Label className="text-sm font-medium">Hotels for this event</Label>
+      <p className="text-xs text-muted-foreground">
+        Add hotel names. Guests will select one. Check-in and check-out dates are set once for the whole event below.
+      </p>
+      <div className="space-y-2">
+        {hotels.map((hotel, index) => (
+          <div key={hotel.id} className="flex items-center gap-2">
+            <Input
+              placeholder="Hotel name"
+              value={hotel.name}
+              onChange={(e) => updateHotel(index, { name: e.target.value })}
+              disabled={disabled}
+              className="flex-1"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => removeHotel(index)}
+              disabled={disabled}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </Button>
+          </div>
+        ))}
+        <Button variant="outline" size="sm" onClick={addHotel} disabled={disabled}>
+          Add hotel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
   const { data: settings, isLoading } = useGuestSettings(eventUuid);
   const updateSettings = useUpdateGuestSettings(eventUuid);
@@ -207,6 +267,7 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
   const currentSettings: EventGuestSettings = {
     id: settings?.id ?? 0,
     eventId: settings?.eventId ?? 0,
+    eventType: settings?.eventType ?? null,
     enableAddress: localSettings.enableAddress ?? settings?.enableAddress ?? false,
     enableMealChoice: localSettings.enableMealChoice ?? settings?.enableMealChoice ?? false,
     enableAccommodation: localSettings.enableAccommodation ?? settings?.enableAccommodation ?? false,
@@ -226,6 +287,9 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
     requiredEmail: localSettings.requiredEmail ?? settings?.requiredEmail ?? false,
     requiredPhone: localSettings.requiredPhone ?? settings?.requiredPhone ?? false,
     mealChoiceOptions: localSettings.mealChoiceOptions ?? settings?.mealChoiceOptions ?? [],
+    accommodationCheckInDate: localSettings.accommodationCheckInDate ?? (settings as { accommodationCheckInDate?: string | null })?.accommodationCheckInDate ?? null,
+    accommodationCheckOutDate: localSettings.accommodationCheckOutDate ?? (settings as { accommodationCheckOutDate?: string | null })?.accommodationCheckOutDate ?? null,
+    accommodationHotels: localSettings.accommodationHotels ?? (settings as { accommodationHotels?: AccommodationHotel[] })?.accommodationHotels ?? null,
     customFieldDefinitions: settings?.customFieldDefinitions ?? [],
     createdAt: settings?.createdAt ?? '',
     updatedAt: settings?.updatedAt ?? '',
@@ -238,7 +302,7 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
 
   const handleSave = async () => {
     try {
-      await updateSettings.mutateAsync(localSettings);
+      await updateSettings.mutateAsync(localSettings as UpdateGuestSettingsInput);
       setLocalSettings({});
       setHasChanges(false);
     } catch {
@@ -346,6 +410,36 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
             onRequiredChange={(checked) => handleChange('requiredAccommodation', checked)}
             showRequired={currentSettings.enableAccommodation}
           />
+
+          {currentSettings.enableAccommodation && (
+            <>
+              <div className="grid grid-cols-2 gap-4 ml-4 mt-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Check-in date (same for all hotels)</Label>
+                  <Input
+                    type="date"
+                    value={currentSettings.accommodationCheckInDate ?? ''}
+                    onChange={(e) => handleChange('accommodationCheckInDate', e.target.value || null)}
+                    disabled={updateSettings.isPending}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Check-out date (same for all hotels)</Label>
+                  <Input
+                    type="date"
+                    value={currentSettings.accommodationCheckOutDate ?? ''}
+                    onChange={(e) => handleChange('accommodationCheckOutDate', e.target.value || null)}
+                    disabled={updateSettings.isPending}
+                  />
+                </div>
+              </div>
+              <AccommodationHotelsEditor
+                hotels={currentSettings.accommodationHotels ?? []}
+                onChange={(hotels) => handleChange('accommodationHotels', hotels)}
+                disabled={updateSettings.isPending}
+              />
+            </>
+          )}
 
           <FieldToggle
             label="Transportation"

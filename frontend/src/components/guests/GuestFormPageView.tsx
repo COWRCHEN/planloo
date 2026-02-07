@@ -54,12 +54,13 @@ function GuestFormPageContent({ eventUuid, guestUuid }: GuestFormPageViewProps) 
     eventUuid,
     guestUuid ?? undefined
   );
-  const { data: guestSettings } = useGuestSettings(eventUuid);
+  const { data: guestSettings, isLoading: guestSettingsLoading } = useGuestSettings(eventUuid);
   const createGuest = useCreateGuest(eventUuid);
   const updateGuest = useUpdateGuest(eventUuid, guestUuid ?? '');
 
   const isEditMode = !!guestUuid;
-  const isLoading = eventLoading || (isEditMode && guestLoading);
+  const isLoading =
+    eventLoading || (isEditMode && guestLoading) || guestSettingsLoading;
   const error = eventError ?? (isEditMode ? guestError : null);
 
   const handleCancel = () => {

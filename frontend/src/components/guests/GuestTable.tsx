@@ -78,7 +78,7 @@ export function GuestTable({
   onUpdateRsvpStatus,
   onAudit,
   eventType: _eventType,
-  guestSettings: _guestSettings,
+  guestSettings,
 }: GuestTableProps) {
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
@@ -111,6 +111,7 @@ export function GuestTable({
             <TableHead>Contact</TableHead>
             <TableHead>Category</TableHead>
             <TableHead>RSVP</TableHead>
+            {guestSettings?.enableAccommodation && <TableHead>Accommodation</TableHead>}
             <TableHead>Check-in</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
@@ -172,6 +173,18 @@ export function GuestTable({
                     <RsvpStatusBadge status={guest.rsvpStatus} />
                   )}
                 </TableCell>
+                {guestSettings?.enableAccommodation && (
+                  <TableCell className="text-sm text-muted-foreground max-w-[140px]">
+                    {guest.needsAccommodation ? (
+                      <span title={`${guest.hotelName ?? ''}${guest.roomNumber ? ` · Room ${guest.roomNumber}` : ''}`}>
+                        Yes{guest.hotelName ? ` · ${guest.hotelName}` : ''}
+                        {guest.roomNumber ? ` (${guest.roomNumber})` : ''}
+                      </span>
+                    ) : (
+                      'No'
+                    )}
+                  </TableCell>
+                )}
                 <TableCell>
                   <Button
                     variant="outline"

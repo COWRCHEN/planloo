@@ -36,6 +36,7 @@ const FIELD_LABELS: Record<string, string> = {
   hotelName: 'Hotel name',
   checkInDate: 'Check-in date',
   checkOutDate: 'Check-out date',
+  roomNumber: 'Room number',
   addressStreet: 'Address (street)',
   addressCity: 'City',
   addressState: 'State',
@@ -61,6 +62,7 @@ function isOptionalFieldEnabled(
     case 'hotelName':
     case 'checkInDate':
     case 'checkOutDate':
+    case 'roomNumber':
       return settings.enableAccommodation;
     case 'addressStreet':
     case 'addressCity':

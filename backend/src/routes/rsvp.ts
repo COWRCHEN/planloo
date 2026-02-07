@@ -21,6 +21,10 @@ const rsvpSubmitSchema = z.object({
   rsvpStatus: z.enum(['confirmed', 'declined', 'maybe']),
   plusOnesCount: z.coerce.number().int().min(0).max(10).optional(),
   dietaryRestrictions: z.string().max(500).optional().nullable(),
+  needsAccommodation: z.boolean().optional().nullable(),
+  hotelName: z.string().max(200).optional().nullable(),
+  checkInDate: z.coerce.date().optional().nullable(),
+  checkOutDate: z.coerce.date().optional().nullable(),
 });
 
 // ==================== ROUTES ====================
@@ -48,6 +52,10 @@ rsvp.get('/:token', async (c) => {
       plusOnesAllowed: schema.guests.plusOnesAllowed,
       plusOnesCount: schema.guests.plusOnesCount,
       dietaryRestrictions: schema.guests.dietaryRestrictions,
+      needsAccommodation: schema.guests.needsAccommodation,
+      hotelName: schema.guests.hotelName,
+      checkInDate: schema.guests.checkInDate,
+      checkOutDate: schema.guests.checkOutDate,
     })
     .from(schema.guests)
     .where(and(eq(schema.guests.rsvpToken, token), isNull(schema.guests.deletedAt)))
@@ -59,6 +67,25 @@ rsvp.get('/:token', async (c) => {
       404
     );
   }
+
+  // Get event guest settings (for accommodation: hotels + event-level dates)
+  let guestSettings: {
+    enableAccommodation: boolean;
+    accommodationHotels: string | null;
+    accommodationCheckInDate: string | null;
+    accommodationCheckOutDate: string | null;
+  } | null = null;
+  const [settingsRow] = await db
+    .select({
+      enableAccommodation: schema.eventGuestSettings.enableAccommodation,
+      accommodationHotels: schema.eventGuestSettings.accommodationHotels,
+      accommodationCheckInDate: schema.eventGuestSettings.accommodationCheckInDate,
+      accommodationCheckOutDate: schema.eventGuestSettings.accommodationCheckOutDate,
+    })
+    .from(schema.eventGuestSettings)
+    .where(eq(schema.eventGuestSettings.eventId, guest.eventId))
+    .limit(1);
+  if (settingsRow) guestSettings = settingsRow;
 
   // Get event info
   const [event] = await db
@@ -88,6 +115,18 @@ rsvp.get('/:token', async (c) => {
     );
   }
 
+  let accommodationHotels: Array<{ id: string; name: string }> | null = null;
+  if (guestSettings?.accommodationHotels) {
+    try {
+      const parsed = JSON.parse(guestSettings.accommodationHotels);
+      accommodationHotels = Array.isArray(parsed)
+        ? parsed.map((h: { id?: string; name?: string }) => ({ id: h.id ?? '', name: h.name ?? '' }))
+        : null;
+    } catch {
+      accommodationHotels = null;
+    }
+  }
+
   return c.json({
     success: true,
     data: {
@@ -115,7 +154,20 @@ rsvp.get('/:token', async (c) => {
         plusOnesAllowed: guest.plusOnesAllowed,
         plusOnesCount: guest.plusOnesCount,
         dietaryRestrictions: guest.dietaryRestrictions,
+        needsAccommodation: guest.needsAccommodation ?? null,
+        hotelName: guest.hotelName ?? null,
+        checkInDate: guest.checkInDate ?? null,
+        checkOutDate: guest.checkOutDate ?? null,
       },
+      guestSettings:
+        guestSettings?.enableAccommodation
+          ? {
+              enableAccommodation: true,
+              accommodationHotels,
+              accommodationCheckInDate: guestSettings.accommodationCheckInDate ?? null,
+              accommodationCheckOutDate: guestSettings.accommodationCheckOutDate ?? null,
+            }
+          : { enableAccommodation: false, accommodationHotels: null, accommodationCheckInDate: null, accommodationCheckOutDate: null },
     },
   });
 });
@@ -135,10 +187,15 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     .select({
       id: schema.guests.id,
       uuid: schema.guests.uuid,
+      eventId: schema.guests.eventId,
       plusOnesAllowed: schema.guests.plusOnesAllowed,
       rsvpStatus: schema.guests.rsvpStatus,
       plusOnesCount: schema.guests.plusOnesCount,
       dietaryRestrictions: schema.guests.dietaryRestrictions,
+      needsAccommodation: schema.guests.needsAccommodation,
+      hotelName: schema.guests.hotelName,
+      checkInDate: schema.guests.checkInDate,
+      checkOutDate: schema.guests.checkOutDate,
     })
     .from(schema.guests)
     .where(and(eq(schema.guests.rsvpToken, token), isNull(schema.guests.deletedAt)))
@@ -166,6 +223,45 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     );
   }
 
+  // Accommodation validation when provided
+  let accommodationHotels: Array<{ id: string; name: string; checkInDate: string; checkOutDate: string }> | null = null;
+  if (data.needsAccommodation !== undefined || data.hotelName !== undefined || data.checkInDate !== undefined || data.checkOutDate !== undefined) {
+    const [settingsRow] = await db
+      .select({
+        enableAccommodation: schema.eventGuestSettings.enableAccommodation,
+        accommodationHotels: schema.eventGuestSettings.accommodationHotels,
+      })
+      .from(schema.eventGuestSettings)
+      .where(eq(schema.eventGuestSettings.eventId, guest.eventId))
+      .limit(1);
+
+    if (settingsRow?.enableAccommodation && settingsRow.accommodationHotels) {
+      try {
+        accommodationHotels = JSON.parse(settingsRow.accommodationHotels);
+      } catch {
+        accommodationHotels = [];
+      }
+      const hotelName = data.hotelName ?? guest.hotelName ?? null;
+      const checkIn = data.checkInDate ?? guest.checkInDate ?? null;
+      const checkOut = data.checkOutDate ?? guest.checkOutDate ?? null;
+      if (checkIn && checkOut && checkOut < checkIn) {
+        return c.json(
+          { success: false, error: { code: 'VALIDATION_ERROR', message: 'Check-out date must be on or after check-in date' } },
+          400
+        );
+      }
+      if (hotelName && accommodationHotels && accommodationHotels.length > 0) {
+        const names = accommodationHotels.map((h) => h.name);
+        if (!names.includes(hotelName)) {
+          return c.json(
+            { success: false, error: { code: 'VALIDATION_ERROR', message: `Hotel must be one of: ${names.join(', ')}` } },
+            400
+          );
+        }
+      }
+    }
+  }
+
   // Build audit changes for RSVP update
   const auditChanges: { field: string; from: unknown; to: unknown }[] = [];
   if (guest.rsvpStatus !== data.rsvpStatus) {
@@ -182,17 +278,35 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
       to: data.dietaryRestrictions ?? null,
     });
   }
+  if (data.needsAccommodation !== undefined && guest.needsAccommodation !== data.needsAccommodation) {
+    auditChanges.push({ field: 'needsAccommodation', from: guest.needsAccommodation ?? null, to: data.needsAccommodation ?? null });
+  }
+  if (data.hotelName !== undefined && (guest.hotelName ?? null) !== (data.hotelName ?? null)) {
+    auditChanges.push({ field: 'hotelName', from: guest.hotelName ?? null, to: data.hotelName ?? null });
+  }
+  if (data.checkInDate !== undefined && (guest.checkInDate?.getTime?.() ?? guest.checkInDate) !== (data.checkInDate?.getTime?.() ?? null)) {
+    auditChanges.push({ field: 'checkInDate', from: guest.checkInDate ?? null, to: data.checkInDate ?? null });
+  }
+  if (data.checkOutDate !== undefined && (guest.checkOutDate?.getTime?.() ?? guest.checkOutDate) !== (data.checkOutDate?.getTime?.() ?? null)) {
+    auditChanges.push({ field: 'checkOutDate', from: guest.checkOutDate ?? null, to: data.checkOutDate ?? null });
+  }
+
+  const updatePayload: Record<string, unknown> = {
+    rsvpStatus: data.rsvpStatus,
+    plusOnesCount: data.rsvpStatus === 'confirmed' ? plusOnesCount : 0,
+    dietaryRestrictions: data.dietaryRestrictions ?? null,
+    rsvpRespondedAt: new Date(),
+    updatedAt: new Date(),
+  };
+  if (data.needsAccommodation !== undefined) updatePayload.needsAccommodation = data.needsAccommodation;
+  if (data.hotelName !== undefined) updatePayload.hotelName = data.hotelName ?? null;
+  if (data.checkInDate !== undefined) updatePayload.checkInDate = data.checkInDate ?? null;
+  if (data.checkOutDate !== undefined) updatePayload.checkOutDate = data.checkOutDate ?? null;
 
   // Update guest RSVP
   const [updatedGuest] = await db
     .update(schema.guests)
-    .set({
-      rsvpStatus: data.rsvpStatus,
-      plusOnesCount: data.rsvpStatus === 'confirmed' ? plusOnesCount : 0,
-      dietaryRestrictions: data.dietaryRestrictions ?? null,
-      rsvpRespondedAt: new Date(),
-      updatedAt: new Date(),
-    })
+    .set(updatePayload)
     .where(eq(schema.guests.rsvpToken, token))
     .returning({
       uuid: schema.guests.uuid,
