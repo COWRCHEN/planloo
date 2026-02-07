@@ -84,6 +84,19 @@ import {
 } from '@/hooks/use-guests';
 import { CustomFields } from './fields/CustomFields';
 
+/** Return definitions for required custom fields that are currently empty. */
+function getMissingRequiredCustomFields(
+  values: Record<string, unknown>,
+  definitions: CustomFieldDefinition[]
+): CustomFieldDefinition[] {
+  return definitions.filter((def) => {
+    if (!def.required) return false;
+    const raw = values[def.id];
+    const isEmpty = raw === undefined || raw === null || raw === '';
+    return isEmpty;
+  });
+}
+
 /** Normalize custom field values for API: only defined keys, coerced types. Returns null if required field is missing. */
 function normalizeCustomFieldData(
   values: Record<string, unknown>,
@@ -462,6 +475,22 @@ export function GuestForm({
     // Use ref so we always have current settings at submit time (avoids stale closure)
     const settings = guestSettingsRef.current;
 
+    // Validate required custom fields before submit (they live in state, not in the Zod schema)
+    const defs = settings?.customFieldDefinitions ?? null;
+    if (defs && defs.length > 0) {
+      const missing = getMissingRequiredCustomFields(customFieldValues, defs);
+      if (missing.length > 0) {
+        setCustomFieldsOpen(true);
+        missing.forEach((def) => {
+          form.setError(`customField_${def.id}` as keyof GuestFormData, {
+            type: 'required',
+            message: `${def.label} is required`,
+          });
+        });
+        return;
+      }
+    }
+
     // Add optional fields based on settings
     if (settings?.enableAddress) {
       cleanedData.addressStreet = data.addressStreet || null;
@@ -501,7 +530,6 @@ export function GuestForm({
     }
 
     // Add custom field data only when normalized and valid (required fields present)
-    const defs = settings?.customFieldDefinitions ?? null;
     if (defs && defs.length > 0) {
       const normalized = normalizeCustomFieldData(customFieldValues, defs);
       if (normalized !== null) {
@@ -1136,7 +1164,18 @@ export function GuestForm({
                   <CustomFields
                     definitions={guestSettings?.customFieldDefinitions ?? []}
                     values={customFieldValues}
-                    onChange={setCustomFieldValues}
+                    onChange={(values) => {
+                      setCustomFieldValues(values);
+                      (guestSettings?.customFieldDefinitions ?? []).forEach((def) =>
+                        form.clearErrors(`customField_${def.id}` as keyof GuestFormData)
+                      );
+                    }}
+                    errors={Object.fromEntries(
+                      (guestSettings?.customFieldDefinitions ?? []).map((def) => [
+                        def.id,
+                        (form.formState.errors as Record<string, { message?: string }>)[`customField_${def.id}`],
+                      ]).filter(([, e]) => e)
+                    )}
                   />
                 </CollapsibleSection>
               </>

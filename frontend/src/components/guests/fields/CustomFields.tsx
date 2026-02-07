@@ -21,10 +21,12 @@ interface CustomFieldsProps {
   definitions: CustomFieldDefinition[];
   values: Record<string, unknown>;
   onChange: (values: Record<string, unknown>) => void;
+  /** Per-field validation errors (keyed by field id) */
+  errors?: Record<string, { message?: string } | undefined>;
   disabled?: boolean;
 }
 
-export function CustomFields({ definitions, values, onChange, disabled }: CustomFieldsProps) {
+export function CustomFields({ definitions, values, onChange, errors, disabled }: CustomFieldsProps) {
   const handleChange = (fieldId: string, value: unknown) => {
     onChange({
       ...values,
@@ -168,6 +170,10 @@ export function CustomFields({ definitions, values, onChange, disabled }: Custom
             {/* Help text for non-checkbox fields */}
             {field.helpText && field.type !== 'checkbox' && field.type !== 'text' && (
               <p className="text-xs text-muted-foreground">{field.helpText}</p>
+            )}
+
+            {errors?.[field.id]?.message && (
+              <p className="text-sm text-destructive">{errors[field.id].message}</p>
             )}
           </div>
         ))}
