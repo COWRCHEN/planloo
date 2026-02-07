@@ -465,10 +465,16 @@ const customFieldDefinitionSchema = z.object({
   options: z.array(z.string().max(100)).optional(),
 });
 
-/** Accommodation hotel: id + name only. Check-in/check-out are event-level (same for all hotels). */
+/** Accommodation hotel: id, name, optional structured address. Check-in/check-out are event-level (same for all hotels). */
 const accommodationHotelSchema = z.object({
   id: z.string().min(1).max(50),
   name: z.string().min(1).max(200),
+  streetNo: z.string().max(20).optional(),
+  street: z.string().max(200).optional(),
+  city: z.string().max(100).optional(),
+  state: z.string().max(100).optional(),
+  zip: z.string().max(20).optional(),
+  country: z.string().max(100).optional(),
 });
 
 const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');

@@ -352,6 +352,12 @@ export interface CustomFieldDefinition {
 export interface AccommodationHotel {
   id: string;
   name: string;
+  streetNo?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
 }
 
 export interface GuestSettingsResponse {

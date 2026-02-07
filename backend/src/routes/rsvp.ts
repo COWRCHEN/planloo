@@ -115,12 +115,31 @@ rsvp.get('/:token', async (c) => {
     );
   }
 
-  let accommodationHotels: Array<{ id: string; name: string }> | null = null;
+  type HotelWithAddress = {
+    id: string;
+    name: string;
+    streetNo?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+  };
+  let accommodationHotels: Array<HotelWithAddress> | null = null;
   if (guestSettings?.accommodationHotels) {
     try {
       const parsed = JSON.parse(guestSettings.accommodationHotels);
       accommodationHotels = Array.isArray(parsed)
-        ? parsed.map((h: { id?: string; name?: string }) => ({ id: h.id ?? '', name: h.name ?? '' }))
+        ? parsed.map((h: Record<string, unknown>) => ({
+            id: (h.id as string) ?? '',
+            name: (h.name as string) ?? '',
+            ...(h.streetNo != null && (h.streetNo as string) !== '' ? { streetNo: h.streetNo as string } : {}),
+            ...(h.street != null && (h.street as string) !== '' ? { street: h.street as string } : {}),
+            ...(h.city != null && (h.city as string) !== '' ? { city: h.city as string } : {}),
+            ...(h.state != null && (h.state as string) !== '' ? { state: h.state as string } : {}),
+            ...(h.zip != null && (h.zip as string) !== '' ? { zip: h.zip as string } : {}),
+            ...(h.country != null && (h.country as string) !== '' ? { country: h.country as string } : {}),
+          }))
         : null;
     } catch {
       accommodationHotels = null;

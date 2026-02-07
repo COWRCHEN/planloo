@@ -109,6 +109,8 @@ export const eventGuestSettings = sqliteTable('event_guest_settings', {
 }));
 ```
 
+**Note:** The full `event_guest_settings` schema also includes accommodation configuration: `accommodationCheckInDate`, `accommodationCheckOutDate` (event-level dates), and `accommodationHotels` (JSON array of `{ id, name, streetNo?, street?, city?, state?, zip?, country? }`). See [Accommodation feature](../Accommodation/README.md).
+
 ---
 
 ### 3. Extension Table: `wedding_guest_details`

@@ -125,7 +125,8 @@ So that I can recommend hotels and provide transportation.
 
 Acceptance Criteria:
 - Toggle to enable accommodation tracking
-- Fields: Needs Accommodation (Y/N), Hotel Name, Check-in Date, Check-out Date
+- Event defines the hotel list (name + optional structured address: street no., street, city, state, zip, country)
+- Guest fields: Needs Accommodation (Y/N), Hotel (selected from event list), Check-in Date, Check-out Date, Room number
 - Visible only when enabled
 - Filterable: show guests needing accommodation
 - Exportable for hotel block management
@@ -216,9 +217,11 @@ All event types can configure these optional field sets:
 | Field Name | Type | Required When Enabled | Notes |
 |------------|------|----------------------|-------|
 | needsAccommodation | Boolean | No | Defaults to false |
-| hotelName | Text | No | Max 200 chars |
+| hotelName | Text | No | Selected from event-defined hotel list (not free text) |
 | checkInDate | Date | No | - |
 | checkOutDate | Date | No | Must be after checkInDate |
+
+Event-level configuration (in Event Settings → Guest Fields → Accommodation): organizer defines the hotel list. Each hotel has **name** and optional **structured address** (street no., street, city, state, zip, country). See [Accommodation feature](../Accommodation/README.md).
 
 #### FR-2.4: Additional Optional Fields (Individual Toggles)
 | Field Name | Toggle Setting | Type | Notes |

@@ -17,7 +17,7 @@ When an organizer enables **Accommodation** for an event, they set **one check-i
 ### Hotel list is event-defined
 
 - Organizers **define all hotels** when they enable Accommodation (in Event Settings → Guest Fields → Accommodation).
-- For each hotel they enter: **name**, **check-in date**, **check-out date** (defaults for that hotel).
+- For each hotel they enter: **name** and optional **structured address** (street no., street, city, state, zip, country); check-in/check-out are set once at event level.
 - When adding/editing a guest, **hotel is selected only** (dropdown); no free-text hotel name.
 - **Guests cannot enter hotel names themselves**—they only choose from the event’s list.
 
@@ -50,7 +50,7 @@ When an organizer enables **Accommodation** for an event, they set **one check-i
 - **Accommodation** toggle: “Track if guests need hotel accommodation.” Optional **Required** checkbox for the needs-accommodation question.
 - When enabled:
   - **Check-in date** and **Check-out date** (one pair for the whole event, same for all hotels).
-  - **Hotels for this event**: add/edit/remove hotel names only (no per-hotel dates).
+  - **Hotels for this event**: add/edit/remove hotels with name and optional structured address (street no., street, city, state, zip, country) per hotel (no per-hotel dates).
   - Validation: check-out ≥ check-in for the event dates.
 
 ### Add / Edit Guest (dashboard)
@@ -86,7 +86,7 @@ When an organizer enables **Accommodation** for an event, they set **one check-i
 
 - `accommodation_check_in_date` (text): Event-level check-in date (YYYY-MM-DD). Same for all hotels.
 - `accommodation_check_out_date` (text): Event-level check-out date (YYYY-MM-DD). Same for all hotels.
-- `accommodation_hotels` (text, JSON): Array of `{ id, name }`. Hotel names only; dates come from event-level fields above.
+- `accommodation_hotels` (text, JSON): Array of `{ id, name, streetNo?, street?, city?, state?, zip?, country? }`. Name and optional structured address per hotel; dates come from event-level fields above.
 
 **Guests**
 
@@ -99,12 +99,12 @@ When an organizer enables **Accommodation** for an event, they set **one check-i
 
 **Schema and migration**
 
-- `backend/src/db/schema/events.ts`: `guests.roomNumber`; `eventGuestSettings.accommodationCheckInDate`, `accommodationCheckOutDate`, `accommodationHotels` (hotels as `{ id, name }` only).
+- `backend/src/db/schema/events.ts`: `guests.roomNumber`; `eventGuestSettings.accommodationCheckInDate`, `accommodationCheckOutDate`, `accommodationHotels` (hotels as `{ id, name, streetNo?, street?, city?, state?, zip?, country? }`; all address fields optional, with max lengths).
 - Migrations: `0006_accommodation_hotels_and_room.sql` (room + accommodationHotels); `0007_accommodation_event_dates.sql` (event-level check-in/check-out dates).
 
 **Events API** (`backend/src/routes/events.ts`)
 
-- `accommodationHotelSchema`: Validates `id` and `name` only (no per-hotel dates).
+- `accommodationHotelSchema`: Validates `id`, `name`, and optional address fields: `streetNo` (max 20), `street` (max 200), `city` (max 100), `state` (max 100), `zip` (max 20), `country` (max 100); no per-hotel dates.
 - `accommodationCheckInDate` / `accommodationCheckOutDate`: Optional YYYY-MM-DD; schema refine: check-out ≥ check-in when both set.
 - GET/PATCH `/events/:uuid/guest-settings`: Read/write `accommodationCheckInDate`, `accommodationCheckOutDate`, and `accommodationHotels`.
 
@@ -127,14 +127,14 @@ When an organizer enables **Accommodation** for an event, they set **one check-i
 
 **Types** (`frontend/src/hooks/use-guests.ts`)
 
-- `AccommodationHotel`: `{ id, name }` (no dates; dates are event-level).
+- `AccommodationHotel`: `{ id, name, streetNo?, street?, city?, state?, zip?, country? }` (no dates; dates are event-level).
 - `GuestSettingsResponse` / `UpdateGuestSettingsInput`: `accommodationCheckInDate`, `accommodationCheckOutDate`, `accommodationHotels`.
 - `GuestResponse` / `CreateGuestInput` / `UpdateGuestInput`: optional accommodation fields and `roomNumber`.
 - `RsvpPageData`: guest accommodation fields and `guestSettings`; `RsvpSubmitInput`: accommodation fields.
 
 **Event settings** (`frontend/src/components/guests/GuestFieldSettings.tsx`)
 
-- When Accommodation is on: event-level **Check-in date** and **Check-out date** (one pair); `AccommodationHotelsEditor` – add/edit/remove hotel names only; saved as `accommodationCheckInDate`, `accommodationCheckOutDate`, `accommodationHotels`.
+- When Accommodation is on: event-level **Check-in date** and **Check-out date** (one pair); `AccommodationHotelsEditor` – add/edit/remove hotel name and optional structured address (street no., street, city, state, zip, country) per hotel; saved as `accommodationCheckInDate`, `accommodationCheckOutDate`, `accommodationHotels`.
 
 **Guest form** (`frontend/src/components/guests/GuestForm.tsx`)
 
@@ -146,7 +146,7 @@ When an organizer enables **Accommodation** for an event, they set **one check-i
 
 **RSVP view** (`frontend/src/components/guests/RsvpView.tsx`)
 
-- When `guestSettings?.enableAccommodation` and `accommodationHotels.length > 0`: accommodation section with switch, hotel Select, and date inputs (defaults from `guestSettings.accommodationCheckInDate` / `accommodationCheckOutDate`); state synced from guest on load; submit includes accommodation fields.
+- When `guestSettings?.enableAccommodation` and `accommodationHotels.length > 0`: accommodation section with switch, hotel Select (selected hotel’s address, formatted from street/city/state/zip/country, shown below dropdown when present), and date inputs (defaults from `guestSettings.accommodationCheckInDate` / `accommodationCheckOutDate`); state synced from guest on load; submit includes accommodation fields.
 
 **Audit** (`frontend/src/components/guests/GuestAuditDialog.tsx`)
 
@@ -210,7 +210,7 @@ npm run db:migrate         # remote D1
 - **0006:** `guests.room_number`, `event_guest_settings.accommodation_hotels`.
 - **0007:** `event_guest_settings.accommodation_check_in_date`, `accommodation_check_out_date`.
 
-Existing rows: new columns are nullable; no backfill required. Existing `accommodation_hotels` JSON may have the old per-hotel `checkInDate`/`checkOutDate`; the app now uses event-level dates and treats hotels as `{ id, name }` only.
+Existing rows: new columns are nullable; no backfill required. Existing `accommodation_hotels` JSON may have the old per-hotel `checkInDate`/`checkOutDate` or a single `address` field; the app now uses event-level dates and treats hotels as `{ id, name, streetNo?, street?, city?, state?, zip?, country? }`.
 
 ---
 

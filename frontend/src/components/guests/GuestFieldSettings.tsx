@@ -204,10 +204,22 @@ interface AccommodationHotelsEditorProps {
   disabled?: boolean;
 }
 
+const emptyHotelAddress = (): Pick<
+  AccommodationHotel,
+  'streetNo' | 'street' | 'city' | 'state' | 'zip' | 'country'
+> => ({
+  streetNo: '',
+  street: '',
+  city: '',
+  state: '',
+  zip: '',
+  country: '',
+});
+
 function AccommodationHotelsEditor({ hotels, onChange, disabled }: AccommodationHotelsEditorProps) {
   const addHotel = () => {
     const id = `hotel-${Date.now()}`;
-    onChange([...hotels, { id, name: '' }]);
+    onChange([...hotels, { id, name: '', ...emptyHotelAddress() }]);
   };
 
   const updateHotel = (index: number, updates: Partial<AccommodationHotel>) => {
@@ -224,28 +236,69 @@ function AccommodationHotelsEditor({ hotels, onChange, disabled }: Accommodation
     <div className="space-y-3 ml-4 mt-2">
       <Label className="text-sm font-medium">Hotels for this event</Label>
       <p className="text-xs text-muted-foreground">
-        Add hotel names. Guests will select one. Check-in and check-out dates are set once for the whole event below.
+        Add hotel names and optional address details. Guests will select one. Check-in and check-out dates are set
+        once for the whole event below.
       </p>
       <div className="space-y-2">
         {hotels.map((hotel, index) => (
-          <div key={hotel.id} className="flex items-center gap-2">
-            <Input
-              placeholder="Hotel name"
-              value={hotel.name}
-              onChange={(e) => updateHotel(index, { name: e.target.value })}
-              disabled={disabled}
-              className="flex-1"
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => removeHotel(index)}
-              disabled={disabled}
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </Button>
+          <div key={hotel.id} className="flex flex-col gap-2 rounded-md border p-3">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Hotel name"
+                value={hotel.name}
+                onChange={(e) => updateHotel(index, { name: e.target.value })}
+                disabled={disabled}
+                className="flex-1"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => removeHotel(index)}
+                disabled={disabled}
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Input
+                placeholder="Street no. (optional)"
+                value={hotel.streetNo ?? ''}
+                onChange={(e) => updateHotel(index, { streetNo: e.target.value })}
+                disabled={disabled}
+              />
+              <Input
+                placeholder="Street (optional)"
+                value={hotel.street ?? ''}
+                onChange={(e) => updateHotel(index, { street: e.target.value })}
+                disabled={disabled}
+              />
+              <Input
+                placeholder="City (optional)"
+                value={hotel.city ?? ''}
+                onChange={(e) => updateHotel(index, { city: e.target.value })}
+                disabled={disabled}
+              />
+              <Input
+                placeholder="State (optional)"
+                value={hotel.state ?? ''}
+                onChange={(e) => updateHotel(index, { state: e.target.value })}
+                disabled={disabled}
+              />
+              <Input
+                placeholder="ZIP (optional)"
+                value={hotel.zip ?? ''}
+                onChange={(e) => updateHotel(index, { zip: e.target.value })}
+                disabled={disabled}
+              />
+              <Input
+                placeholder="Country (optional)"
+                value={hotel.country ?? ''}
+                onChange={(e) => updateHotel(index, { country: e.target.value })}
+                disabled={disabled}
+              />
+            </div>
           </div>
         ))}
         <Button variant="outline" size="sm" onClick={addHotel} disabled={disabled}>

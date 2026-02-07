@@ -176,7 +176,16 @@ const listGuestsQuerySchema = z.object({
 
 /** Validate accommodation: hotelName must be in event's list (if list non-empty); checkOutDate >= checkInDate when both set */
 function validateAccommodation(
-  accommodationHotels: Array<{ id: string; name: string }> | null,
+  accommodationHotels: Array<{
+    id: string;
+    name: string;
+    streetNo?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+  }> | null,
   hotelName: string | null | undefined,
   checkInDate: Date | null | undefined,
   checkOutDate: Date | null | undefined

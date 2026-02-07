@@ -346,6 +346,19 @@ function RsvpContent({ token }: RsvpViewProps) {
                         ))}
                       </SelectContent>
                     </Select>
+                    {(() => {
+                      const selectedHotel = accommodationHotels.find((h) => h.name === hotelName);
+                      if (!selectedHotel) return null;
+                      const parts = [
+                        [selectedHotel.streetNo, selectedHotel.street].filter(Boolean).join(' '),
+                        selectedHotel.city,
+                        [selectedHotel.state, selectedHotel.zip].filter(Boolean).join(' '),
+                        selectedHotel.country,
+                      ].filter(Boolean);
+                      return parts.length > 0 ? (
+                        <p className="text-xs text-muted-foreground">{parts.join(', ')}</p>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
