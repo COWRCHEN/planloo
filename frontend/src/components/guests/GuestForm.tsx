@@ -923,96 +923,110 @@ export function GuestForm({
                   open={optionalFieldsOpen}
                   onOpenChange={setOptionalFieldsOpen}
                 >
-                    {/* Plus-ones: adults and children (limit comes from event default) */}
-                    {guestSettings?.enablePlusOnes && (
-                      <>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="plusOnesCountAdults">How many adults?</Label>
-                            <Input
-                              id="plusOnesCountAdults"
-                              type="number"
-                              min={0}
-                              max={10}
-                              {...form.register('plusOnesCountAdults')}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="plusOnesCountChildren">How many children?</Label>
-                            <Input
-                              id="plusOnesCountChildren"
-                              type="number"
-                              min={0}
-                              max={10}
-                              {...form.register('plusOnesCountChildren')}
-                            />
-                          </div>
-                        </div>
-                        {(form.formState.errors.plusOnesCountAdults ?? form.formState.errors.plusOnesCountChildren) && (
-                          <p className="text-sm text-destructive">
-                            {(form.formState.errors.plusOnesCountAdults ?? form.formState.errors.plusOnesCountChildren)?.message}
-                          </p>
-                        )}
-                      </>
-                    )}
 
-                    {/* Plus-One Name (only when Plus-ones enabled) */}
-                    {guestSettings?.enablePlusOnes && guestSettings?.enablePlusOneName && (
+                                      {/* Address */}
+                                      {guestSettings?.enableAddress && (
                       <div className="space-y-2">
-                        <Label>
-                          Plus-One Name
-                          {(guestSettings as { requiredPlusOneName?: boolean })?.requiredPlusOneName && (
-                            <span className="ml-1 text-destructive">*</span>
-                          )}
-                        </Label>
-                        <Input
-                          {...form.register('plusOneName')}
-                          placeholder="Name of plus-one"
-                        />
-                        {form.formState.errors.plusOneName && (
-                          <p className="text-sm text-destructive">{form.formState.errors.plusOneName.message}</p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Address */}
-                    {guestSettings?.enableAddress && (
-                      <div className="space-y-4">
-                        <Label className="text-sm font-medium">
+                        <h3 className="text-sm font-medium">
                           Address
                           {(guestSettings as { requiredAddress?: boolean })?.requiredAddress && (
                             <span className="ml-1 text-destructive">*</span>
                           )}
-                        </Label>
-                        <Input
-                          {...form.register('addressStreet')}
-                          placeholder="Street address"
-                        />
-                        {form.formState.errors.addressStreet && (
-                          <p className="text-sm text-destructive">{form.formState.errors.addressStreet.message}</p>
-                        )}
-                        <div className="grid grid-cols-2 gap-4">
-                          <Input
-                            {...form.register('addressCity')}
-                            placeholder="City"
-                          />
-                          <Input
-                            {...form.register('addressState')}
-                            placeholder="State"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <Input
-                            {...form.register('addressZipCode')}
-                            placeholder="Zip code"
-                          />
-                          <Input
-                            {...form.register('addressCountry')}
-                            placeholder="Country"
-                          />
-                        </div>
+                        </h3>
+                        <Card>
+                          <CardContent className="space-y-4 pt-6">
+                            <div className="space-y-2">
+                              <Label htmlFor="addressStreet">Street address</Label>
+                              <Input
+                                id="addressStreet"
+                                {...form.register('addressStreet')}
+                                placeholder="Street address"
+                              />
+                              {form.formState.errors.addressStreet && (
+                                <p className="text-sm text-destructive">{form.formState.errors.addressStreet.message}</p>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <Input
+                                {...form.register('addressCity')}
+                                placeholder="City"
+                              />
+                              <Input
+                                {...form.register('addressState')}
+                                placeholder="State"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <Input
+                                {...form.register('addressZipCode')}
+                                placeholder="Zip code"
+                              />
+                              <Input
+                                {...form.register('addressCountry')}
+                                placeholder="Country"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
                       </div>
                     )}
+
+                    {/* Plus-ones: adults and children (limit comes from event default) */}
+                    {guestSettings?.enablePlusOnes && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-medium">Plus-Ones</h3>
+                        <Card>
+                        <CardContent className="space-y-4 pt-6">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="plusOnesCountAdults">How many adults?</Label>
+                              <Input
+                                id="plusOnesCountAdults"
+                                type="number"
+                                min={0}
+                                max={10}
+                                {...form.register('plusOnesCountAdults')}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="plusOnesCountChildren">How many children?</Label>
+                              <Input
+                                id="plusOnesCountChildren"
+                                type="number"
+                                min={0}
+                                max={10}
+                                {...form.register('plusOnesCountChildren')}
+                              />
+                            </div>
+                          </div>
+                          {(form.formState.errors.plusOnesCountAdults ?? form.formState.errors.plusOnesCountChildren) && (
+                            <p className="text-sm text-destructive">
+                              {(form.formState.errors.plusOnesCountAdults ?? form.formState.errors.plusOnesCountChildren)?.message}
+                            </p>
+                          )}
+                          {/* Plus-One Name (only when enabled in settings) */}
+                          {guestSettings?.enablePlusOneName && (
+                            <div className="space-y-2">
+                              <Label>
+                                Plus-One Name
+                                {(guestSettings as { requiredPlusOneName?: boolean })?.requiredPlusOneName && (
+                                  <span className="ml-1 text-destructive">*</span>
+                                )}
+                              </Label>
+                              <Input
+                                {...form.register('plusOneName')}
+                                placeholder="Name of plus-one"
+                              />
+                              {form.formState.errors.plusOneName && (
+                                <p className="text-sm text-destructive">{form.formState.errors.plusOneName.message}</p>
+                              )}
+                            </div>
+                          )}
+                        </CardContent>
+                        </Card>
+                      </div>
+                    )}
+
 
                     {/* Category */}
                     {guestSettings?.enableCategory && (
