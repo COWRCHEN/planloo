@@ -47,12 +47,15 @@ export interface GuestResponse {
   lastName: string | null;
   email: string | null;
   phone: string | null;
-  category: GuestCategory | null;
+  /** Option key from event's categoryOptions when enableCategory is true */
+  category: string | null;
   rsvpStatus: RsvpStatus;
   rsvpToken: string;
   rsvpRespondedAt: string | null;
   plusOnesAllowed: number;
   plusOnesCount: number;
+  plusOnesCountAdults?: number;
+  plusOnesCountChildren?: number;
   dietaryRestrictions: string | null;
   notes: string | null;
   checkedIn: boolean;
@@ -93,8 +96,10 @@ export interface CreateGuestInput {
   lastName?: string | null;
   email?: string | null;
   phone?: string | null;
-  category?: GuestCategory | null;
+  category?: string | null;
   plusOnesAllowed?: number;
+  plusOnesCountAdults?: number;
+  plusOnesCountChildren?: number;
   dietaryRestrictions?: string | null;
   notes?: string | null;
   needsAccommodation?: boolean | null;
@@ -119,10 +124,11 @@ export interface UpdateGuestInput {
   lastName?: string | null;
   email?: string | null;
   phone?: string | null;
-  category?: GuestCategory | null;
+  category?: string | null;
   rsvpStatus?: RsvpStatus;
   plusOnesAllowed?: number;
-  plusOnesCount?: number;
+  plusOnesCountAdults?: number;
+  plusOnesCountChildren?: number;
   dietaryRestrictions?: string | null;
   notes?: string | null;
   needsAccommodation?: boolean | null;
@@ -143,7 +149,7 @@ export interface UpdateGuestInput {
 }
 
 export interface ListGuestsQuery {
-  category?: GuestCategory;
+  category?: string;
   rsvpStatus?: RsvpStatus;
   search?: string;
   checkedIn?: boolean;
@@ -177,6 +183,8 @@ export interface RsvpPageData {
     rsvpRespondedAt: string | null;
     plusOnesAllowed: number;
     plusOnesCount: number;
+    plusOnesCountAdults?: number;
+    plusOnesCountChildren?: number;
     dietaryRestrictions: string | null;
     needsAccommodation?: boolean | null;
     hotelName?: string | null;
@@ -194,6 +202,8 @@ export interface RsvpPageData {
 export interface RsvpSubmitInput {
   rsvpStatus: 'confirmed' | 'declined' | 'maybe';
   plusOnesCount?: number;
+  plusOnesCountAdults?: number;
+  plusOnesCountChildren?: number;
   dietaryRestrictions?: string | null;
   needsAccommodation?: boolean | null;
   hotelName?: string | null;
@@ -336,6 +346,15 @@ export interface MealChoiceOption {
   label: string;
 }
 
+/** Default category options when enabling the Category guest field */
+export const DEFAULT_CATEGORY_OPTIONS: MealChoiceOption[] = [
+  { key: 'vip', label: 'VIP' },
+  { key: 'family', label: 'Family' },
+  { key: 'friend', label: 'Friend' },
+  { key: 'colleague', label: 'Colleague' },
+  { key: 'other', label: 'Other' },
+];
+
 // Custom field types
 export const CUSTOM_FIELD_TYPES = ['text', 'number', 'select', 'multiselect', 'checkbox', 'date'] as const;
 export type CustomFieldType = (typeof CUSTOM_FIELD_TYPES)[number];
@@ -368,10 +387,13 @@ export interface GuestSettingsResponse {
   enableAddress: boolean;
   enableMealChoice: boolean;
   enableAccommodation: boolean;
+  enablePlusOnes: boolean;
+  defaultPlusOnesAllowed: number;
   enablePlusOneName: boolean;
   enableTableAssignment: boolean;
   enableTransportation: boolean;
   enableAccessibility: boolean;
+  enableCategory: boolean;
   requiredAddress: boolean;
   requiredMealChoice: boolean;
   requiredAccommodation: boolean;
@@ -379,11 +401,13 @@ export interface GuestSettingsResponse {
   requiredTableAssignment: boolean;
   requiredTransportation: boolean;
   requiredAccessibility: boolean;
+  requiredCategory: boolean;
   requiredFirstName: boolean;
   requiredLastName: boolean;
   requiredEmail: boolean;
   requiredPhone: boolean;
   mealChoiceOptions: MealChoiceOption[] | null;
+  categoryOptions: MealChoiceOption[] | null;
   accommodationCheckInDate: string | null;
   accommodationCheckOutDate: string | null;
   accommodationHotels: AccommodationHotel[] | null;
@@ -405,10 +429,13 @@ export interface UpdateGuestSettingsInput {
   enableAddress?: boolean;
   enableMealChoice?: boolean;
   enableAccommodation?: boolean;
+  enablePlusOnes?: boolean;
+  defaultPlusOnesAllowed?: number;
   enablePlusOneName?: boolean;
   enableTableAssignment?: boolean;
   enableTransportation?: boolean;
   enableAccessibility?: boolean;
+  enableCategory?: boolean;
   requiredAddress?: boolean;
   requiredMealChoice?: boolean;
   requiredAccommodation?: boolean;
@@ -416,11 +443,13 @@ export interface UpdateGuestSettingsInput {
   requiredTableAssignment?: boolean;
   requiredTransportation?: boolean;
   requiredAccessibility?: boolean;
+  requiredCategory?: boolean;
   requiredFirstName?: boolean;
   requiredLastName?: boolean;
   requiredEmail?: boolean;
   requiredPhone?: boolean;
   mealChoiceOptions?: MealChoiceOption[] | null;
+  categoryOptions?: MealChoiceOption[] | null;
   accommodationCheckInDate?: string | null;
   accommodationCheckOutDate?: string | null;
   accommodationHotels?: AccommodationHotel[] | null;

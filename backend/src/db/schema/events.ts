@@ -72,12 +72,15 @@ export const guests = sqliteTable('guests', {
   lastName: text('last_name'),
   email: text('email'),
   phone: text('phone'),
-  category: text('category', { enum: ['vip', 'family', 'friend', 'colleague', 'other'] }),
+  // Category (enabled via eventGuestSettings.enableCategory); stores option key from eventGuestSettings.categoryOptions
+  category: text('category'),
   rsvpStatus: text('rsvp_status', { enum: ['pending', 'invited', 'confirmed', 'declined', 'maybe'] }).default('pending'),
   rsvpToken: text('rsvp_token').unique(),
   rsvpRespondedAt: integer('rsvp_responded_at', { mode: 'timestamp' }),
   plusOnesAllowed: integer('plus_ones_allowed').default(0).notNull(),
   plusOnesCount: integer('plus_ones_count').default(0).notNull(),
+  plusOnesCountAdults: integer('plus_ones_count_adults').default(0).notNull(),
+  plusOnesCountChildren: integer('plus_ones_count_children').default(0).notNull(),
   dietaryRestrictions: text('dietary_restrictions'),
   notes: text('notes'),
   checkedIn: integer('checked_in', { mode: 'boolean' }).default(false).notNull(),
@@ -201,6 +204,10 @@ export const eventGuestSettings = sqliteTable('event_guest_settings', {
   // Accommodation tracking
   enableAccommodation: integer('enable_accommodation', { mode: 'boolean' }).default(false).notNull(),
 
+  // Plus-ones (enabled via enablePlusOnes); default limit per guest; Plus-One Name sub-option via enablePlusOneName
+  enablePlusOnes: integer('enable_plus_ones', { mode: 'boolean' }).default(false).notNull(),
+  defaultPlusOnesAllowed: integer('default_plus_ones_allowed').default(0).notNull(),
+
   // Individual optional field toggles
   enablePlusOneName: integer('enable_plus_one_name', { mode: 'boolean' }).default(false).notNull(),
   enableTableAssignment: integer('enable_table_assignment', { mode: 'boolean' }).default(false).notNull(),
@@ -215,6 +222,12 @@ export const eventGuestSettings = sqliteTable('event_guest_settings', {
   requiredTableAssignment: integer('required_table_assignment', { mode: 'boolean' }).default(false).notNull(),
   requiredTransportation: integer('required_transportation', { mode: 'boolean' }).default(false).notNull(),
   requiredAccessibility: integer('required_accessibility', { mode: 'boolean' }).default(false).notNull(),
+
+  // Category (optional field with editable options)
+  enableCategory: integer('enable_category', { mode: 'boolean' }).default(false).notNull(),
+  requiredCategory: integer('required_category', { mode: 'boolean' }).default(false).notNull(),
+  // JSON array: [{ key: string, label: string }], same shape as mealChoiceOptions
+  categoryOptions: text('category_options'),
 
   // === COMMON FIELDS (required flags for base guest fields) ===
   requiredFirstName: integer('required_first_name', { mode: 'boolean' }).default(false).notNull(),

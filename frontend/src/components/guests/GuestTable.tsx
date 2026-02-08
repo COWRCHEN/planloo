@@ -110,7 +110,7 @@ export function GuestTable({
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Contact</TableHead>
-            <TableHead>Category</TableHead>
+            {guestSettings?.enableCategory && <TableHead>Category</TableHead>}
             <TableHead>RSVP</TableHead>
             {guestSettings?.enableAccommodation && <TableHead>Accommodation</TableHead>}
             <TableHead>Check-in</TableHead>
@@ -127,8 +127,17 @@ export function GuestTable({
                 <TableCell className="font-medium">
                   {formatName(guest)}
                   {guest.plusOnesCount > 0 && (
-                    <span className="ml-2 text-xs text-muted-foreground">
+                    <span className="ml-2 text-xs text-muted-foreground" title={
+                      (guest.plusOnesCountAdults != null || guest.plusOnesCountChildren != null)
+                        ? `${guest.plusOnesCountAdults ?? 0} adults, ${guest.plusOnesCountChildren ?? 0} children`
+                        : undefined
+                    }>
                       +{guest.plusOnesCount}
+                      {(guest.plusOnesCountAdults != null || guest.plusOnesCountChildren != null) && (
+                        <span className="ml-0.5">
+                          ({guest.plusOnesCountAdults ?? 0}A/{guest.plusOnesCountChildren ?? 0}C)
+                        </span>
+                      )}
                     </span>
                   )}
                 </TableCell>
@@ -147,9 +156,11 @@ export function GuestTable({
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
-                  <GuestCategoryBadge category={guest.category} />
-                </TableCell>
+                {guestSettings?.enableCategory && (
+                  <TableCell>
+                    <GuestCategoryBadge category={guest.category} options={guestSettings?.categoryOptions ?? null} />
+                  </TableCell>
+                )}
                 <TableCell>
                   {onUpdateRsvpStatus ? (
                     <DropdownMenu>

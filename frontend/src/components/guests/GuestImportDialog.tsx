@@ -94,7 +94,7 @@ export function GuestImportDialog({
             <code className="bg-muted px-1 rounded">lastName</code>,{' '}
             <code className="bg-muted px-1 rounded">email</code>,{' '}
             <code className="bg-muted px-1 rounded">phone</code>,{' '}
-            <code className="bg-muted px-1 rounded">category</code>,{' '}
+            <code className="bg-muted px-1 rounded">category</code> (use event&apos;s category option keys when Category is enabled),{' '}
             <code className="bg-muted px-1 rounded">plusOnesAllowed</code>,{' '}
             <code className="bg-muted px-1 rounded">dietaryRestrictions</code>,{' '}
             <code className="bg-muted px-1 rounded">notes</code>

@@ -28,6 +28,8 @@ const FIELD_LABELS: Record<string, string> = {
   rsvpStatus: 'RSVP status',
   plusOnesAllowed: 'Plus ones allowed',
   plusOnesCount: 'Plus ones count',
+  plusOnesCountAdults: 'Plus ones (adults)',
+  plusOnesCountChildren: 'Plus ones (children)',
   dietaryRestrictions: 'Dietary restrictions',
   notes: 'Notes',
   mealChoice: 'Meal choice',
@@ -76,6 +78,8 @@ function isOptionalFieldEnabled(
       return settings.enableTransportation;
     case 'accessibilityNeeds':
       return settings.enableAccessibility;
+    case 'category':
+      return settings.enableCategory;
     case 'customFieldData':
       return !!(settings.customFieldDefinitions && settings.customFieldDefinitions.length > 0);
     default:
@@ -83,8 +87,16 @@ function isOptionalFieldEnabled(
   }
 }
 
-function formatChangeValue(val: unknown): string {
+function formatChangeValue(
+  val: unknown,
+  field?: string,
+  settings?: GuestSettingsResponse
+): string {
   if (val === null || val === undefined) return '—';
+  if (field === 'category' && typeof val === 'string' && settings?.categoryOptions?.length) {
+    const label = settings.categoryOptions.find((o) => o.key === val)?.label;
+    return label ?? val;
+  }
   if (typeof val === 'boolean') return val ? 'Yes' : 'No';
   if (val instanceof Date || (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val))) {
     try {
@@ -201,7 +213,7 @@ export function GuestAuditDialog({
                             <span className="text-muted-foreground">
                               {FIELD_LABELS[c.field] ?? c.field}:
                             </span>{' '}
-                            {formatChangeValue(c.from)} → {formatChangeValue(c.to)}
+                            {formatChangeValue(c.from, c.field, guestSettings)} → {formatChangeValue(c.to, c.field, guestSettings)}
                           </li>
                         ))}
                       </ul>

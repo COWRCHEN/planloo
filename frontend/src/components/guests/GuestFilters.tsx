@@ -20,7 +20,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import {
-  GUEST_CATEGORIES,
   RSVP_STATUSES,
   WEDDING_GUEST_SIDES,
   WEDDING_INVITED_TO,
@@ -30,7 +29,6 @@ import {
   type EventType,
   type EventGuestSettings,
   type ListGuestsQuery,
-  type GuestCategory,
   type RsvpStatus,
 } from '@/hooks/use-guests';
 
@@ -41,14 +39,6 @@ interface GuestFiltersProps {
   eventType?: EventType | null;
   guestSettings?: EventGuestSettings | null;
 }
-
-const categoryLabels: Record<GuestCategory, string> = {
-  vip: 'VIP',
-  family: 'Family',
-  friend: 'Friend',
-  colleague: 'Colleague',
-  other: 'Other',
-};
 
 const rsvpStatusLabels: Record<RsvpStatus, string> = {
   pending: 'Pending',
@@ -83,10 +73,11 @@ export function GuestFilters({
     filters.mealChoice;
 
   // Check if event-type-specific or optional filters are available
-  const hasAdvancedFilters = eventType === 'wedding' || 
-    eventType === 'corporate' || 
-    eventType === 'conference' || 
+  const hasAdvancedFilters = eventType === 'wedding' ||
+    eventType === 'corporate' ||
+    eventType === 'conference' ||
     eventType === 'birthday' ||
+    guestSettings?.enableCategory ||
     guestSettings?.enableTableAssignment ||
     guestSettings?.enableMealChoice ||
     guestSettings?.enableAccommodation ||
@@ -104,25 +95,27 @@ export function GuestFilters({
         />
       </div>
 
-      {/* Category */}
-      <Select
-        value={filters.category ?? '_all'}
-        onValueChange={(value) =>
-          onChange({ category: value === '_all' ? undefined : value as GuestCategory })
-        }
-      >
-        <SelectTrigger className="w-[140px]">
-          <SelectValue placeholder="Category" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="_all">All Categories</SelectItem>
-          {GUEST_CATEGORIES.map((cat) => (
-            <SelectItem key={cat} value={cat}>
-              {categoryLabels[cat]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* Category (only when event has category field enabled) */}
+      {guestSettings?.enableCategory && (
+        <Select
+          value={filters.category ?? '_all'}
+          onValueChange={(value) =>
+            onChange({ category: value === '_all' ? undefined : value })
+          }
+        >
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_all">All Categories</SelectItem>
+            {(guestSettings.categoryOptions ?? []).map((opt) => (
+              <SelectItem key={opt.key} value={opt.key}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       {/* RSVP Status */}
       <Select

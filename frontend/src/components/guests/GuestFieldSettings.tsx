@@ -29,6 +29,7 @@ import {
 import {
   useGuestSettings,
   useUpdateGuestSettings,
+  DEFAULT_CATEGORY_OPTIONS,
   type AccommodationHotel,
   type EventGuestSettings,
   type MealChoiceOption,
@@ -324,10 +325,13 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
     enableAddress: localSettings.enableAddress ?? settings?.enableAddress ?? false,
     enableMealChoice: localSettings.enableMealChoice ?? settings?.enableMealChoice ?? false,
     enableAccommodation: localSettings.enableAccommodation ?? settings?.enableAccommodation ?? false,
+    enablePlusOnes: localSettings.enablePlusOnes ?? settings?.enablePlusOnes ?? false,
+    defaultPlusOnesAllowed: localSettings.defaultPlusOnesAllowed ?? settings?.defaultPlusOnesAllowed ?? 0,
     enablePlusOneName: localSettings.enablePlusOneName ?? settings?.enablePlusOneName ?? false,
     enableTableAssignment: localSettings.enableTableAssignment ?? settings?.enableTableAssignment ?? false,
     enableTransportation: localSettings.enableTransportation ?? settings?.enableTransportation ?? false,
     enableAccessibility: localSettings.enableAccessibility ?? settings?.enableAccessibility ?? false,
+    enableCategory: localSettings.enableCategory ?? settings?.enableCategory ?? false,
     requiredAddress: localSettings.requiredAddress ?? (settings as { requiredAddress?: boolean })?.requiredAddress ?? false,
     requiredMealChoice: localSettings.requiredMealChoice ?? (settings as { requiredMealChoice?: boolean })?.requiredMealChoice ?? false,
     requiredAccommodation: localSettings.requiredAccommodation ?? (settings as { requiredAccommodation?: boolean })?.requiredAccommodation ?? false,
@@ -335,11 +339,13 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
     requiredTableAssignment: localSettings.requiredTableAssignment ?? (settings as { requiredTableAssignment?: boolean })?.requiredTableAssignment ?? false,
     requiredTransportation: localSettings.requiredTransportation ?? (settings as { requiredTransportation?: boolean })?.requiredTransportation ?? false,
     requiredAccessibility: localSettings.requiredAccessibility ?? (settings as { requiredAccessibility?: boolean })?.requiredAccessibility ?? false,
+    requiredCategory: localSettings.requiredCategory ?? (settings as { requiredCategory?: boolean })?.requiredCategory ?? false,
     requiredFirstName: localSettings.requiredFirstName ?? settings?.requiredFirstName ?? true,
     requiredLastName: localSettings.requiredLastName ?? settings?.requiredLastName ?? false,
     requiredEmail: localSettings.requiredEmail ?? settings?.requiredEmail ?? false,
     requiredPhone: localSettings.requiredPhone ?? settings?.requiredPhone ?? false,
     mealChoiceOptions: localSettings.mealChoiceOptions ?? settings?.mealChoiceOptions ?? [],
+    categoryOptions: localSettings.categoryOptions ?? settings?.categoryOptions ?? null,
     accommodationCheckInDate: localSettings.accommodationCheckInDate ?? (settings as { accommodationCheckInDate?: string | null })?.accommodationCheckInDate ?? null,
     accommodationCheckOutDate: localSettings.accommodationCheckOutDate ?? (settings as { accommodationCheckOutDate?: string | null })?.accommodationCheckOutDate ?? null,
     accommodationHotels: localSettings.accommodationHotels ?? (settings as { accommodationHotels?: AccommodationHotel[] })?.accommodationHotels ?? null,
@@ -515,15 +521,68 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
           </h3>
 
           <FieldToggle
-            label="Plus-One Name"
-            description="Capture the name of the guest's plus-one"
-            checked={currentSettings.enablePlusOneName}
-            onCheckedChange={(checked) => handleChange('enablePlusOneName', checked)}
+            label="Category"
+            description="Categorize guests (e.g., VIP, Family, Friend). You can edit the option list below."
+            checked={currentSettings.enableCategory}
+            onCheckedChange={(checked) => {
+              handleChange('enableCategory', checked);
+              if (checked) {
+                const opts = currentSettings.categoryOptions;
+                if (!opts || opts.length === 0) {
+                  handleChange('categoryOptions', DEFAULT_CATEGORY_OPTIONS);
+                }
+              }
+            }}
             disabled={updateSettings.isPending}
-            required={currentSettings.requiredPlusOneName}
-            onRequiredChange={(checked) => handleChange('requiredPlusOneName', checked)}
-            showRequired={currentSettings.enablePlusOneName}
+            required={currentSettings.requiredCategory}
+            onRequiredChange={(checked) => handleChange('requiredCategory', checked)}
+            showRequired={currentSettings.enableCategory}
           />
+
+          {currentSettings.enableCategory && (
+            <MealChoiceEditor
+              options={currentSettings.categoryOptions ?? []}
+              onChange={(options) => handleChange('categoryOptions', options)}
+              disabled={updateSettings.isPending}
+            />
+          )}
+
+          <FieldToggle
+            label="Plus-ones"
+            description="Allow guests to bring plus-ones; set the default limit per guest below."
+            checked={currentSettings.enablePlusOnes}
+            onCheckedChange={(checked) => handleChange('enablePlusOnes', checked)}
+            disabled={updateSettings.isPending}
+          />
+          {currentSettings.enablePlusOnes && (
+            <div className="pl-4 border-l-2 border-muted space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="defaultPlusOnesAllowed">Default plus-ones allowed per guest</Label>
+                <Input
+                  id="defaultPlusOnesAllowed"
+                  type="number"
+                  min={0}
+                  max={10}
+                  value={currentSettings.defaultPlusOnesAllowed}
+                  onChange={(e) => {
+                    const v = Math.max(0, Math.min(10, parseInt(e.target.value, 10) || 0));
+                    handleChange('defaultPlusOnesAllowed', v);
+                  }}
+                  className="w-24"
+                />
+              </div>
+              <FieldToggle
+                label="Plus-One Name"
+                description="Capture the name of the guest's plus-one"
+                checked={currentSettings.enablePlusOneName}
+                onCheckedChange={(checked) => handleChange('enablePlusOneName', checked)}
+                disabled={updateSettings.isPending}
+                required={currentSettings.requiredPlusOneName}
+                onRequiredChange={(checked) => handleChange('requiredPlusOneName', checked)}
+                showRequired={currentSettings.enablePlusOneName}
+              />
+            </div>
+          )}
 
           <FieldToggle
             label="Accessibility Needs"

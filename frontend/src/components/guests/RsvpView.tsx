@@ -59,7 +59,8 @@ function RsvpContent({ token }: RsvpViewProps) {
   const { data, isLoading, error } = useRsvpData(token);
   const submitRsvp = useSubmitRsvp(token);
   const [selectedStatus, setSelectedStatus] = useState<'confirmed' | 'declined' | 'maybe' | null>(null);
-  const [plusOnesCount, setPlusOnesCount] = useState(0);
+  const [plusOnesCountAdults, setPlusOnesCountAdults] = useState(0);
+  const [plusOnesCountChildren, setPlusOnesCountChildren] = useState(0);
   const [dietaryRestrictions, setDietaryRestrictions] = useState('');
   const [needsAccommodation, setNeedsAccommodation] = useState(false);
   const [hotelName, setHotelName] = useState('');
@@ -114,11 +115,13 @@ function RsvpContent({ token }: RsvpViewProps) {
     ? `${guest.firstName} ${guest.lastName}`
     : guest.firstName;
 
-  // Sync accommodation state from guest when data first loads; default dates from event when empty
+  // Sync accommodation and plus-ones state from guest when data first loads
   useEffect(() => {
     if (!data?.guest) return;
     setNeedsAccommodation(!!data.guest.needsAccommodation);
     setHotelName(data.guest.hotelName ?? '');
+    setPlusOnesCountAdults(data.guest.plusOnesCountAdults ?? 0);
+    setPlusOnesCountChildren(data.guest.plusOnesCountChildren ?? 0);
     const cin = data.guest.checkInDate;
     const cout = data.guest.checkOutDate;
     const guestCheckIn = cin ? (typeof cin === 'string' ? cin.slice(0, 10) : new Date(cin).toISOString().slice(0, 10)) : '';
@@ -134,9 +137,12 @@ function RsvpContent({ token }: RsvpViewProps) {
 
     const submitData: RsvpSubmitInput = {
       rsvpStatus: selectedStatus,
-      plusOnesCount: selectedStatus === 'confirmed' ? plusOnesCount : 0,
       dietaryRestrictions: dietaryRestrictions || null,
     };
+    if (selectedStatus === 'confirmed') {
+      submitData.plusOnesCountAdults = plusOnesCountAdults;
+      submitData.plusOnesCountChildren = plusOnesCountChildren;
+    }
     if (data.guestSettings?.enableAccommodation) {
       submitData.needsAccommodation = needsAccommodation;
       submitData.hotelName = needsAccommodation ? (hotelName || null) : null;
@@ -269,25 +275,55 @@ function RsvpContent({ token }: RsvpViewProps) {
           </div>
         </div>
 
-        {/* Plus Ones (only show if confirmed and allowed) */}
+        {/* Plus Ones – adults and children (only show if confirmed and allowed) */}
         {selectedStatus === 'confirmed' && guest.plusOnesAllowed > 0 && (
           <div className="space-y-2">
-            <Label htmlFor="plusOnes">
-              Number of additional guests (max {guest.plusOnesAllowed})
-            </Label>
-            <Input
-              id="plusOnes"
-              type="number"
-              min={0}
-              max={guest.plusOnesAllowed}
-              value={plusOnesCount}
-              onChange={(e) =>
-                setPlusOnesCount(
-                  Math.min(guest.plusOnesAllowed, Math.max(0, parseInt(e.target.value) || 0))
-                )
-              }
-              className="w-24"
-            />
+            <Label>How many additional guests? (max {guest.plusOnesAllowed} total)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="plusOnesAdults" className="text-sm font-normal text-muted-foreground">
+                  Adults
+                </Label>
+                <Input
+                  id="plusOnesAdults"
+                  type="number"
+                  min={0}
+                  max={guest.plusOnesAllowed}
+                  value={plusOnesCountAdults}
+                  onChange={(e) => {
+                    const v = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    setPlusOnesCountAdults(Math.min(guest.plusOnesAllowed, v));
+                    if (v + plusOnesCountChildren > guest.plusOnesAllowed) {
+                      setPlusOnesCountChildren(Math.max(0, guest.plusOnesAllowed - v));
+                    }
+                  }}
+                  className="w-24"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="plusOnesChildren" className="text-sm font-normal text-muted-foreground">
+                  Children
+                </Label>
+                <Input
+                  id="plusOnesChildren"
+                  type="number"
+                  min={0}
+                  max={guest.plusOnesAllowed}
+                  value={plusOnesCountChildren}
+                  onChange={(e) => {
+                    const v = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    setPlusOnesCountChildren(Math.min(guest.plusOnesAllowed, v));
+                    if (plusOnesCountAdults + v > guest.plusOnesAllowed) {
+                      setPlusOnesCountAdults(Math.max(0, guest.plusOnesAllowed - v));
+                    }
+                  }}
+                  className="w-24"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Total: {plusOnesCountAdults + plusOnesCountChildren} of {guest.plusOnesAllowed}
+            </p>
           </div>
         )}
 

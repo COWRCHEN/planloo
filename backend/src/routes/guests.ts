@@ -98,59 +98,83 @@ const optionalFieldsSchema = z.object({
 // Custom fields schema (Phase 3)
 const customFieldDataSchema = z.record(z.string(), z.unknown()).optional().nullable();
 
-const createGuestSchema = z.object({
-  // Core fields
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().max(100).optional().nullable(),
-  email: z.string().email().max(255).optional().nullable(),
-  phone: z.string().max(50).optional().nullable(),
-  category: z.enum(GUEST_CATEGORIES).optional().nullable(),
-  plusOnesAllowed: z.coerce.number().int().min(0).max(10).default(0),
-  dietaryRestrictions: z.string().max(500).optional().nullable(),
-  notes: z.string().max(1000).optional().nullable(),
+const createGuestSchema = z
+  .object({
+    // Core fields
+    firstName: z.string().min(1).max(100),
+    lastName: z.string().max(100).optional().nullable(),
+    email: z.string().email().max(255).optional().nullable(),
+    phone: z.string().max(50).optional().nullable(),
+    category: z.string().max(50).optional().nullable(),
+    plusOnesAllowed: z.coerce.number().int().min(0).max(10).default(0),
+    plusOnesCountAdults: z.coerce.number().int().min(0).max(10).optional().default(0),
+    plusOnesCountChildren: z.coerce.number().int().min(0).max(10).optional().default(0),
+    dietaryRestrictions: z.string().max(500).optional().nullable(),
+    notes: z.string().max(1000).optional().nullable(),
 
-  // Event-type-specific fields (nested)
-  weddingDetails: weddingFieldsSchema.optional(),
-  corporateDetails: corporateFieldsSchema.optional(),
-  conferenceDetails: conferenceFieldsSchema.optional(),
-  birthdayDetails: birthdayFieldsSchema.optional(),
+    // Event-type-specific fields (nested)
+    weddingDetails: weddingFieldsSchema.optional(),
+    corporateDetails: corporateFieldsSchema.optional(),
+    conferenceDetails: conferenceFieldsSchema.optional(),
+    birthdayDetails: birthdayFieldsSchema.optional(),
 
-  // Optional fields (flat on guest)
-  ...optionalFieldsSchema.shape,
+    // Optional fields (flat on guest)
+    ...optionalFieldsSchema.shape,
 
-  // Custom field data
-  customFieldData: customFieldDataSchema,
-});
+    // Custom field data
+    customFieldData: customFieldDataSchema,
+  })
+  .refine(
+    (data) => {
+      const adults = data.plusOnesCountAdults ?? 0;
+      const children = data.plusOnesCountChildren ?? 0;
+      return adults + children <= (data.plusOnesAllowed ?? 0);
+    },
+    { message: 'Plus-ones adults + children must not exceed plus-ones allowed', path: ['plusOnesCountAdults'] }
+  );
 
-const updateGuestSchema = z.object({
-  // Core fields
-  firstName: z.string().min(1).max(100).optional(),
-  lastName: z.string().max(100).optional().nullable(),
-  email: z.string().email().max(255).optional().nullable(),
-  phone: z.string().max(50).optional().nullable(),
-  category: z.enum(GUEST_CATEGORIES).optional().nullable(),
-  rsvpStatus: z.enum(RSVP_STATUSES).optional(),
-  plusOnesAllowed: z.coerce.number().int().min(0).max(10).optional(),
-  plusOnesCount: z.coerce.number().int().min(0).optional(),
-  dietaryRestrictions: z.string().max(500).optional().nullable(),
-  notes: z.string().max(1000).optional().nullable(),
+const updateGuestSchema = z
+  .object({
+    // Core fields
+    firstName: z.string().min(1).max(100).optional(),
+    lastName: z.string().max(100).optional().nullable(),
+    email: z.string().email().max(255).optional().nullable(),
+    phone: z.string().max(50).optional().nullable(),
+    category: z.string().max(50).optional().nullable(),
+    rsvpStatus: z.enum(RSVP_STATUSES).optional(),
+    plusOnesAllowed: z.coerce.number().int().min(0).max(10).optional(),
+    plusOnesCountAdults: z.coerce.number().int().min(0).max(10).optional(),
+    plusOnesCountChildren: z.coerce.number().int().min(0).max(10).optional(),
+    dietaryRestrictions: z.string().max(500).optional().nullable(),
+    notes: z.string().max(1000).optional().nullable(),
 
-  // Event-type-specific fields (nested)
-  weddingDetails: weddingFieldsSchema.optional(),
-  corporateDetails: corporateFieldsSchema.optional(),
-  conferenceDetails: conferenceFieldsSchema.optional(),
-  birthdayDetails: birthdayFieldsSchema.optional(),
+    // Event-type-specific fields (nested)
+    weddingDetails: weddingFieldsSchema.optional(),
+    corporateDetails: corporateFieldsSchema.optional(),
+    conferenceDetails: conferenceFieldsSchema.optional(),
+    birthdayDetails: birthdayFieldsSchema.optional(),
 
-  // Optional fields (flat on guest)
-  ...optionalFieldsSchema.shape,
+    // Optional fields (flat on guest)
+    ...optionalFieldsSchema.shape,
 
-  // Custom field data
-  customFieldData: customFieldDataSchema,
-});
+    // Custom field data
+    customFieldData: customFieldDataSchema,
+  })
+  .refine(
+    (data) => {
+      const adults = data.plusOnesCountAdults;
+      const children = data.plusOnesCountChildren;
+      if (adults === undefined && children === undefined) return true;
+      const sum = (adults ?? 0) + (children ?? 0);
+      const allowed = data.plusOnesAllowed;
+      return allowed === undefined || sum <= allowed;
+    },
+    { message: 'Plus-ones adults + children must not exceed plus-ones allowed', path: ['plusOnesCountAdults'] }
+  );
 
 const listGuestsQuerySchema = z.object({
-  // Core filters
-  category: z.enum(GUEST_CATEGORIES).optional(),
+  // Core filters (category value is option key when enableCategory is true)
+  category: z.string().max(50).optional(),
   rsvpStatus: z.enum(RSVP_STATUSES).optional(),
   search: z.string().max(100).optional(),
   checkedIn: z.enum(['true', 'false']).optional(),
@@ -442,6 +466,8 @@ guests.get(
         rsvpRespondedAt: schema.guests.rsvpRespondedAt,
         plusOnesAllowed: schema.guests.plusOnesAllowed,
         plusOnesCount: schema.guests.plusOnesCount,
+        plusOnesCountAdults: schema.guests.plusOnesCountAdults,
+        plusOnesCountChildren: schema.guests.plusOnesCountChildren,
         dietaryRestrictions: schema.guests.dietaryRestrictions,
         notes: schema.guests.notes,
         checkedIn: schema.guests.checkedIn,
@@ -1133,17 +1159,58 @@ guests.post(
       }
     }
 
+    // Fetch guest settings for accommodation and category validation
+    const [guestSettings] = await db
+      .select({
+        enableCategory: schema.eventGuestSettings.enableCategory,
+        categoryOptions: schema.eventGuestSettings.categoryOptions,
+        enableAccommodation: schema.eventGuestSettings.enableAccommodation,
+        accommodationHotels: schema.eventGuestSettings.accommodationHotels,
+      })
+      .from(schema.eventGuestSettings)
+      .where(eq(schema.eventGuestSettings.eventId, event.id))
+      .limit(1);
+
+    // Category: if disabled, ignore; if enabled, validate against option keys
+    let effectiveCategory: string | null = data.category ?? null;
+    if (!guestSettings?.enableCategory) {
+      effectiveCategory = null;
+    } else if (effectiveCategory !== null && effectiveCategory !== '') {
+      let options: Array<{ key: string; label: string }> = [];
+      if (guestSettings.categoryOptions) {
+        try {
+          const parsed = JSON.parse(guestSettings.categoryOptions);
+          options = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          options = [];
+        }
+      }
+      if (options.length === 0) {
+        options = [
+          { key: 'vip', label: 'VIP' },
+          { key: 'family', label: 'Family' },
+          { key: 'friend', label: 'Friend' },
+          { key: 'colleague', label: 'Colleague' },
+          { key: 'other', label: 'Other' },
+        ];
+      }
+      const validKeys = new Set(options.map((o) => o.key));
+      if (!validKeys.has(effectiveCategory)) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: `Invalid category. Must be one of: ${[...validKeys].join(', ')}`,
+            },
+          },
+          400
+        );
+      }
+    }
+
     // Validate accommodation: hotel from event list, check-out >= check-in
     if (data.needsAccommodation || data.hotelName || data.checkInDate || data.checkOutDate) {
-      const [guestSettings] = await db
-        .select({
-          enableAccommodation: schema.eventGuestSettings.enableAccommodation,
-          accommodationHotels: schema.eventGuestSettings.accommodationHotels,
-        })
-        .from(schema.eventGuestSettings)
-        .where(eq(schema.eventGuestSettings.eventId, event.id))
-        .limit(1);
-
       if (guestSettings?.enableAccommodation && guestSettings.accommodationHotels) {
         let hotels: Array<{ id: string; name: string }> = [];
         try {
@@ -1189,11 +1256,13 @@ guests.post(
       lastName: data.lastName ?? null,
       email: data.email ?? null,
       phone: data.phone ?? null,
-      category: data.category ?? null,
+      category: effectiveCategory,
       rsvpStatus: 'pending' as const,
       rsvpToken,
       plusOnesAllowed: data.plusOnesAllowed,
-      plusOnesCount: 0,
+      plusOnesCount: (data.plusOnesCountAdults ?? 0) + (data.plusOnesCountChildren ?? 0),
+      plusOnesCountAdults: data.plusOnesCountAdults ?? 0,
+      plusOnesCountChildren: data.plusOnesCountChildren ?? 0,
       dietaryRestrictions: data.dietaryRestrictions ?? null,
       notes: data.notes ?? null,
       checkedIn: false,
@@ -1389,40 +1458,89 @@ guests.post('/import', requireAuth, requireVerifiedEmail, async (c) => {
     );
   }
 
-  // Prepare guests for insertion
-  const guestsToInsert = parseResult.guests.map((g) => ({
-    uuid: crypto.randomUUID(),
-    eventId: event.id,
-    // Core fields
-    firstName: g.firstName,
-    lastName: g.lastName ?? null,
-    email: g.email ?? null,
-    phone: g.phone ?? null,
-    category: g.category ?? null,
-    rsvpStatus: 'pending' as const,
-    rsvpToken: generateRsvpToken(),
-    plusOnesAllowed: g.plusOnesAllowed ?? 0,
-    plusOnesCount: 0,
-    dietaryRestrictions: g.dietaryRestrictions ?? null,
-    notes: g.notes ?? null,
-    checkedIn: false,
-    // Optional fields (Phase 2)
-    addressStreet: g.addressStreet ?? null,
-    addressCity: g.addressCity ?? null,
-    addressState: g.addressState ?? null,
-    addressZipCode: g.addressZipCode ?? null,
-    addressCountry: g.addressCountry ?? null,
-    mealChoice: g.mealChoice ?? null,
-    needsAccommodation: g.needsAccommodation ?? null,
-    hotelName: g.hotelName ?? null,
-    checkInDate: g.checkInDate ?? null,
-    checkOutDate: g.checkOutDate ?? null,
-    roomNumber: g.roomNumber ?? null,
-    plusOneName: g.plusOneName ?? null,
-    tableAssignment: g.tableAssignment ?? null,
-    transportationNeeded: g.transportationNeeded ?? null,
-    accessibilityNeeds: g.accessibilityNeeds ?? null,
-  }));
+  // Fetch guest settings for category (and optional: only include category column when enabled)
+  const [importSettings] = await db
+    .select({
+      enableCategory: schema.eventGuestSettings.enableCategory,
+      categoryOptions: schema.eventGuestSettings.categoryOptions,
+    })
+    .from(schema.eventGuestSettings)
+    .where(eq(schema.eventGuestSettings.eventId, event.id))
+    .limit(1);
+
+  let categoryOptionKeys: Set<string> = new Set();
+  if (importSettings?.enableCategory && importSettings.categoryOptions) {
+    try {
+      const opts = JSON.parse(importSettings.categoryOptions) as Array<{ key: string; label: string }>;
+      categoryOptionKeys = new Set(Array.isArray(opts) ? opts.map((o) => o.key) : []);
+    } catch {
+      categoryOptionKeys = new Set(['vip', 'family', 'friend', 'colleague', 'other']);
+    }
+  }
+  if (importSettings?.enableCategory && categoryOptionKeys.size === 0) {
+    categoryOptionKeys = new Set(['vip', 'family', 'friend', 'colleague', 'other']);
+  }
+
+  const categoryImportErrors: Array<{ row: number; message: string }> = [];
+  const guestsToInsert = parseResult.guests.map((g, index) => {
+    let effectiveCategory: string | null = g.category ?? null;
+    if (!importSettings?.enableCategory) {
+      effectiveCategory = null;
+    } else if (effectiveCategory !== null && effectiveCategory !== '' && !categoryOptionKeys.has(effectiveCategory)) {
+      categoryImportErrors.push({
+        row: index + 2,
+        message: `Invalid category: ${effectiveCategory}. Must be one of: ${[...categoryOptionKeys].join(', ')}`,
+      });
+      effectiveCategory = null;
+    }
+    return {
+      uuid: crypto.randomUUID(),
+      eventId: event.id,
+      firstName: g.firstName,
+      lastName: g.lastName ?? null,
+      email: g.email ?? null,
+      phone: g.phone ?? null,
+      category: effectiveCategory,
+      rsvpStatus: 'pending' as const,
+      rsvpToken: generateRsvpToken(),
+      plusOnesAllowed: g.plusOnesAllowed ?? 0,
+      plusOnesCount: (g.plusOnesCountAdults ?? 0) + (g.plusOnesCountChildren ?? 0),
+      plusOnesCountAdults: g.plusOnesCountAdults ?? 0,
+      plusOnesCountChildren: g.plusOnesCountChildren ?? 0,
+      dietaryRestrictions: g.dietaryRestrictions ?? null,
+      notes: g.notes ?? null,
+      checkedIn: false,
+      addressStreet: g.addressStreet ?? null,
+      addressCity: g.addressCity ?? null,
+      addressState: g.addressState ?? null,
+      addressZipCode: g.addressZipCode ?? null,
+      addressCountry: g.addressCountry ?? null,
+      mealChoice: g.mealChoice ?? null,
+      needsAccommodation: g.needsAccommodation ?? null,
+      hotelName: g.hotelName ?? null,
+      checkInDate: g.checkInDate ?? null,
+      checkOutDate: g.checkOutDate ?? null,
+      roomNumber: g.roomNumber ?? null,
+      plusOneName: g.plusOneName ?? null,
+      tableAssignment: g.tableAssignment ?? null,
+      transportationNeeded: g.transportationNeeded ?? null,
+      accessibilityNeeds: g.accessibilityNeeds ?? null,
+    };
+  });
+
+  if (categoryImportErrors.length > 0) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'CSV category validation failed',
+          details: categoryImportErrors,
+        },
+      },
+      400
+    );
+  }
 
   // Batch insert (D1 has a limit of ~100 parameters, so we chunk)
   const CHUNK_SIZE = 10;
@@ -1531,6 +1649,8 @@ guests.patch(
     if (effectiveHotel !== undefined || effectiveCheckIn !== undefined || effectiveCheckOut !== undefined) {
       const [guestSettings] = await db
         .select({
+          enableCategory: schema.eventGuestSettings.enableCategory,
+          categoryOptions: schema.eventGuestSettings.categoryOptions,
           enableAccommodation: schema.eventGuestSettings.enableAccommodation,
           accommodationHotels: schema.eventGuestSettings.accommodationHotels,
         })
@@ -1572,6 +1692,54 @@ guests.patch(
       }
     }
 
+    // Category update: validate when enableCategory, else clear
+    let effectiveCategoryUpdate: string | null | undefined = updates.category;
+    if (updates.category !== undefined) {
+      const [catSettings] = await db
+        .select({
+          enableCategory: schema.eventGuestSettings.enableCategory,
+          categoryOptions: schema.eventGuestSettings.categoryOptions,
+        })
+        .from(schema.eventGuestSettings)
+        .where(eq(schema.eventGuestSettings.eventId, event.id))
+        .limit(1);
+      if (!catSettings?.enableCategory) {
+        effectiveCategoryUpdate = null;
+      } else if (updates.category !== null && updates.category !== '') {
+        let options: Array<{ key: string; label: string }> = [];
+        if (catSettings.categoryOptions) {
+          try {
+            const parsed = JSON.parse(catSettings.categoryOptions);
+            options = Array.isArray(parsed) ? parsed : [];
+          } catch {
+            options = [];
+          }
+        }
+        if (options.length === 0) {
+          options = [
+            { key: 'vip', label: 'VIP' },
+            { key: 'family', label: 'Family' },
+            { key: 'friend', label: 'Friend' },
+            { key: 'colleague', label: 'Colleague' },
+            { key: 'other', label: 'Other' },
+          ];
+        }
+        const validKeys = new Set(options.map((o) => o.key));
+        if (!validKeys.has(updates.category)) {
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'VALIDATION_ERROR',
+                message: `Invalid category. Must be one of: ${[...validKeys].join(', ')}`,
+              },
+            },
+            400
+          );
+        }
+      }
+    }
+
     // Build update object for base guest table
     const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
@@ -1582,10 +1750,30 @@ guests.patch(
     if (updates.lastName !== undefined) updateData.lastName = updates.lastName;
     if (updates.email !== undefined) updateData.email = updates.email;
     if (updates.phone !== undefined) updateData.phone = updates.phone;
-    if (updates.category !== undefined) updateData.category = updates.category;
+    if (updates.category !== undefined) updateData.category = effectiveCategoryUpdate;
     if (updates.rsvpStatus !== undefined) updateData.rsvpStatus = updates.rsvpStatus;
     if (updates.plusOnesAllowed !== undefined) updateData.plusOnesAllowed = updates.plusOnesAllowed;
-    if (updates.plusOnesCount !== undefined) updateData.plusOnesCount = updates.plusOnesCount;
+    if (updates.plusOnesCountAdults !== undefined) updateData.plusOnesCountAdults = updates.plusOnesCountAdults;
+    if (updates.plusOnesCountChildren !== undefined) updateData.plusOnesCountChildren = updates.plusOnesCountChildren;
+    // When adults/children are provided, keep plusOnesCount in sync and validate against allowed
+    if (updates.plusOnesCountAdults !== undefined || updates.plusOnesCountChildren !== undefined) {
+      const adults = updates.plusOnesCountAdults ?? currentGuest.plusOnesCountAdults ?? 0;
+      const children = updates.plusOnesCountChildren ?? currentGuest.plusOnesCountChildren ?? 0;
+      const allowed = updates.plusOnesAllowed ?? currentGuest.plusOnesAllowed ?? 0;
+      if (adults + children > allowed) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Plus-ones adults + children must not exceed plus-ones allowed',
+            },
+          },
+          400
+        );
+      }
+      updateData.plusOnesCount = adults + children;
+    }
     if (updates.dietaryRestrictions !== undefined) updateData.dietaryRestrictions = updates.dietaryRestrictions;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
 

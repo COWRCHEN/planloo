@@ -453,6 +453,15 @@ const mealChoiceOptionSchema = z.object({
   label: z.string().min(1).max(100),
 });
 
+/** Default category options when enableCategory is true but categoryOptions not yet set */
+const DEFAULT_CATEGORY_OPTIONS = [
+  { key: 'vip', label: 'VIP' },
+  { key: 'family', label: 'Family' },
+  { key: 'friend', label: 'Friend' },
+  { key: 'colleague', label: 'Colleague' },
+  { key: 'other', label: 'Other' },
+];
+
 /**
  * Custom field definition schema
  */
@@ -488,10 +497,13 @@ const updateGuestSettingsSchema = z
   enableAddress: z.boolean().optional(),
   enableMealChoice: z.boolean().optional(),
   enableAccommodation: z.boolean().optional(),
+  enablePlusOnes: z.boolean().optional(),
+  defaultPlusOnesAllowed: z.number().int().min(0).max(10).optional(),
   enablePlusOneName: z.boolean().optional(),
   enableTableAssignment: z.boolean().optional(),
   enableTransportation: z.boolean().optional(),
   enableAccessibility: z.boolean().optional(),
+  enableCategory: z.boolean().optional(),
   // Required flag for each optional field
   requiredAddress: z.boolean().optional(),
   requiredMealChoice: z.boolean().optional(),
@@ -500,6 +512,7 @@ const updateGuestSettingsSchema = z
   requiredTableAssignment: z.boolean().optional(),
   requiredTransportation: z.boolean().optional(),
   requiredAccessibility: z.boolean().optional(),
+  requiredCategory: z.boolean().optional(),
   // Common field required flags
   requiredFirstName: z.boolean().optional(),
   requiredLastName: z.boolean().optional(),
@@ -507,6 +520,8 @@ const updateGuestSettingsSchema = z
   requiredPhone: z.boolean().optional(),
   // Meal options
   mealChoiceOptions: z.array(mealChoiceOptionSchema).max(20).optional(),
+  // Category options (same shape as meal)
+  categoryOptions: z.array(mealChoiceOptionSchema).max(20).optional(),
   // Accommodation: event-level dates (same for all hotels) + hotel list (id, name only)
   accommodationCheckInDate: dateOnlySchema.optional().nullable(),
   accommodationCheckOutDate: dateOnlySchema.optional().nullable(),
@@ -570,15 +585,20 @@ events.get('/:uuid/guest-settings', requireAuth, async (c) => {
         enableAddress: false,
         enableMealChoice: false,
         enableAccommodation: false,
+        enablePlusOnes: false,
+        defaultPlusOnesAllowed: 0,
         enablePlusOneName: false,
         enableTableAssignment: false,
         enableTransportation: false,
         enableAccessibility: false,
+        enableCategory: false,
+        requiredCategory: false,
         requiredFirstName: true,
         requiredLastName: false,
         requiredEmail: false,
         requiredPhone: false,
         mealChoiceOptions: null,
+        categoryOptions: null,
         customFieldDefinitions: null,
       })
       .returning();
@@ -613,6 +633,18 @@ events.get('/:uuid/guest-settings', requireAuth, async (c) => {
     }
   }
 
+  let categoryOptions = null;
+  if (settings!.categoryOptions) {
+    try {
+      categoryOptions = JSON.parse(settings!.categoryOptions);
+    } catch {
+      categoryOptions = null;
+    }
+  }
+  if (settings!.enableCategory && (!categoryOptions || categoryOptions.length === 0)) {
+    categoryOptions = DEFAULT_CATEGORY_OPTIONS;
+  }
+
   return c.json({
     success: true,
     data: {
@@ -622,10 +654,13 @@ events.get('/:uuid/guest-settings', requireAuth, async (c) => {
       enableAddress: settings!.enableAddress,
       enableMealChoice: settings!.enableMealChoice,
       enableAccommodation: settings!.enableAccommodation,
+      enablePlusOnes: settings!.enablePlusOnes,
+      defaultPlusOnesAllowed: settings!.defaultPlusOnesAllowed,
       enablePlusOneName: settings!.enablePlusOneName,
       enableTableAssignment: settings!.enableTableAssignment,
       enableTransportation: settings!.enableTransportation,
       enableAccessibility: settings!.enableAccessibility,
+      enableCategory: settings!.enableCategory,
       requiredAddress: settings!.requiredAddress,
       requiredMealChoice: settings!.requiredMealChoice,
       requiredAccommodation: settings!.requiredAccommodation,
@@ -633,11 +668,13 @@ events.get('/:uuid/guest-settings', requireAuth, async (c) => {
       requiredTableAssignment: settings!.requiredTableAssignment,
       requiredTransportation: settings!.requiredTransportation,
       requiredAccessibility: settings!.requiredAccessibility,
+      requiredCategory: settings!.requiredCategory,
       requiredFirstName: settings!.requiredFirstName,
       requiredLastName: settings!.requiredLastName,
       requiredEmail: settings!.requiredEmail,
       requiredPhone: settings!.requiredPhone,
       mealChoiceOptions,
+      categoryOptions,
       accommodationCheckInDate: settings!.accommodationCheckInDate ?? null,
       accommodationCheckOutDate: settings!.accommodationCheckOutDate ?? null,
       accommodationHotels,
@@ -699,10 +736,13 @@ events.patch(
     if (updates.enableAddress !== undefined) updateData.enableAddress = updates.enableAddress;
     if (updates.enableMealChoice !== undefined) updateData.enableMealChoice = updates.enableMealChoice;
     if (updates.enableAccommodation !== undefined) updateData.enableAccommodation = updates.enableAccommodation;
+    if (updates.enablePlusOnes !== undefined) updateData.enablePlusOnes = updates.enablePlusOnes;
+    if (updates.defaultPlusOnesAllowed !== undefined) updateData.defaultPlusOnesAllowed = updates.defaultPlusOnesAllowed;
     if (updates.enablePlusOneName !== undefined) updateData.enablePlusOneName = updates.enablePlusOneName;
     if (updates.enableTableAssignment !== undefined) updateData.enableTableAssignment = updates.enableTableAssignment;
     if (updates.enableTransportation !== undefined) updateData.enableTransportation = updates.enableTransportation;
     if (updates.enableAccessibility !== undefined) updateData.enableAccessibility = updates.enableAccessibility;
+    if (updates.enableCategory !== undefined) updateData.enableCategory = updates.enableCategory;
 
     if (updates.requiredAddress !== undefined) updateData.requiredAddress = updates.requiredAddress;
     if (updates.requiredMealChoice !== undefined) updateData.requiredMealChoice = updates.requiredMealChoice;
@@ -711,6 +751,7 @@ events.patch(
     if (updates.requiredTableAssignment !== undefined) updateData.requiredTableAssignment = updates.requiredTableAssignment;
     if (updates.requiredTransportation !== undefined) updateData.requiredTransportation = updates.requiredTransportation;
     if (updates.requiredAccessibility !== undefined) updateData.requiredAccessibility = updates.requiredAccessibility;
+    if (updates.requiredCategory !== undefined) updateData.requiredCategory = updates.requiredCategory;
     if (updates.requiredFirstName !== undefined) updateData.requiredFirstName = updates.requiredFirstName;
     if (updates.requiredLastName !== undefined) updateData.requiredLastName = updates.requiredLastName;
     if (updates.requiredEmail !== undefined) updateData.requiredEmail = updates.requiredEmail;
@@ -719,6 +760,11 @@ events.patch(
     if (updates.mealChoiceOptions !== undefined) {
       updateData.mealChoiceOptions = updates.mealChoiceOptions
         ? JSON.stringify(updates.mealChoiceOptions)
+        : null;
+    }
+    if (updates.categoryOptions !== undefined) {
+      updateData.categoryOptions = updates.categoryOptions
+        ? JSON.stringify(updates.categoryOptions)
         : null;
     }
 
@@ -785,16 +831,20 @@ events.patch(
           eventId: event.id,
           enableAddress: updates.enableAddress ?? false,
           enableMealChoice: updates.enableMealChoice ?? false,
-        enableAccommodation: updates.enableAccommodation ?? false,
+          enableAccommodation: updates.enableAccommodation ?? false,
         accommodationCheckInDate: updates.accommodationCheckInDate ?? null,
         accommodationCheckOutDate: updates.accommodationCheckOutDate ?? null,
         accommodationHotels: updates.accommodationHotels
           ? JSON.stringify(updates.accommodationHotels)
           : null,
+        enablePlusOnes: updates.enablePlusOnes ?? false,
+        defaultPlusOnesAllowed: updates.defaultPlusOnesAllowed ?? 0,
         enablePlusOneName: updates.enablePlusOneName ?? false,
           enableTableAssignment: updates.enableTableAssignment ?? false,
           enableTransportation: updates.enableTransportation ?? false,
           enableAccessibility: updates.enableAccessibility ?? false,
+          enableCategory: updates.enableCategory ?? false,
+          requiredCategory: updates.requiredCategory ?? false,
           requiredAddress: updates.requiredAddress ?? false,
           requiredMealChoice: updates.requiredMealChoice ?? false,
           requiredAccommodation: updates.requiredAccommodation ?? false,
@@ -807,6 +857,7 @@ events.patch(
           requiredEmail: updates.requiredEmail ?? false,
           requiredPhone: updates.requiredPhone ?? false,
           mealChoiceOptions: updates.mealChoiceOptions ? JSON.stringify(updates.mealChoiceOptions) : null,
+          categoryOptions: updates.categoryOptions ? JSON.stringify(updates.categoryOptions) : null,
           customFieldDefinitions: updates.customFieldDefinitions ? JSON.stringify(updates.customFieldDefinitions) : null,
         })
         .returning();
@@ -841,6 +892,18 @@ events.patch(
       }
     }
 
+    let categoryOptions = null;
+    if (settings.categoryOptions) {
+      try {
+        categoryOptions = JSON.parse(settings.categoryOptions);
+      } catch {
+        categoryOptions = null;
+      }
+    }
+    if (settings.enableCategory && (!categoryOptions || categoryOptions.length === 0)) {
+      categoryOptions = DEFAULT_CATEGORY_OPTIONS;
+    }
+
     return c.json({
       success: true,
       data: {
@@ -849,10 +912,13 @@ events.patch(
         enableAddress: settings.enableAddress,
         enableMealChoice: settings.enableMealChoice,
         enableAccommodation: settings.enableAccommodation,
+        enablePlusOnes: settings.enablePlusOnes,
+        defaultPlusOnesAllowed: settings.defaultPlusOnesAllowed,
         enablePlusOneName: settings.enablePlusOneName,
         enableTableAssignment: settings.enableTableAssignment,
         enableTransportation: settings.enableTransportation,
         enableAccessibility: settings.enableAccessibility,
+        enableCategory: settings.enableCategory,
         requiredAddress: settings.requiredAddress,
         requiredMealChoice: settings.requiredMealChoice,
         requiredAccommodation: settings.requiredAccommodation,
@@ -860,11 +926,13 @@ events.patch(
         requiredTableAssignment: settings.requiredTableAssignment,
         requiredTransportation: settings.requiredTransportation,
         requiredAccessibility: settings.requiredAccessibility,
+        requiredCategory: settings.requiredCategory,
         requiredFirstName: settings.requiredFirstName,
         requiredLastName: settings.requiredLastName,
         requiredEmail: settings.requiredEmail,
         requiredPhone: settings.requiredPhone,
         mealChoiceOptions,
+        categoryOptions,
         accommodationCheckInDate: settings.accommodationCheckInDate ?? null,
         accommodationCheckOutDate: settings.accommodationCheckOutDate ?? null,
         accommodationHotels,

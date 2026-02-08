@@ -69,7 +69,6 @@ function CollapsibleSection({
   );
 }
 import {
-  GUEST_CATEGORIES,
   WEDDING_GUEST_SIDES,
   WEDDING_INVITED_TO,
   ATTENDEE_TYPES,
@@ -146,8 +145,10 @@ const guestFormSchema = z.object({
   lastName: z.string().max(100).optional().nullable(),
   email: z.string().email('Invalid email').max(255).optional().nullable().or(z.literal('')),
   phone: z.string().max(50).optional().nullable(),
-  category: z.enum(['vip', 'family', 'friend', 'colleague', 'other']).optional().nullable(),
+  category: z.string().max(50).optional().nullable(),
   plusOnesAllowed: z.coerce.number().int().min(0).max(10).default(0),
+  plusOnesCountAdults: z.coerce.number().int().min(0).max(10).default(0),
+  plusOnesCountChildren: z.coerce.number().int().min(0).max(10).default(0),
   dietaryRestrictions: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
 
@@ -231,7 +232,7 @@ function buildGuestFormSchemaWithRequired(
     if (s.enableMealChoice && reqMeal && !(data.mealChoice?.trim())) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Meal choice is required', path: ['mealChoice'] });
     }
-    if (s.enablePlusOneName && reqPlus && !(data.plusOneName?.trim())) {
+    if (s.enablePlusOnes && s.enablePlusOneName && reqPlus && !(data.plusOneName?.trim())) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Plus-one name is required', path: ['plusOneName'] });
     }
     if (s.enableTableAssignment && reqTable && !(data.tableAssignment?.trim())) {
@@ -239,6 +240,22 @@ function buildGuestFormSchemaWithRequired(
     }
     if (s.enableAccessibility && reqAccess && !(data.accessibilityNeeds?.trim())) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Accessibility needs is required', path: ['accessibilityNeeds'] });
+    }
+    const reqCategory = (s as { requiredCategory?: boolean })?.requiredCategory ?? false;
+    if ((s as { enableCategory?: boolean })?.enableCategory && reqCategory && !(data.category?.trim())) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Category is required', path: ['category'] });
+    }
+    if (s.enablePlusOnes) {
+      const adults = data.plusOnesCountAdults ?? 0;
+      const children = data.plusOnesCountChildren ?? 0;
+      const allowed = data.plusOnesAllowed ?? 0;
+      if (adults + children > allowed) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Adults + children must not exceed plus-ones allowed',
+          path: ['plusOnesCountAdults'],
+        });
+      }
     }
     // Accommodation: check-out >= check-in when both set
     if (data.checkInDate && data.checkOutDate && data.checkOutDate < data.checkInDate) {
@@ -270,14 +287,6 @@ interface GuestFormProps {
   /** Called after successful submit (e.g. to navigate back). Used when asPage is true. */
   onSuccess?: () => void;
 }
-
-const categoryLabels: Record<string, string> = {
-  vip: 'VIP',
-  family: 'Family',
-  friend: 'Friend',
-  colleague: 'Colleague',
-  other: 'Other',
-};
 
 export function GuestForm({
   open = false,
@@ -327,6 +336,8 @@ export function GuestForm({
       phone: '',
       category: null,
       plusOnesAllowed: 0,
+      plusOnesCountAdults: 0,
+      plusOnesCountChildren: 0,
       dietaryRestrictions: '',
       notes: '',
       // Optional fields so they are always in form state and included on submit
@@ -371,7 +382,9 @@ export function GuestForm({
         email: guest?.email ?? '',
         phone: guest?.phone ?? '',
         category: guest?.category ?? null,
-        plusOnesAllowed: guest?.plusOnesAllowed ?? 0,
+        plusOnesAllowed: guest ? (guest.plusOnesAllowed ?? 0) : (guestSettings?.defaultPlusOnesAllowed ?? 0),
+        plusOnesCountAdults: guest?.plusOnesCountAdults ?? 0,
+        plusOnesCountChildren: guest?.plusOnesCountChildren ?? 0,
         dietaryRestrictions: guest?.dietaryRestrictions ?? '',
         notes: guest?.notes ?? '',
 
@@ -429,10 +442,19 @@ export function GuestForm({
       email: data.email || null,
       phone: data.phone || null,
       category: data.category || null,
-      plusOnesAllowed: data.plusOnesAllowed,
+      plusOnesAllowed: guestSettings?.enablePlusOnes
+        ? (guest ? (guest.plusOnesAllowed ?? 0) : (guestSettings?.defaultPlusOnesAllowed ?? 0))
+        : 0,
       dietaryRestrictions: data.dietaryRestrictions || null,
       notes: data.notes || null,
     };
+    if (guestSettings?.enablePlusOnes) {
+      cleanedData.plusOnesCountAdults = data.plusOnesCountAdults ?? 0;
+      cleanedData.plusOnesCountChildren = data.plusOnesCountChildren ?? 0;
+    }
+    if (guest && 'plusOnesAllowed' in cleanedData) {
+      delete (cleanedData as { plusOnesAllowed?: number }).plusOnesAllowed;
+    }
 
     // Add event-type-specific fields based on event type
     if (eventType === 'wedding') {
@@ -513,8 +535,11 @@ export function GuestForm({
       cleanedData.roomNumber = (data.roomNumber && data.roomNumber.trim()) || null;
     }
 
-    if (settings?.enablePlusOneName) {
+    if (settings?.enablePlusOnes && settings?.enablePlusOneName) {
       cleanedData.plusOneName = data.plusOneName || null;
+    }
+    if (!settings?.enablePlusOnes) {
+      cleanedData.plusOneName = null;
     }
 
     if (settings?.enableTableAssignment) {
@@ -550,10 +575,12 @@ export function GuestForm({
   const hasOptionalFields = guestSettings?.enableAddress ||
     guestSettings?.enableMealChoice ||
     guestSettings?.enableAccommodation ||
+    guestSettings?.enablePlusOnes ||
     guestSettings?.enablePlusOneName ||
     guestSettings?.enableTableAssignment ||
     guestSettings?.enableTransportation ||
-    guestSettings?.enableAccessibility;
+    guestSettings?.enableAccessibility ||
+    guestSettings?.enableCategory;
 
   // Check if there are custom fields
   const hasCustomFields = (guestSettings?.customFieldDefinitions ?? []).length > 0;
@@ -633,41 +660,6 @@ export function GuestForm({
                 </>
               );
             })()}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select
-                  value={form.watch('category') ?? '_none'}
-                  onValueChange={(value) =>
-                    form.setValue('category', value === '_none' ? null : (value as typeof GUEST_CATEGORIES[number]))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">None</SelectItem>
-                    {GUEST_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {categoryLabels[cat]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="plusOnesAllowed">Plus-Ones Allowed</Label>
-                <Input
-                  id="plusOnesAllowed"
-                  type="number"
-                  min={0}
-                  max={10}
-                  {...form.register('plusOnesAllowed')}
-                />
-              </div>
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="dietaryRestrictions">Dietary Restrictions</Label>
@@ -931,6 +923,58 @@ export function GuestForm({
                   open={optionalFieldsOpen}
                   onOpenChange={setOptionalFieldsOpen}
                 >
+                    {/* Plus-ones: adults and children (limit comes from event default) */}
+                    {guestSettings?.enablePlusOnes && (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="plusOnesCountAdults">How many adults?</Label>
+                            <Input
+                              id="plusOnesCountAdults"
+                              type="number"
+                              min={0}
+                              max={10}
+                              {...form.register('plusOnesCountAdults')}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="plusOnesCountChildren">How many children?</Label>
+                            <Input
+                              id="plusOnesCountChildren"
+                              type="number"
+                              min={0}
+                              max={10}
+                              {...form.register('plusOnesCountChildren')}
+                            />
+                          </div>
+                        </div>
+                        {(form.formState.errors.plusOnesCountAdults ?? form.formState.errors.plusOnesCountChildren) && (
+                          <p className="text-sm text-destructive">
+                            {(form.formState.errors.plusOnesCountAdults ?? form.formState.errors.plusOnesCountChildren)?.message}
+                          </p>
+                        )}
+                      </>
+                    )}
+
+                    {/* Plus-One Name (only when Plus-ones enabled) */}
+                    {guestSettings?.enablePlusOnes && guestSettings?.enablePlusOneName && (
+                      <div className="space-y-2">
+                        <Label>
+                          Plus-One Name
+                          {(guestSettings as { requiredPlusOneName?: boolean })?.requiredPlusOneName && (
+                            <span className="ml-1 text-destructive">*</span>
+                          )}
+                        </Label>
+                        <Input
+                          {...form.register('plusOneName')}
+                          placeholder="Name of plus-one"
+                        />
+                        {form.formState.errors.plusOneName && (
+                          <p className="text-sm text-destructive">{form.formState.errors.plusOneName.message}</p>
+                        )}
+                      </div>
+                    )}
+
                     {/* Address */}
                     {guestSettings?.enableAddress && (
                       <div className="space-y-4">
@@ -967,6 +1011,39 @@ export function GuestForm({
                             placeholder="Country"
                           />
                         </div>
+                      </div>
+                    )}
+
+                    {/* Category */}
+                    {guestSettings?.enableCategory && (
+                      <div className="space-y-2">
+                        <Label>
+                          Category
+                          {(guestSettings as { requiredCategory?: boolean })?.requiredCategory && (
+                            <span className="ml-1 text-destructive">*</span>
+                          )}
+                        </Label>
+                        <Select
+                          value={form.watch('category') ?? '_none'}
+                          onValueChange={(value) =>
+                            form.setValue('category', value === '_none' ? null : value)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="_none">None</SelectItem>
+                            {(guestSettings.categoryOptions ?? []).map((option) => (
+                              <SelectItem key={option.key} value={option.key}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {form.formState.errors.category && (
+                          <p className="text-sm text-destructive">{form.formState.errors.category.message}</p>
+                        )}
                       </div>
                     )}
 
@@ -1076,25 +1153,6 @@ export function GuestForm({
                               />
                             </div>
                           </>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Plus-One Name */}
-                    {guestSettings?.enablePlusOneName && (
-                      <div className="space-y-2">
-                        <Label>
-                          Plus-One Name
-                          {(guestSettings as { requiredPlusOneName?: boolean })?.requiredPlusOneName && (
-                            <span className="ml-1 text-destructive">*</span>
-                          )}
-                        </Label>
-                        <Input
-                          {...form.register('plusOneName')}
-                          placeholder="Name of plus-one"
-                        />
-                        {form.formState.errors.plusOneName && (
-                          <p className="text-sm text-destructive">{form.formState.errors.plusOneName.message}</p>
                         )}
                       </div>
                     )}

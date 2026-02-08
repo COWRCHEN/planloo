@@ -3,10 +3,8 @@
  *
  * Provides functions to parse guest CSV files and generate CSV exports.
  * Supports core guest fields and user-configurable optional fields.
+ * Category is stored as option key; validation against event's categoryOptions is done at import time.
  */
-
-const GUEST_CATEGORIES = ['vip', 'family', 'friend', 'colleague', 'other'] as const;
-type GuestCategory = (typeof GUEST_CATEGORIES)[number];
 
 interface ParsedGuest {
   // Core fields
@@ -14,8 +12,10 @@ interface ParsedGuest {
   lastName?: string | null;
   email?: string | null;
   phone?: string | null;
-  category?: GuestCategory | null;
+  category?: string | null;
   plusOnesAllowed?: number;
+  plusOnesCountAdults?: number;
+  plusOnesCountChildren?: number;
   dietaryRestrictions?: string | null;
   notes?: string | null;
   // Optional fields (Phase 2)
@@ -52,6 +52,8 @@ interface GuestRow {
   rsvpStatus: string | null;
   plusOnesAllowed: number;
   plusOnesCount: number;
+  plusOnesCountAdults: number;
+  plusOnesCountChildren: number;
   dietaryRestrictions: string | null;
   notes: string | null;
   checkedIn: boolean;
@@ -100,6 +102,8 @@ export function parseGuestsCsv(content: string): ParseResult {
   const phoneIdx = headers.indexOf('phone');
   const categoryIdx = headers.indexOf('category');
   const plusOnesAllowedIdx = headers.indexOf('plusonesallowed');
+  const plusOnesCountAdultsIdx = headers.indexOf('plusonescountadults');
+  const plusOnesCountChildrenIdx = headers.indexOf('plusonescountchildren');
   const dietaryIdx = headers.indexOf('dietaryrestrictions');
   const notesIdx = headers.indexOf('notes');
 
@@ -197,19 +201,13 @@ export function parseGuestsCsv(content: string): ParseResult {
       continue;
     }
 
-    // Validate category if provided
-    let category: GuestCategory | null = null;
-    if (categoryRaw) {
-      if (GUEST_CATEGORIES.includes(categoryRaw as GuestCategory)) {
-        category = categoryRaw as GuestCategory;
-      } else {
-        errors.push({
-          row: rowNum,
-          message: `Invalid category: ${categoryRaw}. Must be one of: ${GUEST_CATEGORIES.join(', ')}`,
-        });
-        continue;
-      }
+    // Category: accept any string up to 50 chars (validation against event's categoryOptions at import time)
+    const category = categoryRaw?.trim() || null;
+    if (category !== null && category.length > 50) {
+      errors.push({ row: rowNum, message: 'category must be 50 characters or less' });
+      continue;
     }
+    const categoryValue = category && category.length <= 50 ? category : null;
 
     // Parse plusOnesAllowed
     let plusOnesAllowed = 0;
@@ -222,14 +220,33 @@ export function parseGuestsCsv(content: string): ParseResult {
       plusOnesAllowed = parsed;
     }
 
+    const adultsRaw = getStr(plusOnesCountAdultsIdx);
+    const childrenRaw = getStr(plusOnesCountChildrenIdx);
+    let plusOnesCountAdults = 0;
+    let plusOnesCountChildren = 0;
+    if (adultsRaw !== null) {
+      const parsed = parseInt(adultsRaw, 10);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 10) plusOnesCountAdults = parsed;
+    }
+    if (childrenRaw !== null) {
+      const parsed = parseInt(childrenRaw, 10);
+      if (!isNaN(parsed) && parsed >= 0 && parsed <= 10) plusOnesCountChildren = parsed;
+    }
+    if (plusOnesCountAdults + plusOnesCountChildren > plusOnesAllowed) {
+      errors.push({ row: rowNum, message: 'plusOnesCountAdults + plusOnesCountChildren must not exceed plusOnesAllowed' });
+      continue;
+    }
+
     guests.push({
       // Core fields
       firstName,
       lastName,
       email,
       phone,
-      category,
+      category: categoryValue,
       plusOnesAllowed,
+      plusOnesCountAdults,
+      plusOnesCountChildren,
       dietaryRestrictions: dietary,
       notes,
       // Optional fields
@@ -273,6 +290,8 @@ export function generateGuestsCsv(guests: GuestRow[]): string {
     'rsvpStatus',
     'plusOnesAllowed',
     'plusOnesCount',
+    'plusOnesCountAdults',
+    'plusOnesCountChildren',
     'dietaryRestrictions',
     'notes',
     'checkedIn',
@@ -307,6 +326,8 @@ export function generateGuestsCsv(guests: GuestRow[]): string {
       escapeCSVValue(guest.rsvpStatus ?? 'pending'),
       String(guest.plusOnesAllowed),
       String(guest.plusOnesCount),
+      String(guest.plusOnesCountAdults ?? 0),
+      String(guest.plusOnesCountChildren ?? 0),
       escapeCSVValue(guest.dietaryRestrictions ?? ''),
       escapeCSVValue(guest.notes ?? ''),
       guest.checkedIn ? 'yes' : 'no',

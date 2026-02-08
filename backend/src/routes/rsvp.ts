@@ -20,6 +20,8 @@ const rsvp = new Hono<HonoEnv>();
 const rsvpSubmitSchema = z.object({
   rsvpStatus: z.enum(['confirmed', 'declined', 'maybe']),
   plusOnesCount: z.coerce.number().int().min(0).max(10).optional(),
+  plusOnesCountAdults: z.coerce.number().int().min(0).max(10).optional(),
+  plusOnesCountChildren: z.coerce.number().int().min(0).max(10).optional(),
   dietaryRestrictions: z.string().max(500).optional().nullable(),
   needsAccommodation: z.boolean().optional().nullable(),
   hotelName: z.string().max(200).optional().nullable(),
@@ -51,6 +53,8 @@ rsvp.get('/:token', async (c) => {
       rsvpRespondedAt: schema.guests.rsvpRespondedAt,
       plusOnesAllowed: schema.guests.plusOnesAllowed,
       plusOnesCount: schema.guests.plusOnesCount,
+      plusOnesCountAdults: schema.guests.plusOnesCountAdults,
+      plusOnesCountChildren: schema.guests.plusOnesCountChildren,
       dietaryRestrictions: schema.guests.dietaryRestrictions,
       needsAccommodation: schema.guests.needsAccommodation,
       hotelName: schema.guests.hotelName,
@@ -172,6 +176,8 @@ rsvp.get('/:token', async (c) => {
         rsvpRespondedAt: guest.rsvpRespondedAt,
         plusOnesAllowed: guest.plusOnesAllowed,
         plusOnesCount: guest.plusOnesCount,
+        plusOnesCountAdults: guest.plusOnesCountAdults,
+        plusOnesCountChildren: guest.plusOnesCountChildren,
         dietaryRestrictions: guest.dietaryRestrictions,
         needsAccommodation: guest.needsAccommodation ?? null,
         hotelName: guest.hotelName ?? null,
@@ -210,6 +216,8 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
       plusOnesAllowed: schema.guests.plusOnesAllowed,
       rsvpStatus: schema.guests.rsvpStatus,
       plusOnesCount: schema.guests.plusOnesCount,
+      plusOnesCountAdults: schema.guests.plusOnesCountAdults,
+      plusOnesCountChildren: schema.guests.plusOnesCountChildren,
       dietaryRestrictions: schema.guests.dietaryRestrictions,
       needsAccommodation: schema.guests.needsAccommodation,
       hotelName: schema.guests.hotelName,
@@ -227,8 +235,12 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     );
   }
 
-  // Validate plusOnesCount
-  const plusOnesCount = data.plusOnesCount ?? 0;
+  // Resolve plus-ones: prefer adults+children if either provided, else use plusOnesCount (backward compat)
+  const hasAdultsChildren =
+    data.plusOnesCountAdults !== undefined || data.plusOnesCountChildren !== undefined;
+  const adults = hasAdultsChildren ? (data.plusOnesCountAdults ?? 0) : (data.plusOnesCount ?? 0);
+  const children = hasAdultsChildren ? (data.plusOnesCountChildren ?? 0) : 0;
+  const plusOnesCount = adults + children;
   if (plusOnesCount > guest.plusOnesAllowed) {
     return c.json(
       {
@@ -310,9 +322,13 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     auditChanges.push({ field: 'checkOutDate', from: guest.checkOutDate ?? null, to: data.checkOutDate ?? null });
   }
 
+  const newPlusOnesAdults = data.rsvpStatus === 'confirmed' ? adults : 0;
+  const newPlusOnesChildren = data.rsvpStatus === 'confirmed' ? children : 0;
   const updatePayload: Record<string, unknown> = {
     rsvpStatus: data.rsvpStatus,
     plusOnesCount: data.rsvpStatus === 'confirmed' ? plusOnesCount : 0,
+    plusOnesCountAdults: newPlusOnesAdults,
+    plusOnesCountChildren: newPlusOnesChildren,
     dietaryRestrictions: data.dietaryRestrictions ?? null,
     rsvpRespondedAt: new Date(),
     updatedAt: new Date(),
