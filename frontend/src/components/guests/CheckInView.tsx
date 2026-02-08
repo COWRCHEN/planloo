@@ -66,6 +66,7 @@ function CheckInStats({
 const rsvpStatusColors: Record<string, string> = {
   confirmed: 'bg-green-100 text-green-800',
   pending: 'bg-yellow-100 text-yellow-800',
+  invited: 'bg-violet-100 text-violet-800',
   declined: 'bg-red-100 text-red-800',
   maybe: 'bg-blue-100 text-blue-800',
 };

@@ -73,7 +73,7 @@ export const guests = sqliteTable('guests', {
   email: text('email'),
   phone: text('phone'),
   category: text('category', { enum: ['vip', 'family', 'friend', 'colleague', 'other'] }),
-  rsvpStatus: text('rsvp_status', { enum: ['pending', 'confirmed', 'declined', 'maybe'] }).default('pending'),
+  rsvpStatus: text('rsvp_status', { enum: ['pending', 'invited', 'confirmed', 'declined', 'maybe'] }).default('pending'),
   rsvpToken: text('rsvp_token').unique(),
   rsvpRespondedAt: integer('rsvp_responded_at', { mode: 'timestamp' }),
   plusOnesAllowed: integer('plus_ones_allowed').default(0).notNull(),

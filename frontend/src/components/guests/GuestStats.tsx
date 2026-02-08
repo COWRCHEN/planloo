@@ -69,6 +69,7 @@ export function GuestStats({ stats, isLoading }: GuestStatsProps) {
         sublabel={stats.totalPlusOnes > 0 ? `+${stats.totalPlusOnes} plus-ones = ${confirmedWithPlusOnes}` : undefined}
       />
       <StatCard label="Pending" value={stats.pending} />
+      <StatCard label="Invited" value={stats.invited} />
       <StatCard
         label="Checked In"
         value={`${stats.checkedIn}/${stats.confirmed}`}

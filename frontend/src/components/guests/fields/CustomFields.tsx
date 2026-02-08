@@ -40,10 +40,7 @@ export function CustomFields({ definitions, values, onChange, errors, disabled }
 
   return (
     <div className="space-y-4">
-      <h4 className="text-sm font-medium text-muted-foreground">Custom Fields</h4>
-
-      <div className="space-y-4">
-        {definitions.map((field) => (
+      {definitions.map((field) => (
           <div key={field.id} className="space-y-2">
             <Label htmlFor={field.id}>
               {field.label}
@@ -177,7 +174,6 @@ export function CustomFields({ definitions, values, onChange, errors, disabled }
             )}
           </div>
         ))}
-      </div>
     </div>
   );
 }

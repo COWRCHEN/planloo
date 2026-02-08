@@ -27,7 +27,7 @@ const guests = new Hono<HonoEnv>();
 // ==================== ENUMS ====================
 
 const GUEST_CATEGORIES = ['vip', 'family', 'friend', 'colleague', 'other'] as const;
-const RSVP_STATUSES = ['pending', 'confirmed', 'declined', 'maybe'] as const;
+const RSVP_STATUSES = ['pending', 'invited', 'confirmed', 'declined', 'maybe'] as const;
 
 // Event-type-specific enums
 const WEDDING_GUEST_SIDES = ['bride', 'groom', 'both'] as const;
@@ -673,6 +673,7 @@ guests.get('/stats', requireAuth, async (c) => {
   const baseStats = {
     total,
     pending: statusCounts['pending'] ?? 0,
+    invited: statusCounts['invited'] ?? 0,
     confirmed: statusCounts['confirmed'] ?? 0,
     declined: statusCounts['declined'] ?? 0,
     maybe: statusCounts['maybe'] ?? 0,

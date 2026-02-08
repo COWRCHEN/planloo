@@ -52,6 +52,7 @@ const categoryLabels: Record<GuestCategory, string> = {
 
 const rsvpStatusLabels: Record<RsvpStatus, string> = {
   pending: 'Pending',
+  invited: 'Invited',
   confirmed: 'Confirmed',
   declined: 'Declined',
   maybe: 'Maybe',

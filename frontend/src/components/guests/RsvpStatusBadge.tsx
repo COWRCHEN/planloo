@@ -19,6 +19,10 @@ const statusConfig: Record<
     label: 'Pending',
     className: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
   },
+  invited: {
+    label: 'Invited',
+    className: 'bg-violet-100 text-violet-800 hover:bg-violet-100',
+  },
   confirmed: {
     label: 'Confirmed',
     className: 'bg-green-100 text-green-800 hover:bg-green-100',

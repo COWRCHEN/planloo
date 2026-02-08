@@ -84,6 +84,7 @@ export function GuestTable({
 
   const rsvpStatusLabels: Record<RsvpStatus, string> = {
     pending: 'Pending',
+    invited: 'Invited',
     confirmed: 'Confirmed',
     declined: 'Declined',
     maybe: 'Maybe',

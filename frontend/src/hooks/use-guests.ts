@@ -12,7 +12,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1'
 // ==================== TYPES ====================
 
 export const GUEST_CATEGORIES = ['vip', 'family', 'friend', 'colleague', 'other'] as const;
-export const RSVP_STATUSES = ['pending', 'confirmed', 'declined', 'maybe'] as const;
+export const RSVP_STATUSES = ['pending', 'invited', 'confirmed', 'declined', 'maybe'] as const;
 
 // Event types
 export const EVENT_TYPES = ['wedding', 'corporate', 'conference', 'birthday', 'other'] as const;
@@ -80,6 +80,7 @@ export interface GuestResponse {
 export interface GuestStatsResponse {
   total: number;
   pending: number;
+  invited: number;
   confirmed: number;
   declined: number;
   maybe: number;
