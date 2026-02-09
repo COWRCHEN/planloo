@@ -95,6 +95,47 @@ export interface UpdateEventInput {
   budgetCurrency?: string;
   isPublic?: boolean;
   coverImageUrl?: string | null;
+  slug?: string | null;
+}
+
+export interface EventRsvpSettings {
+  id: number;
+  eventId: number;
+  enableRsvp: boolean;
+  allowMaybeResponse: boolean;
+  rsvpDeadline: string | null;
+  rsvpConfirmationMessage: string | null;
+  allowRsvpUpdate: boolean;
+  allowRsvpPlusOnes: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateRsvpSettingsInput {
+  enableRsvp?: boolean;
+  allowMaybeResponse?: boolean;
+  rsvpDeadline?: Date | null;
+  rsvpConfirmationMessage?: string | null;
+  allowRsvpUpdate?: boolean;
+  allowRsvpPlusOnes?: boolean;
+}
+
+export interface EventPrivacySettings {
+  id: number;
+  eventId: number;
+  enablePassword: boolean;
+  pagePassword: string | null;
+  showGuestList: boolean;
+  enableSocialPreview: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdatePrivacySettingsInput {
+  enablePassword?: boolean;
+  pagePassword?: string | null;
+  showGuestList?: boolean;
+  enableSocialPreview?: boolean;
 }
 
 export interface ListEventsQuery {
@@ -114,6 +155,9 @@ export const eventKeys = {
   details: () => [...eventKeys.all, 'detail'] as const,
   detail: (uuid: string) => [...eventKeys.details(), uuid] as const,
   stats: () => [...eventKeys.all, 'stats'] as const,
+  rsvpSettings: (uuid: string) => [...eventKeys.details(), uuid, 'rsvp-settings'] as const,
+  privacySettings: (uuid: string) => [...eventKeys.details(), uuid, 'privacy-settings'] as const,
+  checkSlug: (slug: string) => [...eventKeys.all, 'check-slug', slug] as const,
 };
 
 // API Response types
@@ -283,5 +327,117 @@ export function useDeleteEvent() {
       queryClient.invalidateQueries({ queryKey: eventKeys.stats() });
       queryClient.removeQueries({ queryKey: eventKeys.detail(uuid) });
     },
+  });
+}
+
+// ==================== RSVP SETTINGS HOOKS ====================
+
+/**
+ * Hook to fetch RSVP settings for an event
+ */
+export function useRsvpSettings(eventUuid: string) {
+  return useQuery<EventRsvpSettings | undefined>({
+    queryKey: eventKeys.rsvpSettings(eventUuid),
+    queryFn: async (): Promise<EventRsvpSettings | undefined> => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/rsvp-settings`, {
+        credentials: 'include',
+      });
+
+      const result = await handleResponse<EventRsvpSettings>(response);
+      return result.data;
+    },
+    enabled: !!eventUuid,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook to update RSVP settings for an event
+ */
+export function useUpdateRsvpSettings(eventUuid: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: UpdateRsvpSettingsInput) => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/rsvp-settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+
+      const result = await handleResponse<EventRsvpSettings>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventKeys.rsvpSettings(eventUuid) });
+    },
+  });
+}
+
+// ==================== PRIVACY SETTINGS HOOKS ====================
+
+/**
+ * Hook to fetch privacy settings for an event
+ */
+export function usePrivacySettings(eventUuid: string) {
+  return useQuery<EventPrivacySettings | undefined>({
+    queryKey: eventKeys.privacySettings(eventUuid),
+    queryFn: async (): Promise<EventPrivacySettings | undefined> => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/privacy-settings`, {
+        credentials: 'include',
+      });
+
+      const result = await handleResponse<EventPrivacySettings>(response);
+      return result.data;
+    },
+    enabled: !!eventUuid,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Hook to update privacy settings for an event
+ */
+export function useUpdatePrivacySettings(eventUuid: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: UpdatePrivacySettingsInput) => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/privacy-settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+
+      const result = await handleResponse<EventPrivacySettings>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eventKeys.privacySettings(eventUuid) });
+    },
+  });
+}
+
+// ==================== SLUG CHECK HOOK ====================
+
+/**
+ * Hook to check if a slug is available
+ */
+export function useCheckSlug(slug: string, eventUuid: string) {
+  return useQuery<boolean>({
+    queryKey: eventKeys.checkSlug(slug),
+    queryFn: async (): Promise<boolean> => {
+      const params = new URLSearchParams({ slug, eventUuid });
+      const response = await fetch(`${API_URL}/events/check-slug?${params}`, {
+        credentials: 'include',
+      });
+
+      const result = await handleResponse<{ available: boolean }>(response);
+      return result.data?.available ?? false;
+    },
+    enabled: !!slug && slug.length >= 3 && /^[a-z0-9-]+$/.test(slug),
+    staleTime: 1000 * 30,
   });
 }

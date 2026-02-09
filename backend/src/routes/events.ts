@@ -60,6 +60,7 @@ const updateEventSchema = z.object({
   budgetCurrency: z.string().length(3).optional(),
   isPublic: z.boolean().optional(),
   coverImageUrl: z.string().url().optional().nullable(),
+  slug: z.string().min(3).max(60).regex(/^[a-z0-9-]+$/).optional().nullable(),
 });
 
 const listEventsQuerySchema = z.object({
@@ -215,6 +216,53 @@ events.get('/stats', requireAuth, async (c) => {
       totalGuests: guestStats?.total ?? 0,
       confirmedGuests: guestStats?.confirmed ?? 0,
     },
+  });
+});
+
+/**
+ * GET /events/check-slug
+ * Check if a slug is available
+ */
+events.get('/check-slug', requireAuth, async (c) => {
+  const slug = c.req.query('slug');
+  const eventUuid = c.req.query('eventUuid');
+
+  if (!slug) {
+    return c.json(
+      { success: false, error: { code: 'VALIDATION_ERROR', message: 'slug query parameter is required' } },
+      400
+    );
+  }
+
+  const db = createDbClient(c.env.DB);
+
+  const conditions = [
+    eq(schema.events.slug, slug),
+    isNull(schema.events.deletedAt),
+  ];
+
+  // Exclude current event if provided
+  if (eventUuid) {
+    const [currentEvent] = await db
+      .select({ id: schema.events.id })
+      .from(schema.events)
+      .where(eq(schema.events.uuid, eventUuid))
+      .limit(1);
+
+    if (currentEvent) {
+      conditions.push(sql`${schema.events.id} != ${currentEvent.id}`);
+    }
+  }
+
+  const [existing] = await db
+    .select({ id: schema.events.id })
+    .from(schema.events)
+    .where(and(...conditions))
+    .limit(1);
+
+  return c.json({
+    success: true,
+    data: { available: !existing },
   });
 });
 
@@ -378,6 +426,35 @@ events.patch(
     if (updates.budgetCurrency !== undefined) updateData.budgetCurrency = updates.budgetCurrency;
     if (updates.isPublic !== undefined) updateData.isPublic = updates.isPublic;
     if (updates.coverImageUrl !== undefined) updateData.coverImageUrl = updates.coverImageUrl;
+    if (updates.slug !== undefined) {
+      // Check slug uniqueness if setting a slug
+      if (updates.slug) {
+        const [existingSlug] = await db
+          .select({ id: schema.events.id })
+          .from(schema.events)
+          .where(
+            and(
+              eq(schema.events.slug, updates.slug),
+              isNull(schema.events.deletedAt)
+            )
+          )
+          .limit(1);
+
+        if (existingSlug && existingSlug.id !== existingEvent.id) {
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'SLUG_TAKEN',
+                message: 'This slug is already in use by another event',
+              },
+            },
+            409
+          );
+        }
+      }
+      updateData.slug = updates.slug;
+    }
 
     const [updatedEvent] = await db
       .update(schema.events)
@@ -940,6 +1017,288 @@ events.patch(
         createdAt: settings.createdAt,
         updatedAt: settings.updatedAt,
       },
+    });
+  }
+);
+
+// ==================== RSVP SETTINGS ENDPOINTS ====================
+
+const updateRsvpSettingsSchema = z.object({
+  enableRsvp: z.boolean().optional(),
+  allowMaybeResponse: z.boolean().optional(),
+  rsvpDeadline: z.coerce.date().optional().nullable(),
+  rsvpConfirmationMessage: z.string().max(500).optional().nullable(),
+  allowRsvpUpdate: z.boolean().optional(),
+  allowRsvpPlusOnes: z.boolean().optional(),
+});
+
+/**
+ * GET /events/:uuid/rsvp-settings
+ * Get RSVP settings for an event
+ */
+events.get('/:uuid/rsvp-settings', requireAuth, async (c) => {
+  const user = c.get('user')!;
+  const uuid = c.req.param('uuid');
+
+  const db = createDbClient(c.env.DB);
+
+  const [event] = await db
+    .select({ id: schema.events.id })
+    .from(schema.events)
+    .where(
+      and(
+        eq(schema.events.uuid, uuid),
+        eq(schema.events.userId, user.id),
+        isNull(schema.events.deletedAt)
+      )
+    )
+    .limit(1);
+
+  if (!event) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
+      404
+    );
+  }
+
+  let [settings] = await db
+    .select()
+    .from(schema.eventRsvpSettings)
+    .where(eq(schema.eventRsvpSettings.eventId, event.id))
+    .limit(1);
+
+  if (!settings) {
+    const [newSettings] = await db
+      .insert(schema.eventRsvpSettings)
+      .values({ eventId: event.id })
+      .returning();
+    settings = newSettings!;
+  }
+
+  return c.json({
+    success: true,
+    data: settings,
+  });
+});
+
+/**
+ * PATCH /events/:uuid/rsvp-settings
+ * Update RSVP settings for an event
+ */
+events.patch(
+  '/:uuid/rsvp-settings',
+  requireAuth,
+  requireVerifiedEmail,
+  zValidator('json', updateRsvpSettingsSchema),
+  async (c) => {
+    const user = c.get('user')!;
+    const uuid = c.req.param('uuid');
+    const updates = c.req.valid('json');
+
+    const db = createDbClient(c.env.DB);
+
+    const [event] = await db
+      .select({ id: schema.events.id })
+      .from(schema.events)
+      .where(
+        and(
+          eq(schema.events.uuid, uuid),
+          eq(schema.events.userId, user.id),
+          isNull(schema.events.deletedAt)
+        )
+      )
+      .limit(1);
+
+    if (!event) {
+      return c.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
+        404
+      );
+    }
+
+    const [existingSettings] = await db
+      .select({ id: schema.eventRsvpSettings.id })
+      .from(schema.eventRsvpSettings)
+      .where(eq(schema.eventRsvpSettings.eventId, event.id))
+      .limit(1);
+
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
+
+    if (updates.enableRsvp !== undefined) updateData.enableRsvp = updates.enableRsvp;
+    if (updates.allowMaybeResponse !== undefined) updateData.allowMaybeResponse = updates.allowMaybeResponse;
+    if (updates.rsvpDeadline !== undefined) updateData.rsvpDeadline = updates.rsvpDeadline;
+    if (updates.rsvpConfirmationMessage !== undefined) updateData.rsvpConfirmationMessage = updates.rsvpConfirmationMessage;
+    if (updates.allowRsvpUpdate !== undefined) updateData.allowRsvpUpdate = updates.allowRsvpUpdate;
+    if (updates.allowRsvpPlusOnes !== undefined) updateData.allowRsvpPlusOnes = updates.allowRsvpPlusOnes;
+
+    let settings: typeof schema.eventRsvpSettings.$inferSelect;
+
+    if (existingSettings) {
+      const [updatedSettings] = await db
+        .update(schema.eventRsvpSettings)
+        .set(updateData)
+        .where(eq(schema.eventRsvpSettings.eventId, event.id))
+        .returning();
+      settings = updatedSettings!;
+    } else {
+      const [newSettings] = await db
+        .insert(schema.eventRsvpSettings)
+        .values({
+          eventId: event.id,
+          enableRsvp: updates.enableRsvp ?? false,
+          allowMaybeResponse: updates.allowMaybeResponse ?? true,
+          rsvpDeadline: updates.rsvpDeadline ?? null,
+          rsvpConfirmationMessage: updates.rsvpConfirmationMessage ?? null,
+          allowRsvpUpdate: updates.allowRsvpUpdate ?? true,
+          allowRsvpPlusOnes: updates.allowRsvpPlusOnes ?? false,
+        })
+        .returning();
+      settings = newSettings!;
+    }
+
+    return c.json({
+      success: true,
+      data: settings,
+    });
+  }
+);
+
+// ==================== PRIVACY SETTINGS ENDPOINTS ====================
+
+const updatePrivacySettingsSchema = z.object({
+  enablePassword: z.boolean().optional(),
+  pagePassword: z.string().max(50).optional().nullable(),
+  showGuestList: z.boolean().optional(),
+  enableSocialPreview: z.boolean().optional(),
+});
+
+/**
+ * GET /events/:uuid/privacy-settings
+ * Get privacy settings for an event
+ */
+events.get('/:uuid/privacy-settings', requireAuth, async (c) => {
+  const user = c.get('user')!;
+  const uuid = c.req.param('uuid');
+
+  const db = createDbClient(c.env.DB);
+
+  const [event] = await db
+    .select({ id: schema.events.id })
+    .from(schema.events)
+    .where(
+      and(
+        eq(schema.events.uuid, uuid),
+        eq(schema.events.userId, user.id),
+        isNull(schema.events.deletedAt)
+      )
+    )
+    .limit(1);
+
+  if (!event) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
+      404
+    );
+  }
+
+  let [settings] = await db
+    .select()
+    .from(schema.eventPrivacySettings)
+    .where(eq(schema.eventPrivacySettings.eventId, event.id))
+    .limit(1);
+
+  if (!settings) {
+    const [newSettings] = await db
+      .insert(schema.eventPrivacySettings)
+      .values({ eventId: event.id })
+      .returning();
+    settings = newSettings!;
+  }
+
+  return c.json({
+    success: true,
+    data: settings,
+  });
+});
+
+/**
+ * PATCH /events/:uuid/privacy-settings
+ * Update privacy settings for an event
+ */
+events.patch(
+  '/:uuid/privacy-settings',
+  requireAuth,
+  requireVerifiedEmail,
+  zValidator('json', updatePrivacySettingsSchema),
+  async (c) => {
+    const user = c.get('user')!;
+    const uuid = c.req.param('uuid');
+    const updates = c.req.valid('json');
+
+    const db = createDbClient(c.env.DB);
+
+    const [event] = await db
+      .select({ id: schema.events.id })
+      .from(schema.events)
+      .where(
+        and(
+          eq(schema.events.uuid, uuid),
+          eq(schema.events.userId, user.id),
+          isNull(schema.events.deletedAt)
+        )
+      )
+      .limit(1);
+
+    if (!event) {
+      return c.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
+        404
+      );
+    }
+
+    const [existingSettings] = await db
+      .select({ id: schema.eventPrivacySettings.id })
+      .from(schema.eventPrivacySettings)
+      .where(eq(schema.eventPrivacySettings.eventId, event.id))
+      .limit(1);
+
+    const updateData: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
+
+    if (updates.enablePassword !== undefined) updateData.enablePassword = updates.enablePassword;
+    if (updates.pagePassword !== undefined) updateData.pagePassword = updates.pagePassword;
+    if (updates.showGuestList !== undefined) updateData.showGuestList = updates.showGuestList;
+    if (updates.enableSocialPreview !== undefined) updateData.enableSocialPreview = updates.enableSocialPreview;
+
+    let settings: typeof schema.eventPrivacySettings.$inferSelect;
+
+    if (existingSettings) {
+      const [updatedSettings] = await db
+        .update(schema.eventPrivacySettings)
+        .set(updateData)
+        .where(eq(schema.eventPrivacySettings.eventId, event.id))
+        .returning();
+      settings = updatedSettings!;
+    } else {
+      const [newSettings] = await db
+        .insert(schema.eventPrivacySettings)
+        .values({
+          eventId: event.id,
+          enablePassword: updates.enablePassword ?? false,
+          pagePassword: updates.pagePassword ?? null,
+          showGuestList: updates.showGuestList ?? false,
+          enableSocialPreview: updates.enableSocialPreview ?? true,
+        })
+        .returning();
+      settings = newSettings!;
+    }
+
+    return c.json({
+      success: true,
+      data: settings,
     });
   }
 );

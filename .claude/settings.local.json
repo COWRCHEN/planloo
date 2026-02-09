@@ -10,7 +10,11 @@
       "Bash(node -e:*)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(npm run lint)",
-      "Bash(ls -la \"C:\\\\github\\\\cowrchen\\\\planloo\\\\backend\\\\src\"\" | grep -E \"^d \")"
+      "Bash(ls -la \"C:\\\\github\\\\cowrchen\\\\planloo\\\\backend\\\\src\"\" | grep -E \"^d \")",
+      "Bash(ls -la \"C:\\\\github\\\\cowrchen\\\\planloo\\\\frontend\\\\src\\\\lib\"\" 2>/dev/null || echo \"lib directory check \")",
+      "Bash(find:*)",
+      "Bash(npm run db:generate:*)",
+      "Bash(npm run db:migrate:local:*)"
     ]
   }
 }

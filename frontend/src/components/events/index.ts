@@ -15,4 +15,6 @@ export { EventFormView } from './EventFormView';
 export { EventDetailView } from './EventDetailView';
 export { EventEditView } from './EventEditView';
 export { EventSettingsView } from './EventSettingsView';
+export { RsvpSettings } from './RsvpSettings';
+export { PrivacySharingSettings } from './PrivacySharingSettings';
 export { DeleteEventDialog } from './DeleteEventDialog';

@@ -1,7 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { user, session, account } from './auth';
 import { organization, organizationMember, organizationInvitation } from './organization';
-import { events, guests, eventCollaborators, tasks, eventGuestSettings } from './events';
+import { events, guests, eventCollaborators, tasks, eventGuestSettings, eventRsvpSettings, eventPrivacySettings } from './events';
 import {
   weddingGuestDetails,
   corporateGuestDetails,
@@ -124,6 +124,16 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   guestSettings: one(eventGuestSettings, {
     fields: [events.id],
     references: [eventGuestSettings.eventId]
+  }),
+  // RSVP settings (1:1)
+  rsvpSettings: one(eventRsvpSettings, {
+    fields: [events.id],
+    references: [eventRsvpSettings.eventId]
+  }),
+  // Privacy settings (1:1)
+  privacySettings: one(eventPrivacySettings, {
+    fields: [events.id],
+    references: [eventPrivacySettings.eventId]
   }),
 }));
 
@@ -332,6 +342,26 @@ export const impersonationSessionRelations = relations(impersonationSession, ({ 
 export const eventGuestSettingsRelations = relations(eventGuestSettings, ({ one }) => ({
   event: one(events, {
     fields: [eventGuestSettings.eventId],
+    references: [events.id]
+  })
+}));
+
+/**
+ * Event RSVP Settings Relations
+ */
+export const eventRsvpSettingsRelations = relations(eventRsvpSettings, ({ one }) => ({
+  event: one(events, {
+    fields: [eventRsvpSettings.eventId],
+    references: [events.id]
+  })
+}));
+
+/**
+ * Event Privacy Settings Relations
+ */
+export const eventPrivacySettingsRelations = relations(eventPrivacySettings, ({ one }) => ({
+  event: one(events, {
+    fields: [eventPrivacySettings.eventId],
     references: [events.id]
   })
 }));

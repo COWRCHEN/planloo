@@ -263,3 +263,58 @@ export const eventGuestSettings = sqliteTable('event_guest_settings', {
 }, (table) => ({
   eventIdIdx: index('idx_event_guest_settings_event_id').on(table.eventId),
 }));
+
+/**
+ * Event RSVP Settings Table
+ *
+ * Stores per-event RSVP configuration:
+ * - Whether RSVP is enabled
+ * - Allowed response types (maybe, plus-ones)
+ * - Deadline and confirmation messaging
+ *
+ * Each event has exactly one settings record (1:1 relationship).
+ * Settings are created automatically when first accessed.
+ */
+export const eventRsvpSettings = sqliteTable('event_rsvp_settings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  eventId: integer('event_id').notNull().unique().references(() => events.id, { onDelete: 'cascade' }),
+
+  enableRsvp: integer('enable_rsvp', { mode: 'boolean' }).default(false).notNull(),
+  allowMaybeResponse: integer('allow_maybe_response', { mode: 'boolean' }).default(true).notNull(),
+  rsvpDeadline: integer('rsvp_deadline', { mode: 'timestamp' }),
+  rsvpConfirmationMessage: text('rsvp_confirmation_message'),
+  allowRsvpUpdate: integer('allow_rsvp_update', { mode: 'boolean' }).default(true).notNull(),
+  allowRsvpPlusOnes: integer('allow_rsvp_plus_ones', { mode: 'boolean' }).default(false).notNull(),
+
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  eventIdIdx: index('idx_event_rsvp_settings_event_id').on(table.eventId),
+}));
+
+/**
+ * Event Privacy Settings Table
+ *
+ * Stores per-event privacy and sharing configuration:
+ * - Password protection
+ * - Guest list visibility
+ * - Social sharing preview
+ *
+ * Note: `isPublic` and `slug` remain on the `events` table.
+ * Each event has exactly one settings record (1:1 relationship).
+ * Settings are created automatically when first accessed.
+ */
+export const eventPrivacySettings = sqliteTable('event_privacy_settings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  eventId: integer('event_id').notNull().unique().references(() => events.id, { onDelete: 'cascade' }),
+
+  enablePassword: integer('enable_password', { mode: 'boolean' }).default(false).notNull(),
+  pagePassword: text('page_password'),
+  showGuestList: integer('show_guest_list', { mode: 'boolean' }).default(false).notNull(),
+  enableSocialPreview: integer('enable_social_preview', { mode: 'boolean' }).default(true).notNull(),
+
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  eventIdIdx: index('idx_event_privacy_settings_event_id').on(table.eventId),
+}));

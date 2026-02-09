@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GuestFieldSettings } from '@/components/guests/GuestFieldSettings';
 import { CommonFieldSettings } from '@/components/guests/CommonFieldSettings';
 import { CustomFieldManager } from '@/components/guests/CustomFieldManager';
+import { RsvpSettings } from '@/components/events/RsvpSettings';
+import { PrivacySharingSettings } from '@/components/events/PrivacySharingSettings';
 import { useEvent } from '@/hooks/use-events';
 import { useSession } from '@/hooks/use-auth';
 
@@ -144,8 +146,8 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
         </div>
       </div>
 
-      {/* Field Settings: tabs inside accordion */}
-      <Accordion type="single" defaultValue="field-settings" collapsible className="w-full">
+      {/* Settings Accordion */}
+      <Accordion type="single" defaultValue="field-settings" collapsible className="w-full space-y-4">
         <AccordionItem value="field-settings">
           <AccordionTrigger>Guest Field Settings</AccordionTrigger>
           <AccordionContent>
@@ -258,6 +260,20 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
                 <CustomFieldManager eventUuid={uuid} />
               </TabsContent>
             </Tabs>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="rsvp-settings">
+          <AccordionTrigger>RSVP & Invitations</AccordionTrigger>
+          <AccordionContent>
+            <RsvpSettings eventUuid={uuid} />
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="privacy-settings">
+          <AccordionTrigger>Privacy & Sharing</AccordionTrigger>
+          <AccordionContent>
+            <PrivacySharingSettings eventUuid={uuid} />
           </AccordionContent>
         </AccordionItem>
       </Accordion>
