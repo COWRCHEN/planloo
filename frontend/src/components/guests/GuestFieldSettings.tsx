@@ -27,6 +27,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  Contact,
+  UtensilsCrossed,
+  Hotel,
+  FileText,
+} from 'lucide-react';
+import {
   useGuestSettings,
   useUpdateGuestSettings,
   DEFAULT_CATEGORY_OPTIONS,
@@ -377,7 +383,7 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
+        <CardHeader className="rounded-lg border border-border bg-muted/50">
           <CardTitle>Guest Field Settings</CardTitle>
           <CardDescription>Loading...</CardDescription>
         </CardHeader>
@@ -387,7 +393,7 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="rounded-lg border border-border bg-muted/50">
         <CardTitle>Guest Field Settings</CardTitle>
         <CardDescription>
           Configure which optional fields to collect for guests at this event.
@@ -395,9 +401,12 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+      <Separator />
+      
         {/* Contact & Address */}
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            <Contact className="size-6 shrink-0 text-primary-600" aria-hidden />
             Contact Information
           </h3>
           <FieldToggle
@@ -416,7 +425,8 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
 
         {/* Dietary & Seating */}
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            <UtensilsCrossed className="size-6 shrink-0 text-amber-600" aria-hidden />
             Dietary & Seating
           </h3>
           
@@ -455,7 +465,8 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
 
         {/* Logistics */}
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            <Hotel className="size-6 shrink-0 text-info-600" aria-hidden />
             Logistics
           </h3>
 
@@ -516,7 +527,8 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
 
         {/* Additional Info */}
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            <FileText className="size-4 shrink-0 text-secondary-600" aria-hidden />
             Additional Information
           </h3>
 
