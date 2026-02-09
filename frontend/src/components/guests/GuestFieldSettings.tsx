@@ -27,6 +27,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
   Contact,
   UtensilsCrossed,
   Hotel,
@@ -401,212 +407,227 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-      <Separator />
-      
-        {/* Contact & Address */}
-        <div className="space-y-4">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            <Contact className="size-6 shrink-0 text-primary-600" aria-hidden />
-            Contact Information
-          </h3>
-          <FieldToggle
-            label="Address"
-            description="Collect mailing address (street, city, state, zip, country)"
-            checked={currentSettings.enableAddress}
-            onCheckedChange={(checked) => handleChange('enableAddress', checked)}
-            disabled={updateSettings.isPending}
-            required={currentSettings.requiredAddress}
-            onRequiredChange={(checked) => handleChange('requiredAddress', checked)}
-            showRequired={currentSettings.enableAddress}
-          />
-        </div>
-
-        <Separator />
-
-        {/* Dietary & Seating */}
-        <div className="space-y-4">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            <UtensilsCrossed className="size-6 shrink-0 text-amber-600" aria-hidden />
-            Dietary & Seating
-          </h3>
-          
-          <FieldToggle
-            label="Meal Choice"
-            description="Let guests select their meal preference"
-            checked={currentSettings.enableMealChoice}
-            onCheckedChange={(checked) => handleChange('enableMealChoice', checked)}
-            disabled={updateSettings.isPending}
-            required={currentSettings.requiredMealChoice}
-            onRequiredChange={(checked) => handleChange('requiredMealChoice', checked)}
-            showRequired={currentSettings.enableMealChoice}
-          />
-
-          {currentSettings.enableMealChoice && (
-            <MealChoiceEditor
-              options={currentSettings.mealChoiceOptions ?? []}
-              onChange={(options) => handleChange('mealChoiceOptions', options)}
-              disabled={updateSettings.isPending}
-            />
-          )}
-
-          <FieldToggle
-            label="Table Assignment"
-            description="Assign guests to specific tables"
-            checked={currentSettings.enableTableAssignment}
-            onCheckedChange={(checked) => handleChange('enableTableAssignment', checked)}
-            disabled={updateSettings.isPending}
-            required={currentSettings.requiredTableAssignment}
-            onRequiredChange={(checked) => handleChange('requiredTableAssignment', checked)}
-            showRequired={currentSettings.enableTableAssignment}
-          />
-        </div>
-
-        <Separator />
-
-        {/* Logistics */}
-        <div className="space-y-4">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            <Hotel className="size-6 shrink-0 text-info-600" aria-hidden />
-            Logistics
-          </h3>
-
-          <FieldToggle
-            label="Accommodation"
-            description="Track if guests need hotel accommodation"
-            checked={currentSettings.enableAccommodation}
-            onCheckedChange={(checked) => handleChange('enableAccommodation', checked)}
-            disabled={updateSettings.isPending}
-            required={currentSettings.requiredAccommodation}
-            onRequiredChange={(checked) => handleChange('requiredAccommodation', checked)}
-            showRequired={currentSettings.enableAccommodation}
-          />
-
-          {currentSettings.enableAccommodation && (
-            <>
-              <div className="grid grid-cols-2 gap-4 ml-4 mt-2">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Check-in date (same for all hotels)</Label>
-                  <Input
-                    type="date"
-                    value={currentSettings.accommodationCheckInDate ?? ''}
-                    onChange={(e) => handleChange('accommodationCheckInDate', e.target.value || null)}
-                    disabled={updateSettings.isPending}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Check-out date (same for all hotels)</Label>
-                  <Input
-                    type="date"
-                    value={currentSettings.accommodationCheckOutDate ?? ''}
-                    onChange={(e) => handleChange('accommodationCheckOutDate', e.target.value || null)}
-                    disabled={updateSettings.isPending}
-                  />
-                </div>
-              </div>
-              <AccommodationHotelsEditor
-                hotels={currentSettings.accommodationHotels ?? []}
-                onChange={(hotels) => handleChange('accommodationHotels', hotels)}
-                disabled={updateSettings.isPending}
-              />
-            </>
-          )}
-
-          <FieldToggle
-            label="Transportation"
-            description="Track if guests need transportation assistance"
-            checked={currentSettings.enableTransportation}
-            onCheckedChange={(checked) => handleChange('enableTransportation', checked)}
-            disabled={updateSettings.isPending}
-            required={currentSettings.requiredTransportation}
-            onRequiredChange={(checked) => handleChange('requiredTransportation', checked)}
-            showRequired={currentSettings.enableTransportation}
-          />
-        </div>
-
-        <Separator />
-
-        {/* Additional Info */}
-        <div className="space-y-4">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            <FileText className="size-4 shrink-0 text-secondary-600" aria-hidden />
-            Additional Information
-          </h3>
-
-          <FieldToggle
-            label="Category"
-            description="Categorize guests (e.g., VIP, Family, Friend). You can edit the option list below."
-            checked={currentSettings.enableCategory}
-            onCheckedChange={(checked) => {
-              handleChange('enableCategory', checked);
-              if (checked) {
-                const opts = currentSettings.categoryOptions;
-                if (!opts || opts.length === 0) {
-                  handleChange('categoryOptions', DEFAULT_CATEGORY_OPTIONS);
-                }
-              }
-            }}
-            disabled={updateSettings.isPending}
-            required={currentSettings.requiredCategory}
-            onRequiredChange={(checked) => handleChange('requiredCategory', checked)}
-            showRequired={currentSettings.enableCategory}
-          />
-
-          {currentSettings.enableCategory && (
-            <MealChoiceEditor
-              options={currentSettings.categoryOptions ?? []}
-              onChange={(options) => handleChange('categoryOptions', options)}
-              disabled={updateSettings.isPending}
-            />
-          )}
-
-          <FieldToggle
-            label="Plus-ones"
-            description="Allow guests to bring plus-ones; set the default limit per guest below."
-            checked={currentSettings.enablePlusOnes}
-            onCheckedChange={(checked) => handleChange('enablePlusOnes', checked)}
-            disabled={updateSettings.isPending}
-          />
-          {currentSettings.enablePlusOnes && (
-            <div className="pl-4 border-l-2 border-muted space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="defaultPlusOnesAllowed">Default plus-ones allowed per guest</Label>
-                <Input
-                  id="defaultPlusOnesAllowed"
-                  type="number"
-                  min={0}
-                  max={10}
-                  value={currentSettings.defaultPlusOnesAllowed}
-                  onChange={(e) => {
-                    const v = Math.max(0, Math.min(10, parseInt(e.target.value, 10) || 0));
-                    handleChange('defaultPlusOnesAllowed', v);
-                  }}
-                  className="w-24"
+        <Accordion type="single" defaultValue="contact" collapsible className="w-full">
+          {/* Contact & Address */}
+          <AccordionItem value="contact">
+            <AccordionTrigger className="text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:no-underline">
+              <span className="flex items-center gap-2">
+                <Contact className="size-5 shrink-0 text-primary-600" aria-hidden />
+                Contact Information
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4">
+                <FieldToggle
+                  label="Address"
+                  description="Collect mailing address (street, city, state, zip, country)"
+                  checked={currentSettings.enableAddress}
+                  onCheckedChange={(checked) => handleChange('enableAddress', checked)}
+                  disabled={updateSettings.isPending}
+                  required={currentSettings.requiredAddress}
+                  onRequiredChange={(checked) => handleChange('requiredAddress', checked)}
+                  showRequired={currentSettings.enableAddress}
                 />
               </div>
-              <FieldToggle
-                label="Plus-One Name"
-                description="Capture the name of the guest's plus-one"
-                checked={currentSettings.enablePlusOneName}
-                onCheckedChange={(checked) => handleChange('enablePlusOneName', checked)}
-                disabled={updateSettings.isPending}
-                required={currentSettings.requiredPlusOneName}
-                onRequiredChange={(checked) => handleChange('requiredPlusOneName', checked)}
-                showRequired={currentSettings.enablePlusOneName}
-              />
-            </div>
-          )}
+            </AccordionContent>
+          </AccordionItem>
 
-          <FieldToggle
-            label="Accessibility Needs"
-            description="Allow guests to specify accessibility requirements"
-            checked={currentSettings.enableAccessibility}
-            onCheckedChange={(checked) => handleChange('enableAccessibility', checked)}
-            disabled={updateSettings.isPending}
-            required={currentSettings.requiredAccessibility}
-            onRequiredChange={(checked) => handleChange('requiredAccessibility', checked)}
-            showRequired={currentSettings.enableAccessibility}
-          />
-        </div>
+          {/* Dietary & Seating */}
+          <AccordionItem value="dietary">
+            <AccordionTrigger className="text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:no-underline">
+              <span className="flex items-center gap-2">
+                <UtensilsCrossed className="size-5 shrink-0 text-amber-600" aria-hidden />
+                Dietary & Seating
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4">
+                <FieldToggle
+                  label="Meal Choice"
+                  description="Let guests select their meal preference"
+                  checked={currentSettings.enableMealChoice}
+                  onCheckedChange={(checked) => handleChange('enableMealChoice', checked)}
+                  disabled={updateSettings.isPending}
+                  required={currentSettings.requiredMealChoice}
+                  onRequiredChange={(checked) => handleChange('requiredMealChoice', checked)}
+                  showRequired={currentSettings.enableMealChoice}
+                />
+
+                {currentSettings.enableMealChoice && (
+                  <MealChoiceEditor
+                    options={currentSettings.mealChoiceOptions ?? []}
+                    onChange={(options) => handleChange('mealChoiceOptions', options)}
+                    disabled={updateSettings.isPending}
+                  />
+                )}
+
+                <FieldToggle
+                  label="Table Assignment"
+                  description="Assign guests to specific tables"
+                  checked={currentSettings.enableTableAssignment}
+                  onCheckedChange={(checked) => handleChange('enableTableAssignment', checked)}
+                  disabled={updateSettings.isPending}
+                  required={currentSettings.requiredTableAssignment}
+                  onRequiredChange={(checked) => handleChange('requiredTableAssignment', checked)}
+                  showRequired={currentSettings.enableTableAssignment}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Logistics */}
+          <AccordionItem value="logistics">
+            <AccordionTrigger className="text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:no-underline">
+              <span className="flex items-center gap-2">
+                <Hotel className="size-5 shrink-0 text-info-600" aria-hidden />
+                Logistics
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4">
+                <FieldToggle
+                  label="Accommodation"
+                  description="Track if guests need hotel accommodation"
+                  checked={currentSettings.enableAccommodation}
+                  onCheckedChange={(checked) => handleChange('enableAccommodation', checked)}
+                  disabled={updateSettings.isPending}
+                  required={currentSettings.requiredAccommodation}
+                  onRequiredChange={(checked) => handleChange('requiredAccommodation', checked)}
+                  showRequired={currentSettings.enableAccommodation}
+                />
+
+                {currentSettings.enableAccommodation && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4 ml-4 mt-2">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Check-in date (same for all hotels)</Label>
+                        <Input
+                          type="date"
+                          value={currentSettings.accommodationCheckInDate ?? ''}
+                          onChange={(e) => handleChange('accommodationCheckInDate', e.target.value || null)}
+                          disabled={updateSettings.isPending}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Check-out date (same for all hotels)</Label>
+                        <Input
+                          type="date"
+                          value={currentSettings.accommodationCheckOutDate ?? ''}
+                          onChange={(e) => handleChange('accommodationCheckOutDate', e.target.value || null)}
+                          disabled={updateSettings.isPending}
+                        />
+                      </div>
+                    </div>
+                    <AccommodationHotelsEditor
+                      hotels={currentSettings.accommodationHotels ?? []}
+                      onChange={(hotels) => handleChange('accommodationHotels', hotels)}
+                      disabled={updateSettings.isPending}
+                    />
+                  </>
+                )}
+
+                <FieldToggle
+                  label="Transportation"
+                  description="Track if guests need transportation assistance"
+                  checked={currentSettings.enableTransportation}
+                  onCheckedChange={(checked) => handleChange('enableTransportation', checked)}
+                  disabled={updateSettings.isPending}
+                  required={currentSettings.requiredTransportation}
+                  onRequiredChange={(checked) => handleChange('requiredTransportation', checked)}
+                  showRequired={currentSettings.enableTransportation}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Additional Info */}
+          <AccordionItem value="additional">
+            <AccordionTrigger className="text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:no-underline">
+              <span className="flex items-center gap-2">
+                <FileText className="size-5 shrink-0 text-secondary-600" aria-hidden />
+                Additional Information
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4">
+                <FieldToggle
+                  label="Category"
+                  description="Categorize guests (e.g., VIP, Family, Friend). You can edit the option list below."
+                  checked={currentSettings.enableCategory}
+                  onCheckedChange={(checked) => {
+                    handleChange('enableCategory', checked);
+                    if (checked) {
+                      const opts = currentSettings.categoryOptions;
+                      if (!opts || opts.length === 0) {
+                        handleChange('categoryOptions', DEFAULT_CATEGORY_OPTIONS);
+                      }
+                    }
+                  }}
+                  disabled={updateSettings.isPending}
+                  required={currentSettings.requiredCategory}
+                  onRequiredChange={(checked) => handleChange('requiredCategory', checked)}
+                  showRequired={currentSettings.enableCategory}
+                />
+
+                {currentSettings.enableCategory && (
+                  <MealChoiceEditor
+                    options={currentSettings.categoryOptions ?? []}
+                    onChange={(options) => handleChange('categoryOptions', options)}
+                    disabled={updateSettings.isPending}
+                  />
+                )}
+
+                <FieldToggle
+                  label="Plus-ones"
+                  description="Allow guests to bring plus-ones; set the default limit per guest below."
+                  checked={currentSettings.enablePlusOnes}
+                  onCheckedChange={(checked) => handleChange('enablePlusOnes', checked)}
+                  disabled={updateSettings.isPending}
+                />
+                {currentSettings.enablePlusOnes && (
+                  <div className="pl-4 border-l-2 border-muted space-y-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="defaultPlusOnesAllowed">Default plus-ones allowed per guest</Label>
+                      <Input
+                        id="defaultPlusOnesAllowed"
+                        type="number"
+                        min={0}
+                        max={10}
+                        value={currentSettings.defaultPlusOnesAllowed}
+                        onChange={(e) => {
+                          const v = Math.max(0, Math.min(10, parseInt(e.target.value, 10) || 0));
+                          handleChange('defaultPlusOnesAllowed', v);
+                        }}
+                        className="w-24"
+                      />
+                    </div>
+                    <FieldToggle
+                      label="Plus-One Name"
+                      description="Capture the name of the guest's plus-one"
+                      checked={currentSettings.enablePlusOneName}
+                      onCheckedChange={(checked) => handleChange('enablePlusOneName', checked)}
+                      disabled={updateSettings.isPending}
+                      required={currentSettings.requiredPlusOneName}
+                      onRequiredChange={(checked) => handleChange('requiredPlusOneName', checked)}
+                      showRequired={currentSettings.enablePlusOneName}
+                    />
+                  </div>
+                )}
+
+                <FieldToggle
+                  label="Accessibility Needs"
+                  description="Allow guests to specify accessibility requirements"
+                  checked={currentSettings.enableAccessibility}
+                  onCheckedChange={(checked) => handleChange('enableAccessibility', checked)}
+                  disabled={updateSettings.isPending}
+                  required={currentSettings.requiredAccessibility}
+                  onRequiredChange={(checked) => handleChange('requiredAccessibility', checked)}
+                  showRequired={currentSettings.enableAccessibility}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
         {/* Save/Reset Buttons */}
         {hasChanges && (
