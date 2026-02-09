@@ -184,6 +184,12 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
             <a href={`/dashboard/events/${event.uuid}/guests`}>Guest List</a>
           </Button>
           <Button variant="outline" asChild>
+            <a href={`/dashboard/events/${event.uuid}/budget`}>Budget</a>
+          </Button>
+          <Button variant="outline" asChild>
+            <a href={`/dashboard/events/${event.uuid}/providers`}>Providers</a>
+          </Button>
+          <Button variant="outline" asChild>
             <a href={`/dashboard/events/${event.uuid}/settings`}>Settings</a>
           </Button>
           <Button variant="outline" asChild>
@@ -354,6 +360,11 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
                 </dd>
               </div>
             </dl>
+            <div className="mt-4">
+              <Button size="sm" asChild>
+                <a href={`/dashboard/events/${event.uuid}/budget`}>Manage Budget</a>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

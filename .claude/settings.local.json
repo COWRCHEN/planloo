@@ -14,7 +14,8 @@
       "Bash(ls -la \"C:\\\\github\\\\cowrchen\\\\planloo\\\\frontend\\\\src\\\\lib\"\" 2>/dev/null || echo \"lib directory check \")",
       "Bash(find:*)",
       "Bash(npm run db:generate:*)",
-      "Bash(npm run db:migrate:local:*)"
+      "Bash(npm run db:migrate:local:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

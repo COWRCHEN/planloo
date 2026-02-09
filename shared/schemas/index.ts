@@ -5,3 +5,5 @@
  */
 
 export * from './event';
+export * from './budget';
+export * from './provider';

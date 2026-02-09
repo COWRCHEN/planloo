@@ -1,0 +1,25 @@
+---
+/**
+ * Provider Directory Page
+ *
+ * Global directory for service providers and venues.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { ProviderDirectoryView } from '@/components/providers-directory';
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Providers" description="Browse service providers and venues">
+  <div class="space-y-6">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">Provider Directory</h1>
+      <p class="text-muted-foreground">
+        Browse and manage service providers and venues for your events.
+      </p>
+    </div>
+
+    <ProviderDirectoryView client:load />
+  </div>
+</DashboardLayout>

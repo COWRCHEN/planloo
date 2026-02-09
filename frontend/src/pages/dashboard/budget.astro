@@ -1,0 +1,25 @@
+---
+/**
+ * Budget Landing Page
+ *
+ * Shows aggregate budget summary across all user events.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { BudgetLandingView } from '@/components/budget/BudgetLandingView';
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Budget Overview" description="Track your budget across all events">
+  <div class="space-y-6">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">Budget Overview</h1>
+      <p class="text-muted-foreground">
+        Track spending across all your events.
+      </p>
+    </div>
+
+    <BudgetLandingView client:load />
+  </div>
+</DashboardLayout>
