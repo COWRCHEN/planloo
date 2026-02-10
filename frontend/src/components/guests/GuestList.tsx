@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GuestStats } from './GuestStats';
 import { GuestFilters } from './GuestFilters';
 import { GuestTable } from './GuestTable';
@@ -17,6 +18,7 @@ import { GuestExportButton } from './GuestExportButton';
 import { EmptyGuestState } from './EmptyGuestState';
 import { GuestFieldSettingsDialog } from './GuestFieldSettings';
 import { CustomFieldManagerDialog } from './CustomFieldManager';
+import { SendInvitationsDialog } from './SendInvitationsDialog';
 import { useEvent } from '@/hooks/use-events';
 import {
   useGuests,
@@ -48,6 +50,9 @@ export function GuestList({ eventUuid }: GuestListProps) {
   const [guestToDelete, setGuestToDelete] = useState<GuestResponse | null>(null);
   const [guestForAudit, setGuestForAudit] = useState<GuestResponse | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [sendInvitationsDialogOpen, setSendInvitationsDialogOpen] = useState(false);
+  const [rsvpSendFeedback, setRsvpSendFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [sendingRsvpUuid, setSendingRsvpUuid] = useState<string | null>(null);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [customFieldsDialogOpen, setCustomFieldsDialogOpen] = useState(false);
 
@@ -139,7 +144,22 @@ export function GuestList({ eventUuid }: GuestListProps) {
   };
 
   const handleResendRsvp = async (guest: GuestResponse) => {
-    await resendRsvp.mutateAsync(guest.uuid);
+    setSendingRsvpUuid(guest.uuid);
+    setRsvpSendFeedback(null);
+    try {
+      const result = await resendRsvp.mutateAsync(guest.uuid);
+      const name = [guest.firstName, guest.lastName].filter(Boolean).join(' ');
+      if (result?.sent) {
+        setRsvpSendFeedback({ type: 'success', message: `Invitation sent to ${name} (${result.email})` });
+      } else {
+        setRsvpSendFeedback({ type: 'error', message: `Failed to send invitation to ${name}` });
+      }
+    } catch (err) {
+      setRsvpSendFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Failed to send invitation' });
+    } finally {
+      setSendingRsvpUuid(null);
+      setTimeout(() => setRsvpSendFeedback(null), 5000);
+    }
   };
 
   const handleUpdateRsvpStatus = async (guest: GuestResponse, status: RsvpStatus) => {
@@ -214,6 +234,22 @@ export function GuestList({ eventUuid }: GuestListProps) {
             </svg>
             Import
           </Button>
+          <Button variant="outline" onClick={() => setSendInvitationsDialogOpen(true)}>
+            <svg
+              className="mr-2 h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+              />
+            </svg>
+            Send Invitations
+          </Button>
           <GuestExportButton eventUuid={eventUuid} disabled={guests.length === 0} />
           <Button asChild>
             <a href={`/dashboard/events/${eventUuid}/guests/new`}>
@@ -236,6 +272,13 @@ export function GuestList({ eventUuid }: GuestListProps) {
         </div>
       </div>
 
+      {/* RSVP Send Feedback */}
+      {rsvpSendFeedback && (
+        <Alert variant={rsvpSendFeedback.type === 'error' ? 'destructive' : 'default'}>
+          <AlertDescription>{rsvpSendFeedback.message}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Guest Table or Empty State */}
       {!isLoadingGuests && guests.length === 0 ? (
         <EmptyGuestState
@@ -256,6 +299,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
             onAudit={handleAuditGuest}
             eventType={eventType}
             guestSettings={guestSettings}
+            sendingRsvpUuid={sendingRsvpUuid ?? undefined}
           />
 
           {/* Pagination */}
@@ -321,6 +365,14 @@ export function GuestList({ eventUuid }: GuestListProps) {
         eventUuid={eventUuid}
         open={customFieldsDialogOpen}
         onOpenChange={setCustomFieldsDialogOpen}
+      />
+
+      {/* Send Invitations Dialog */}
+      <SendInvitationsDialog
+        eventUuid={eventUuid}
+        guests={guests}
+        open={sendInvitationsDialogOpen}
+        onOpenChange={setSendInvitationsDialogOpen}
       />
     </div>
   );

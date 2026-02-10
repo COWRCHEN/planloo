@@ -29,5 +29,8 @@ export * from './providers';
 // Admin schemas (2 tables)
 export * from './admin';
 
+// Notification schemas (2 tables: emailLog, notificationSettings)
+export * from './notifications';
+
 // All relations
 export * from './relations';

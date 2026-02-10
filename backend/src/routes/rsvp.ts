@@ -12,6 +12,7 @@ import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
 import { eq, and, isNull } from 'drizzle-orm';
+import { sendRsvpConfirmationEmail, logEmail } from '@/lib/email';
 
 const rsvp = new Hono<HonoEnv>();
 
@@ -213,6 +214,7 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
       id: schema.guests.id,
       uuid: schema.guests.uuid,
       eventId: schema.guests.eventId,
+      email: schema.guests.email,
       plusOnesAllowed: schema.guests.plusOnesAllowed,
       rsvpStatus: schema.guests.rsvpStatus,
       plusOnesCount: schema.guests.plusOnesCount,
@@ -370,8 +372,56 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     });
   }
 
-  // TODO: Send confirmation email
-  console.log(`[RSVP] Guest ${updatedGuest.firstName} responded: ${data.rsvpStatus}`);
+  // Send confirmation email (best-effort)
+  if (guest.email) {
+    const [eventInfo] = await db
+      .select({
+        title: schema.events.title,
+        startDate: schema.events.startDate,
+        locationName: schema.events.locationName,
+      })
+      .from(schema.events)
+      .where(and(eq(schema.events.id, guest.eventId), isNull(schema.events.deletedAt)))
+      .limit(1);
+
+    if (eventInfo) {
+      const guestName = [updatedGuest.firstName, updatedGuest.lastName].filter(Boolean).join(' ');
+      const eventDate = eventInfo.startDate
+        ? new Date(eventInfo.startDate).toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+          })
+        : 'TBD';
+
+      try {
+        const result = await sendRsvpConfirmationEmail(c.env, {
+          to: guest.email,
+          guestName,
+          eventTitle: eventInfo.title,
+          eventDate,
+          eventLocation: eventInfo.locationName ?? null,
+          rsvpStatus: data.rsvpStatus,
+        });
+        await logEmail({
+          db,
+          recipientEmail: guest.email,
+          emailType: 'rsvp_confirmation',
+          subject: `RSVP ${data.rsvpStatus === 'confirmed' ? 'Confirmed' : data.rsvpStatus === 'declined' ? 'Declined' : 'Maybe'}: ${eventInfo.title}`,
+          status: 'sent',
+          resendId: result.id,
+        });
+      } catch (err) {
+        console.error('Failed to send RSVP confirmation email:', err);
+        await logEmail({
+          db,
+          recipientEmail: guest.email,
+          emailType: 'rsvp_confirmation',
+          subject: `RSVP confirmation: ${eventInfo.title}`,
+          status: 'failed',
+          errorMessage: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+    }
+  }
 
   return c.json({
     success: true,

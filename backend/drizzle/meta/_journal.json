@@ -85,6 +85,13 @@
       "when": 1770603959647,
       "tag": "0011_fixed_thunderbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1770686112105,
+      "tag": "0012_gorgeous_scorpion",
+      "breakpoints": true
     }
   ]
 }

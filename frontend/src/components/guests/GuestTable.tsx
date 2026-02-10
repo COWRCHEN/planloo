@@ -37,6 +37,7 @@ interface GuestTableProps {
   onAudit?: (guest: GuestResponse) => void;
   eventType?: string | null;
   guestSettings?: GuestSettingsResponse;
+  sendingRsvpUuid?: string | null | undefined;
 }
 
 function TableSkeleton() {
@@ -79,6 +80,7 @@ export function GuestTable({
   onAudit,
   eventType: _eventType,
   guestSettings,
+  sendingRsvpUuid,
 }: GuestTableProps) {
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
@@ -257,8 +259,11 @@ export function GuestTable({
                           : 'Copy RSVP Link'}
                       </DropdownMenuItem>
                       {guest.email && (
-                        <DropdownMenuItem onClick={() => onResendRsvp(guest)}>
-                          Resend RSVP
+                        <DropdownMenuItem
+                          onClick={() => onResendRsvp(guest)}
+                          disabled={sendingRsvpUuid === guest.uuid}
+                        >
+                          {sendingRsvpUuid === guest.uuid ? 'Sending...' : 'Send RSVP Invitation'}
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />

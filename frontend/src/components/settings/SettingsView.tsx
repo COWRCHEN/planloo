@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { ProfileEditForm } from './ProfileEditForm';
 import { PasswordChangeForm } from './PasswordChangeForm';
+import { NotificationSettings } from './NotificationSettings';
 import { useSession } from '@/hooks/use-auth';
 
 function SettingsContent() {
@@ -55,6 +56,7 @@ function SettingsContent() {
       <TabsList className="mb-6">
         <TabsTrigger value="profile">Profile</TabsTrigger>
         <TabsTrigger value="security">Security</TabsTrigger>
+        <TabsTrigger value="notifications">Notifications</TabsTrigger>
       </TabsList>
 
       <TabsContent value="profile">
@@ -69,6 +71,14 @@ function SettingsContent() {
         <Card>
           <CardContent className="pt-6">
             <PasswordChangeForm />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="notifications">
+        <Card>
+          <CardContent className="pt-6">
+            <NotificationSettings />
           </CardContent>
         </Card>
       </TabsContent>

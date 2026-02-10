@@ -21,6 +21,7 @@ import { eq, and, isNull, desc, asc, sql, count, like, or, inArray } from 'drizz
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { parseGuestsCsv, generateGuestsCsv } from '@/lib/csv';
 import type { EventType, CustomFieldDefinition } from '@/db/types';
+import { sendRsvpInvitationEmail, logEmail } from '@/lib/email';
 
 const guests = new Hono<HonoEnv>();
 
@@ -2211,13 +2212,65 @@ guests.post('/:guestUuid/resend-rsvp', requireAuth, requireVerifiedEmail, async 
     );
   }
 
-  // TODO: Implement actual email sending
-  console.log(`[RSVP] Would send RSVP email to ${guest.email} for guest ${guest.firstName}`);
-  console.log(`[RSVP] Token: ${guest.rsvpToken}`);
+  // Fetch event details for the email
+  const [eventDetails] = await db
+    .select({
+      title: schema.events.title,
+      startDate: schema.events.startDate,
+      locationName: schema.events.locationName,
+    })
+    .from(schema.events)
+    .where(eq(schema.events.id, event.id))
+    .limit(1);
+
+  const rsvpUrl = `${c.env.FRONTEND_URL}/rsvp/${guest.rsvpToken}`;
+  const guestName = [guest.firstName, guest.lastName].filter(Boolean).join(' ');
+  const eventDate = eventDetails?.startDate
+    ? new Date(eventDetails.startDate).toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      })
+    : 'TBD';
+
+  let sent = true;
+  let resendId: string | undefined;
+  try {
+    const result = await sendRsvpInvitationEmail(c.env, {
+      to: guest.email,
+      guestName,
+      eventTitle: eventDetails?.title ?? 'Event',
+      eventDate,
+      eventLocation: eventDetails?.locationName ?? null,
+      rsvpUrl,
+    });
+    resendId = result.id;
+    await logEmail({
+      db,
+      recipientEmail: guest.email,
+      emailType: 'rsvp_invitation',
+      subject: `You're invited: ${eventDetails?.title ?? 'Event'}`,
+      status: 'sent',
+      resendId,
+      userId: user.id,
+      metadata: { guestUuid, eventUuid },
+    });
+  } catch (err) {
+    sent = false;
+    console.error('Failed to send RSVP invitation email:', err);
+    await logEmail({
+      db,
+      recipientEmail: guest.email,
+      emailType: 'rsvp_invitation',
+      subject: `You're invited: ${eventDetails?.title ?? 'Event'}`,
+      status: 'failed',
+      errorMessage: err instanceof Error ? err.message : 'Unknown error',
+      userId: user.id,
+      metadata: { guestUuid, eventUuid },
+    });
+  }
 
   return c.json({
     success: true,
-    data: { sent: true, email: guest.email },
+    data: { sent, email: guest.email },
   });
 });
 

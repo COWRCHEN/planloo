@@ -12,11 +12,12 @@ import { budgetItems, payments } from './budget';
 import { serviceProviders, venues, eventServiceProviders, eventVenues, reviews } from './providers';
 import { auditLog, impersonationSession } from './admin';
 import { guestAudit } from './guestAudit';
+import { emailLog, notificationSettings } from './notifications';
 
 /**
  * User Relations
  */
-export const userRelations = relations(user, ({ many }) => ({
+export const userRelations = relations(user, ({ one, many }) => ({
   sessions: many(session),
   accounts: many(account),
   organizationMemberships: many(organizationMember, { relationName: 'memberOrganizationMemberships' }),
@@ -31,7 +32,12 @@ export const userRelations = relations(user, ({ many }) => ({
   auditLogs: many(auditLog),
   guestAuditEntries: many(guestAudit),
   impersonationSessionsAsAdmin: many(impersonationSession, { relationName: 'impersonationAdmin' }),
-  impersonationSessionsAsTarget: many(impersonationSession, { relationName: 'impersonationTarget' })
+  impersonationSessionsAsTarget: many(impersonationSession, { relationName: 'impersonationTarget' }),
+  emailLogs: many(emailLog),
+  notificationSettings: one(notificationSettings, {
+    fields: [user.id],
+    references: [notificationSettings.userId]
+  }),
 }));
 
 /**
@@ -403,5 +409,27 @@ export const birthdayGuestDetailsRelations = relations(birthdayGuestDetails, ({ 
   guest: one(guests, {
     fields: [birthdayGuestDetails.guestId],
     references: [guests.id]
+  })
+}));
+
+// ==================== NOTIFICATION TABLES ====================
+
+/**
+ * Email Log Relations
+ */
+export const emailLogRelations = relations(emailLog, ({ one }) => ({
+  user: one(user, {
+    fields: [emailLog.userId],
+    references: [user.id]
+  })
+}));
+
+/**
+ * Notification Settings Relations
+ */
+export const notificationSettingsRelations = relations(notificationSettings, ({ one }) => ({
+  user: one(user, {
+    fields: [notificationSettings.userId],
+    references: [user.id]
   })
 }));

@@ -109,6 +109,14 @@ export type NewAuditLog = InferInsertModel<typeof schema.auditLog>;
 export type ImpersonationSession = InferSelectModel<typeof schema.impersonationSession>;
 export type NewImpersonationSession = InferInsertModel<typeof schema.impersonationSession>;
 
+// ==================== NOTIFICATION TYPES ====================
+
+export type EmailLog = InferSelectModel<typeof schema.emailLog>;
+export type NewEmailLog = InferInsertModel<typeof schema.emailLog>;
+
+export type NotificationSettings = InferSelectModel<typeof schema.notificationSettings>;
+export type NewNotificationSettings = InferInsertModel<typeof schema.notificationSettings>;
+
 // ==================== ENUM TYPES ====================
 
 export type PlatformRole = 'super_admin' | 'operator' | 'user';
@@ -131,6 +139,7 @@ export type EntityType = 'event' | 'venue' | 'service_provider' | 'user';
 export type ReviewEntityType = 'service_provider' | 'venue';
 export type EventCollaboratorRole = 'owner' | 'editor' | 'viewer';
 export type AuditLogActorRole = 'super_admin' | 'operator';
+export type EmailType = 'verification' | 'password_reset' | 'welcome' | 'rsvp_invitation' | 'rsvp_confirmation';
 
 // Guest Details Enums (re-export from schema for convenience)
 export type WeddingGuestSide = 'bride' | 'groom' | 'both';

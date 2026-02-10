@@ -10,7 +10,8 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '@/db/schema';
 import type { Env } from '@/types/env';
-import { sendVerificationEmail, sendPasswordResetEmail } from './email';
+import { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail, logEmail } from './email';
+import { createDbClient } from '@/db/client';
 import { hashPassword, verifyPassword } from './password-pbkdf2';
 
 /**
@@ -154,6 +155,48 @@ export function createAuth(env: Env) {
         secure: env.ENVIRONMENT !== 'development',
         httpOnly: true,
         sameSite: 'lax',
+      },
+    },
+
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            // Send welcome email (best-effort)
+            try {
+              const result = await sendWelcomeEmail(env, {
+                to: user.email,
+                userName: user.name || 'there',
+              });
+              const db = createDbClient(env.DB);
+              await logEmail({
+                db,
+                recipientEmail: user.email,
+                emailType: 'welcome',
+                subject: 'Welcome to Planloo!',
+                status: 'sent',
+                resendId: result.id,
+                userId: user.id,
+              });
+            } catch (err) {
+              console.error('Failed to send welcome email:', err);
+              try {
+                const db = createDbClient(env.DB);
+                await logEmail({
+                  db,
+                  recipientEmail: user.email,
+                  emailType: 'welcome',
+                  subject: 'Welcome to Planloo!',
+                  status: 'failed',
+                  errorMessage: err instanceof Error ? err.message : 'Unknown error',
+                  userId: user.id,
+                });
+              } catch {
+                // logging failed too — nothing more we can do
+              }
+            }
+          },
+        },
       },
     },
   });
