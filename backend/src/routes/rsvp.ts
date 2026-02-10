@@ -401,13 +401,15 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
           eventLocation: eventInfo.locationName ?? null,
           rsvpStatus: data.rsvpStatus,
         });
+        const actuallySent = Boolean(result.id);
         await logEmail({
           db,
           recipientEmail: guest.email,
           emailType: 'rsvp_confirmation',
           subject: `RSVP ${data.rsvpStatus === 'confirmed' ? 'Confirmed' : data.rsvpStatus === 'declined' ? 'Declined' : 'Maybe'}: ${eventInfo.title}`,
-          status: 'sent',
-          resendId: result.id,
+          status: actuallySent ? 'sent' : 'failed',
+          resendId: result.id ?? undefined,
+          errorMessage: actuallySent ? undefined : 'Email not sent (development mode or EMAIL_API_KEY not configured)',
           eventId: guest.eventId,
         });
       } catch (err) {

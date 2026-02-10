@@ -94,24 +94,24 @@ function baseEmailTemplate(title: string, bodyHtml: string, bodyText: string, op
 // ==================== SEND EMAIL ====================
 
 /**
- * Send an email using Resend (or log in development).
+ * Send an email using Resend (or log to console when API key is not set).
  * Returns the Resend email ID if available.
+ * When EMAIL_API_KEY is set, Resend is called in all environments (including development).
  */
 async function sendEmail(env: Env, options: EmailOptions): Promise<{ id?: string | undefined }> {
-  if (env.ENVIRONMENT === 'development') {
-    console.log('='.repeat(60));
-    console.log('EMAIL (Development Mode)');
-    console.log('='.repeat(60));
-    console.log(`To: ${options.to}`);
-    console.log(`Subject: ${options.subject}`);
-    console.log('-'.repeat(60));
-    console.log(options.text);
-    console.log('='.repeat(60));
-    return {};
-  }
-
   if (!env.EMAIL_API_KEY) {
-    console.warn('EMAIL_API_KEY not configured, skipping email send');
+    if (env.ENVIRONMENT === 'development') {
+      console.log('='.repeat(60));
+      console.log('EMAIL (Development Mode – no EMAIL_API_KEY, not sent)');
+      console.log('='.repeat(60));
+      console.log(`To: ${options.to}`);
+      console.log(`Subject: ${options.subject}`);
+      console.log('-'.repeat(60));
+      console.log(options.text);
+      console.log('='.repeat(60));
+    } else {
+      console.warn('EMAIL_API_KEY not configured, skipping email send');
+    }
     return {};
   }
 

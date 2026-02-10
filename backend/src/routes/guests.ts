@@ -2243,13 +2243,16 @@ guests.post('/:guestUuid/resend-rsvp', requireAuth, requireVerifiedEmail, async 
       rsvpUrl,
     });
     resendId = result.id;
+    const actuallySent = Boolean(result.id);
+    if (!actuallySent) sent = false;
     await logEmail({
       db,
       recipientEmail: guest.email,
       emailType: 'rsvp_invitation',
       subject: `You're invited: ${eventDetails?.title ?? 'Event'}`,
-      status: 'sent',
-      resendId,
+      status: actuallySent ? 'sent' : 'failed',
+      resendId: result.id ?? undefined,
+      errorMessage: actuallySent ? undefined : 'Email not sent (development mode or EMAIL_API_KEY not configured)',
       userId: user.id,
       eventId: event.id,
       metadata: { guestUuid, eventUuid },

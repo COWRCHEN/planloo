@@ -169,13 +169,15 @@ export function createAuth(env: Env) {
                 userName: user.name || 'there',
               });
               const db = createDbClient(env.DB);
+              const actuallySent = Boolean(result.id);
               await logEmail({
                 db,
                 recipientEmail: user.email,
                 emailType: 'welcome',
                 subject: 'Welcome to Planloo!',
-                status: 'sent',
-                resendId: result.id,
+                status: actuallySent ? 'sent' : 'failed',
+                resendId: result.id ?? undefined,
+                errorMessage: actuallySent ? undefined : 'Email not sent (development mode or EMAIL_API_KEY not configured)',
                 userId: user.id,
               });
             } catch (err) {
