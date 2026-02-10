@@ -1030,6 +1030,8 @@ const updateRsvpSettingsSchema = z.object({
   rsvpConfirmationMessage: z.string().max(500).optional().nullable(),
   allowRsvpUpdate: z.boolean().optional(),
   allowRsvpPlusOnes: z.boolean().optional(),
+  sendRsvpInvitation: z.boolean().optional(),
+  sendRsvpConfirmation: z.boolean().optional(),
 });
 
 /**
@@ -1132,6 +1134,8 @@ events.patch(
     if (updates.rsvpConfirmationMessage !== undefined) updateData.rsvpConfirmationMessage = updates.rsvpConfirmationMessage;
     if (updates.allowRsvpUpdate !== undefined) updateData.allowRsvpUpdate = updates.allowRsvpUpdate;
     if (updates.allowRsvpPlusOnes !== undefined) updateData.allowRsvpPlusOnes = updates.allowRsvpPlusOnes;
+    if (updates.sendRsvpInvitation !== undefined) updateData.sendRsvpInvitation = updates.sendRsvpInvitation;
+    if (updates.sendRsvpConfirmation !== undefined) updateData.sendRsvpConfirmation = updates.sendRsvpConfirmation;
 
     let settings: typeof schema.eventRsvpSettings.$inferSelect;
 
@@ -1153,6 +1157,8 @@ events.patch(
           rsvpConfirmationMessage: updates.rsvpConfirmationMessage ?? null,
           allowRsvpUpdate: updates.allowRsvpUpdate ?? true,
           allowRsvpPlusOnes: updates.allowRsvpPlusOnes ?? false,
+          sendRsvpInvitation: updates.sendRsvpInvitation ?? true,
+          sendRsvpConfirmation: updates.sendRsvpConfirmation ?? true,
         })
         .returning();
       settings = newSettings!;

@@ -29,7 +29,7 @@ export * from './providers';
 // Admin schemas (2 tables)
 export * from './admin';
 
-// Notification schemas (2 tables: emailLog, notificationSettings)
+// Email log (1 table)
 export * from './notifications';
 
 // All relations

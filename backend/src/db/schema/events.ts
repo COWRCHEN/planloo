@@ -286,6 +286,10 @@ export const eventRsvpSettings = sqliteTable('event_rsvp_settings', {
   allowRsvpUpdate: integer('allow_rsvp_update', { mode: 'boolean' }).default(true).notNull(),
   allowRsvpPlusOnes: integer('allow_rsvp_plus_ones', { mode: 'boolean' }).default(false).notNull(),
 
+  // Email notification toggles
+  sendRsvpInvitation: integer('send_rsvp_invitation', { mode: 'boolean' }).default(true).notNull(),
+  sendRsvpConfirmation: integer('send_rsvp_confirmation', { mode: 'boolean' }).default(true).notNull(),
+
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({

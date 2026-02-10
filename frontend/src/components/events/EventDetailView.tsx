@@ -190,6 +190,9 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
             <a href={`/dashboard/events/${event.uuid}/providers`}>Providers</a>
           </Button>
           <Button variant="outline" asChild>
+            <a href={`/dashboard/events/${event.uuid}/notifications`}>Notifications</a>
+          </Button>
+          <Button variant="outline" asChild>
             <a href={`/dashboard/events/${event.uuid}/settings`}>Settings</a>
           </Button>
           <Button variant="outline" asChild>

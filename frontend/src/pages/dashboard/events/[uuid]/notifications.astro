@@ -1,0 +1,18 @@
+---
+/**
+ * Event Notifications Page
+ *
+ * Email notification settings and history for an event.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { NotificationsView } from '@/components/events';
+
+export const prerender = false;
+
+const { uuid } = Astro.params;
+---
+
+<DashboardLayout title="Notifications" description="Event email notifications and history">
+  <NotificationsView client:load uuid={uuid} />
+</DashboardLayout>

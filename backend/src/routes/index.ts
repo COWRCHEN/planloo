@@ -19,7 +19,7 @@ import providers from './providers';
 import venues from './venues';
 import eventProviders from './event-providers';
 import rsvp from './rsvp';
-import notificationSettings from './notification-settings';
+import emailLog from './notification-settings';
 
 const api = new Hono<HonoEnv>();
 
@@ -186,7 +186,7 @@ api.route('/events/:eventUuid/budget', budget);
 api.route('/providers', providers);
 api.route('/venues', venues);
 api.route('/events/:eventUuid/providers', eventProviders);
-api.route('/me/notification-settings', notificationSettings);
+api.route('/events/:eventUuid/email-log', emailLog);
 api.route('/rsvp', rsvp); // Public routes (auth middleware is applied but not required)
 
 export default api;

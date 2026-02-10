@@ -107,6 +107,8 @@ export interface EventRsvpSettings {
   rsvpConfirmationMessage: string | null;
   allowRsvpUpdate: boolean;
   allowRsvpPlusOnes: boolean;
+  sendRsvpInvitation: boolean;
+  sendRsvpConfirmation: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -118,6 +120,8 @@ export interface UpdateRsvpSettingsInput {
   rsvpConfirmationMessage?: string | null;
   allowRsvpUpdate?: boolean;
   allowRsvpPlusOnes?: boolean;
+  sendRsvpInvitation?: boolean;
+  sendRsvpConfirmation?: boolean;
 }
 
 export interface EventPrivacySettings {

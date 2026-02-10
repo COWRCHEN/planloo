@@ -18,3 +18,4 @@ export { EventSettingsView } from './EventSettingsView';
 export { RsvpSettings } from './RsvpSettings';
 export { PrivacySharingSettings } from './PrivacySharingSettings';
 export { DeleteEventDialog } from './DeleteEventDialog';
+export { NotificationsView } from './NotificationsView';

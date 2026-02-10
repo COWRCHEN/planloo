@@ -114,9 +114,6 @@ export type NewImpersonationSession = InferInsertModel<typeof schema.impersonati
 export type EmailLog = InferSelectModel<typeof schema.emailLog>;
 export type NewEmailLog = InferInsertModel<typeof schema.emailLog>;
 
-export type NotificationSettings = InferSelectModel<typeof schema.notificationSettings>;
-export type NewNotificationSettings = InferInsertModel<typeof schema.notificationSettings>;
-
 // ==================== ENUM TYPES ====================
 
 export type PlatformRole = 'super_admin' | 'operator' | 'user';

@@ -15,7 +15,10 @@
       "Bash(find:*)",
       "Bash(npm run db:generate:*)",
       "Bash(npm run db:migrate:local:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx wrangler d1 execute:*)",
+      "Bash(npm run db:migrate:*)",
+      "Bash(curl:*)"
     ]
   }
 }

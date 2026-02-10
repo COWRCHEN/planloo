@@ -1,7 +1,7 @@
 /**
  * Email History
  *
- * Displays a paginated table of emails sent to/by the current user.
+ * Displays a paginated table of emails sent for a specific event.
  */
 
 import { useState } from 'react';
@@ -42,11 +42,15 @@ function formatDate(dateStr: string) {
   });
 }
 
-export function EmailHistory() {
+interface EmailHistoryProps {
+  eventUuid: string;
+}
+
+export function EmailHistory({ eventUuid }: EmailHistoryProps) {
   const [page, setPage] = useState(0);
   const offset = page * PAGE_SIZE;
 
-  const { data, isLoading, error } = useEmailLog({
+  const { data, isLoading, error } = useEmailLog(eventUuid, {
     limit: PAGE_SIZE,
     offset,
   });
@@ -66,7 +70,7 @@ export function EmailHistory() {
       <div>
         <h3 className="text-base font-medium">Email History</h3>
         <p className="text-sm text-muted-foreground">
-          Recent emails sent from your account.
+          Recent emails sent for this event.
         </p>
       </div>
 

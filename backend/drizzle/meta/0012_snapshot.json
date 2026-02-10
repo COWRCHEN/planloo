@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fd5d6604-3ac1-4d0a-9010-d80691d0ea71",
+  "id": "4f8ef047-5e1f-475c-ae5c-4b2df28fa017",
   "prevId": "48ab292e-0eb5-410b-973f-e58bdffe54d5",
   "tables": {
     "account": {
@@ -1420,6 +1420,22 @@
           "notNull": true,
           "autoincrement": false,
           "default": false
+        },
+        "send_rsvp_invitation": {
+          "name": "send_rsvp_invitation",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "send_rsvp_confirmation": {
+          "name": "send_rsvp_confirmation",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
         },
         "created_at": {
           "name": "created_at",
@@ -4671,6 +4687,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "event_id": {
+          "name": "event_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "metadata": {
           "name": "metadata",
           "type": "text",
@@ -4709,6 +4732,13 @@
           ],
           "isUnique": false
         },
+        "idx_email_log_event": {
+          "name": "idx_email_log_event",
+          "columns": [
+            "event_id"
+          ],
+          "isUnique": false
+        },
         "idx_email_log_created_at": {
           "name": "idx_email_log_created_at",
           "columns": [
@@ -4730,106 +4760,18 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "notification_settings": {
-      "name": "notification_settings",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
         },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "email_welcome": {
-          "name": "email_welcome",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
-        },
-        "email_rsvp_received": {
-          "name": "email_rsvp_received",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
-        },
-        "email_rsvp_invitation": {
-          "name": "email_rsvp_invitation",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
-        },
-        "email_rsvp_confirmation": {
-          "name": "email_rsvp_confirmation",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch())"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(unixepoch())"
-        }
-      },
-      "indexes": {
-        "notification_settings_user_id_unique": {
-          "name": "notification_settings_user_id_unique",
-          "columns": [
-            "user_id"
-          ],
-          "isUnique": true
-        },
-        "idx_notification_settings_user": {
-          "name": "idx_notification_settings_user",
-          "columns": [
-            "user_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "notification_settings_user_id_user_id_fk": {
-          "name": "notification_settings_user_id_user_id_fk",
-          "tableFrom": "notification_settings",
-          "tableTo": "user",
+        "email_log_event_id_events_id_fk": {
+          "name": "email_log_event_id_events_id_fk",
+          "tableFrom": "email_log",
+          "tableTo": "events",
           "columnsFrom": [
-            "user_id"
+            "event_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

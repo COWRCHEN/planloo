@@ -12,12 +12,12 @@ import { budgetItems, payments } from './budget';
 import { serviceProviders, venues, eventServiceProviders, eventVenues, reviews } from './providers';
 import { auditLog, impersonationSession } from './admin';
 import { guestAudit } from './guestAudit';
-import { emailLog, notificationSettings } from './notifications';
+import { emailLog } from './notifications';
 
 /**
  * User Relations
  */
-export const userRelations = relations(user, ({ one, many }) => ({
+export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
   organizationMemberships: many(organizationMember, { relationName: 'memberOrganizationMemberships' }),
@@ -34,10 +34,6 @@ export const userRelations = relations(user, ({ one, many }) => ({
   impersonationSessionsAsAdmin: many(impersonationSession, { relationName: 'impersonationAdmin' }),
   impersonationSessionsAsTarget: many(impersonationSession, { relationName: 'impersonationTarget' }),
   emailLogs: many(emailLog),
-  notificationSettings: one(notificationSettings, {
-    fields: [user.id],
-    references: [notificationSettings.userId]
-  }),
 }));
 
 /**
@@ -141,6 +137,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
     fields: [events.id],
     references: [eventPrivacySettings.eventId]
   }),
+  emailLogs: many(emailLog),
 }));
 
 /**
@@ -421,15 +418,9 @@ export const emailLogRelations = relations(emailLog, ({ one }) => ({
   user: one(user, {
     fields: [emailLog.userId],
     references: [user.id]
-  })
-}));
-
-/**
- * Notification Settings Relations
- */
-export const notificationSettingsRelations = relations(notificationSettings, ({ one }) => ({
-  user: one(user, {
-    fields: [notificationSettings.userId],
-    references: [user.id]
-  })
+  }),
+  event: one(events, {
+    fields: [emailLog.eventId],
+    references: [events.id]
+  }),
 }));

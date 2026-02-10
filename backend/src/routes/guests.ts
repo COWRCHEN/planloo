@@ -2251,6 +2251,7 @@ guests.post('/:guestUuid/resend-rsvp', requireAuth, requireVerifiedEmail, async 
       status: 'sent',
       resendId,
       userId: user.id,
+      eventId: event.id,
       metadata: { guestUuid, eventUuid },
     });
   } catch (err) {
@@ -2264,6 +2265,7 @@ guests.post('/:guestUuid/resend-rsvp', requireAuth, requireVerifiedEmail, async 
       status: 'failed',
       errorMessage: err instanceof Error ? err.message : 'Unknown error',
       userId: user.id,
+      eventId: event.id,
       metadata: { guestUuid, eventUuid },
     });
   }

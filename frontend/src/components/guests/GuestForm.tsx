@@ -9,8 +9,9 @@
  * - Custom user-defined fields (Phase 3)
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
+import type { FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
@@ -232,7 +234,14 @@ function buildGuestFormSchemaWithRequired(
     if (s.enableMealChoice && reqMeal && !(data.mealChoice?.trim())) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Meal choice is required', path: ['mealChoice'] });
     }
-    if (s.enablePlusOnes && s.enablePlusOneName && reqPlus && !(data.plusOneName?.trim())) {
+    const hasPlusOnes = (data.plusOnesCountAdults ?? 0) + (data.plusOnesCountChildren ?? 0) > 0;
+    if (
+      s.enablePlusOnes &&
+      s.enablePlusOneName &&
+      reqPlus &&
+      hasPlusOnes &&
+      !(data.plusOneName?.trim())
+    ) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Plus-one name is required', path: ['plusOneName'] });
     }
     if (s.enableTableAssignment && reqTable && !(data.tableAssignment?.trim())) {
@@ -257,8 +266,14 @@ function buildGuestFormSchemaWithRequired(
         });
       }
     }
-    // Accommodation: check-out >= check-in when both set
-    if (data.checkInDate && data.checkOutDate && data.checkOutDate < data.checkInDate) {
+    // Accommodation: check-out >= check-in only when accommodation is enabled and guest needs it
+    if (
+      s.enableAccommodation &&
+      data.needsAccommodation === true &&
+      data.checkInDate &&
+      data.checkOutDate &&
+      data.checkOutDate < data.checkInDate
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Check-out date must be on or after check-in date',
@@ -307,6 +322,9 @@ export function GuestForm({
   const [eventFieldsOpen, setEventFieldsOpen] = useState(true);
   const [optionalFieldsOpen, setOptionalFieldsOpen] = useState(false);
   const [customFieldsOpen, setCustomFieldsOpen] = useState(false);
+  const [submitBlockedMessage, setSubmitBlockedMessage] = useState<string | null>(null);
+  const [submitBlockedDetails, setSubmitBlockedDetails] = useState<string[]>([]);
+  const customFieldsSectionRef = useRef<HTMLDivElement>(null);
 
   // Fetch guest settings when form has eventUuid so optional/custom fields always reflect event settings
   const { data: guestSettingsFromHook, refetch: refetchGuestSettings } = useGuestSettings(eventUuid ?? '');
@@ -502,12 +520,17 @@ export function GuestForm({
     if (defs && defs.length > 0) {
       const missing = getMissingRequiredCustomFields(customFieldValues, defs);
       if (missing.length > 0) {
+        setSubmitBlockedMessage('Please complete the required Custom Fields below.');
+        setSubmitBlockedDetails(missing.map((def) => `${def.label} is required`));
         setCustomFieldsOpen(true);
         missing.forEach((def) => {
           form.setError(`customField_${def.id}` as keyof GuestFormData, {
             type: 'required',
             message: `${def.label} is required`,
           });
+        });
+        requestAnimationFrame(() => {
+          customFieldsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         });
         return;
       }
@@ -528,11 +551,18 @@ export function GuestForm({
 
     if (settings?.enableAccommodation) {
       cleanedData.needsAccommodation = data.needsAccommodation === true;
-      const hotel = data.hotelName && data.hotelName !== '__none__' ? data.hotelName : null;
-      cleanedData.hotelName = hotel ?? null;
-      cleanedData.checkInDate = (data.checkInDate && data.checkInDate.trim()) || null;
-      cleanedData.checkOutDate = (data.checkOutDate && data.checkOutDate.trim()) || null;
-      cleanedData.roomNumber = (data.roomNumber && data.roomNumber.trim()) || null;
+      if (data.needsAccommodation === true) {
+        const hotel = data.hotelName && data.hotelName !== '__none__' ? data.hotelName : null;
+        cleanedData.hotelName = hotel ?? null;
+        cleanedData.checkInDate = (data.checkInDate && data.checkInDate.trim()) || null;
+        cleanedData.checkOutDate = (data.checkOutDate && data.checkOutDate.trim()) || null;
+        cleanedData.roomNumber = (data.roomNumber && data.roomNumber.trim()) || null;
+      } else {
+        cleanedData.hotelName = null;
+        cleanedData.checkInDate = null;
+        cleanedData.checkOutDate = null;
+        cleanedData.roomNumber = null;
+      }
     }
 
     if (settings?.enablePlusOnes && settings?.enablePlusOneName) {
@@ -562,11 +592,34 @@ export function GuestForm({
       }
     }
 
+    setSubmitBlockedMessage(null);
+    setSubmitBlockedDetails([]);
     await onSubmit(cleanedData);
     form.reset();
     setCustomFieldValues({});
     onSuccess?.();
   };
+
+  const onInvalid = useCallback((errors: FieldErrors<GuestFormData>) => {
+    const details = Object.entries(errors).flatMap(([, err]) => {
+      const msg = (err as { message?: string })?.message;
+      if (msg) return [msg];
+      // Nested (e.g. root or array) – use key as hint if no message
+      if (typeof err === 'object' && err !== null && !('message' in err)) {
+        return Object.entries(err as Record<string, { message?: string }>)
+          .map(([, e]) => e?.message)
+          .filter(Boolean) as string[];
+      }
+      return [];
+    });
+    setSubmitBlockedMessage('Please fix the errors below.');
+    setSubmitBlockedDetails(details);
+    const firstKey = Object.keys(errors)[0];
+    if (firstKey) {
+      const el = document.getElementById(firstKey) ?? document.querySelector(`[name="${firstKey}"]`)?.closest('.space-y-2');
+      (el as HTMLElement | undefined)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
 
   // Check if there are any event-type-specific fields to show
   const hasEventTypeFields = eventType === 'wedding' || eventType === 'corporate' || eventType === 'conference' || eventType === 'birthday';
@@ -587,7 +640,21 @@ export function GuestForm({
 
   const formContent = (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(handleSubmit, onInvalid)} className="space-y-4">
+            {submitBlockedMessage && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>
+                  <p className="font-medium">{submitBlockedMessage}</p>
+                  {submitBlockedDetails.length > 0 && (
+                    <ul className="mt-2 list-inside list-disc space-y-0.5 text-sm">
+                      {submitBlockedDetails.map((detail, i) => (
+                        <li key={i}>{detail}</li>
+                      ))}
+                    </ul>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
             {/* ==================== CORE FIELDS ==================== */}
             {(() => {
               const s = guestSettings as { requiredFirstName?: boolean; requiredLastName?: boolean; requiredEmail?: boolean; requiredPhone?: boolean } | null | undefined;
@@ -1100,7 +1167,16 @@ export function GuestForm({
                         <div className="flex items-center gap-2">
                           <Switch
                             checked={form.watch('needsAccommodation') ?? false}
-                            onCheckedChange={(checked) => form.setValue('needsAccommodation', checked)}
+                            onCheckedChange={(checked) => {
+                              form.setValue('needsAccommodation', checked);
+                              if (!checked) {
+                                form.setValue('checkInDate', '');
+                                form.setValue('checkOutDate', '');
+                                form.setValue('hotelName', '');
+                                form.setValue('roomNumber', '');
+                                form.clearErrors(['checkInDate', 'checkOutDate', 'hotelName', 'roomNumber']);
+                              }
+                            }}
                           />
                           <Label className="font-normal">Needs Accommodation</Label>
                         </div>
@@ -1226,12 +1302,17 @@ export function GuestForm({
 
             {/* ==================== CUSTOM FIELDS ==================== */}
             {hasCustomFields && (
-              <>
-
+              <div ref={customFieldsSectionRef}>
                 <CollapsibleSection
                   title="Custom Fields"
                   open={customFieldsOpen}
-                  onOpenChange={setCustomFieldsOpen}
+                  onOpenChange={(open) => {
+                    setCustomFieldsOpen(open);
+                    if (open) {
+                      setSubmitBlockedMessage(null);
+                      setSubmitBlockedDetails([]);
+                    }
+                  }}
                 >
                   <CustomFields
                     definitions={guestSettings?.customFieldDefinitions ?? []}
@@ -1250,7 +1331,7 @@ export function GuestForm({
                     )}
                   />
                 </CollapsibleSection>
-              </>
+              </div>
             )}
 
             {asPage ? (

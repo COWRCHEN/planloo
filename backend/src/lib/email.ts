@@ -157,6 +157,7 @@ export async function logEmail(params: {
   resendId?: string | undefined;
   errorMessage?: string | undefined;
   userId?: string | undefined;
+  eventId?: number | undefined;
   metadata?: Record<string, unknown> | undefined;
 }): Promise<void> {
   try {
@@ -168,6 +169,7 @@ export async function logEmail(params: {
       resendId: params.resendId ?? null,
       errorMessage: params.errorMessage ?? null,
       userId: params.userId ?? null,
+      eventId: params.eventId ?? null,
       metadata: params.metadata ? JSON.stringify(params.metadata) : null,
     });
   } catch (err) {

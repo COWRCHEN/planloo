@@ -408,6 +408,7 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
           subject: `RSVP ${data.rsvpStatus === 'confirmed' ? 'Confirmed' : data.rsvpStatus === 'declined' ? 'Declined' : 'Maybe'}: ${eventInfo.title}`,
           status: 'sent',
           resendId: result.id,
+          eventId: guest.eventId,
         });
       } catch (err) {
         console.error('Failed to send RSVP confirmation email:', err);
@@ -418,6 +419,7 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
           subject: `RSVP confirmation: ${eventInfo.title}`,
           status: 'failed',
           errorMessage: err instanceof Error ? err.message : 'Unknown error',
+          eventId: guest.eventId,
         });
       }
     }
