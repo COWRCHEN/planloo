@@ -1,8 +1,11 @@
 # RSVP & Invitations Settings
 
 **Feature:** Event-level RSVP configuration, deadlines, response options, and public RSVP page controls.
-**Status:** Planning
+**Status:** Implemented
 **Document Date:** 2026-02-08
+**Updated:** 2026-02-11
+
+> **Note:** This was the original planning document. For comprehensive implementation documentation, see [docs/features/RSVP/](../RSVP/README.md).
 
 ---
 

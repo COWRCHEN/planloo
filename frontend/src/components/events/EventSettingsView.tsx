@@ -20,8 +20,9 @@ import { GuestFieldSettings } from '@/components/guests/GuestFieldSettings';
 import { CommonFieldSettings } from '@/components/guests/CommonFieldSettings';
 import { CustomFieldManager } from '@/components/guests/CustomFieldManager';
 import { RsvpSettings } from '@/components/events/RsvpSettings';
+import { RsvpFormFieldSettings } from '@/components/events/RsvpFormFieldSettings';
 import { PrivacySharingSettings } from '@/components/events/PrivacySharingSettings';
-import { useEvent } from '@/hooks/use-events';
+import { useEvent, useRsvpSettings } from '@/hooks/use-events';
 import { useSession } from '@/hooks/use-auth';
 
 interface EventSettingsViewProps {
@@ -65,6 +66,7 @@ function EventSettingsSkeleton() {
 function EventSettingsContent({ uuid }: EventSettingsViewProps) {
   const { data: session, isLoading: sessionLoading } = useSession();
   const { data: event, isLoading, error } = useEvent(uuid);
+  const { data: rsvpSettings } = useRsvpSettings(uuid);
 
   if (sessionLoading || isLoading) {
     return <EventSettingsSkeleton />;
@@ -147,7 +149,7 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
       </div>
 
       {/* Settings Accordion */}
-      <Accordion type="single" defaultValue="field-settings" collapsible className="w-full space-y-4">
+      <Accordion type="single" collapsible className="w-full space-y-4">
         <AccordionItem value="field-settings">
           <AccordionTrigger>Guest Field Settings</AccordionTrigger>
           <AccordionContent>
@@ -269,6 +271,15 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
             <RsvpSettings eventUuid={uuid} />
           </AccordionContent>
         </AccordionItem>
+
+        {rsvpSettings?.enableRsvp && (
+          <AccordionItem value="rsvp-form-fields">
+            <AccordionTrigger>RSVP Form Fields</AccordionTrigger>
+            <AccordionContent>
+              <RsvpFormFieldSettings eventUuid={uuid} />
+            </AccordionContent>
+          </AccordionItem>
+        )}
 
         <AccordionItem value="privacy-settings">
           <AccordionTrigger>Privacy & Sharing</AccordionTrigger>
