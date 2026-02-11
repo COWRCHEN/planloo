@@ -5,12 +5,15 @@
  * - Dietary Restrictions, Meal Choice, Notes
  * - Address, Transportation, Accessibility
  * - Custom Fields
+ * - Allow plus-ones via RSVP
+ * - Custom confirmation message
  */
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Card,
   CardContent,
@@ -67,12 +70,16 @@ export function RsvpFormFieldSettings({ eventUuid }: RsvpFormFieldSettingsProps)
   const updateSettings = useUpdateRsvpSettings(eventUuid);
 
   const [localFormFields, setLocalFormFields] = useState<Partial<RsvpFormFields>>({});
+  const [localAllowPlusOnes, setLocalAllowPlusOnes] = useState<boolean | undefined>(undefined);
+  const [localConfirmationMessage, setLocalConfirmationMessage] = useState<string | null | undefined>(undefined);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Reset local state when server data loads
   useEffect(() => {
     if (settings) {
       setLocalFormFields({});
+      setLocalAllowPlusOnes(undefined);
+      setLocalConfirmationMessage(undefined);
       setHasChanges(false);
     }
   }, [settings?.updatedAt]);
@@ -83,6 +90,11 @@ export function RsvpFormFieldSettings({ eventUuid }: RsvpFormFieldSettingsProps)
     ...localFormFields,
   };
 
+  const currentAllowPlusOnes = localAllowPlusOnes ?? settings?.allowRsvpPlusOnes ?? false;
+  const currentConfirmationMessage = localConfirmationMessage !== undefined
+    ? localConfirmationMessage
+    : settings?.rsvpConfirmationMessage ?? null;
+
   const handleFormFieldChange = (field: keyof RsvpFormFields, value: boolean) => {
     setLocalFormFields((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
@@ -92,8 +104,12 @@ export function RsvpFormFieldSettings({ eventUuid }: RsvpFormFieldSettingsProps)
     try {
       await updateSettings.mutateAsync({
         rsvpFormFields: currentFormFields,
+        allowRsvpPlusOnes: currentAllowPlusOnes,
+        rsvpConfirmationMessage: currentConfirmationMessage,
       });
       setLocalFormFields({});
+      setLocalAllowPlusOnes(undefined);
+      setLocalConfirmationMessage(undefined);
       setHasChanges(false);
     } catch {
       // Error handling is done in the mutation
@@ -102,6 +118,8 @@ export function RsvpFormFieldSettings({ eventUuid }: RsvpFormFieldSettingsProps)
 
   const handleReset = () => {
     setLocalFormFields({});
+    setLocalAllowPlusOnes(undefined);
+    setLocalConfirmationMessage(undefined);
     setHasChanges(false);
   };
 
@@ -175,6 +193,38 @@ export function RsvpFormFieldSettings({ eventUuid }: RsvpFormFieldSettingsProps)
             onCheckedChange={(checked) => handleFormFieldChange('customFields', checked)}
             disabled={updateSettings.isPending}
           />
+          <SettingRow
+            label="Allow plus-ones via RSVP"
+            description="Let guests add plus-ones when responding (requires plus-ones enabled in Guest Field Settings)"
+            checked={currentAllowPlusOnes}
+            onCheckedChange={(checked) => {
+              setLocalAllowPlusOnes(checked);
+              setHasChanges(true);
+            }}
+            disabled={updateSettings.isPending}
+          />
+          <div className="py-3 space-y-2">
+            <Label className="text-base">Confirmation Message</Label>
+            <p className="text-sm text-muted-foreground">
+              Optional message shown to guests after they RSVP (max 500 characters)
+            </p>
+            <Textarea
+              placeholder="Thank you for responding! We look forward to seeing you."
+              value={currentConfirmationMessage ?? ''}
+              onChange={(e) => {
+                setLocalConfirmationMessage(e.target.value || null);
+                setHasChanges(true);
+              }}
+              maxLength={500}
+              rows={3}
+              disabled={updateSettings.isPending}
+            />
+            {currentConfirmationMessage && (
+              <p className="text-xs text-muted-foreground text-right">
+                {currentConfirmationMessage.length}/500
+              </p>
+            )}
+          </div>
         </div>
 
         {hasChanges && (

@@ -5,9 +5,7 @@
  * - Enable/disable RSVP
  * - Allow "Maybe" responses
  * - Set RSVP deadline
- * - Custom confirmation message
  * - Allow guests to update their RSVP
- * - Allow plus-ones via RSVP
  */
 
 import { useState, useEffect } from 'react';
@@ -16,7 +14,6 @@ import { CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Card,
   CardContent,
@@ -89,11 +86,7 @@ export function RsvpSettings({ eventUuid }: RsvpSettingsProps) {
     rsvpDeadline: localSettings.rsvpDeadline !== undefined
       ? localSettings.rsvpDeadline
       : settings?.rsvpDeadline ? new Date(settings.rsvpDeadline) : null,
-    rsvpConfirmationMessage: localSettings.rsvpConfirmationMessage !== undefined
-      ? localSettings.rsvpConfirmationMessage
-      : settings?.rsvpConfirmationMessage ?? null,
     allowRsvpUpdate: localSettings.allowRsvpUpdate ?? settings?.allowRsvpUpdate ?? true,
-    allowRsvpPlusOnes: localSettings.allowRsvpPlusOnes ?? settings?.allowRsvpPlusOnes ?? false,
     rsvpLinkExpiryHours: localSettings.rsvpLinkExpiryHours ?? settings?.rsvpLinkExpiryHours ?? 12,
   };
 
@@ -111,9 +104,7 @@ export function RsvpSettings({ eventUuid }: RsvpSettingsProps) {
         enableRsvp: current.enableRsvp,
         allowMaybeResponse: current.allowMaybeResponse,
         rsvpDeadline: current.rsvpDeadline,
-        rsvpConfirmationMessage: current.rsvpConfirmationMessage,
         allowRsvpUpdate: current.allowRsvpUpdate,
-        allowRsvpPlusOnes: current.allowRsvpPlusOnes,
         rsvpLinkExpiryHours: current.rsvpLinkExpiryHours,
       });
       setLocalSettings({});
@@ -240,44 +231,11 @@ export function RsvpSettings({ eventUuid }: RsvpSettingsProps) {
                 )}
               </div>
 
-              <div className="py-3 space-y-2">
-                <Label className="text-base">Confirmation Message</Label>
-                <p className="text-sm text-muted-foreground">
-                  Optional message shown to guests after they RSVP (max 500 characters)
-                </p>
-                <Textarea
-                  placeholder="Thank you for responding! We look forward to seeing you."
-                  value={current.rsvpConfirmationMessage ?? ''}
-                  onChange={(e) =>
-                    handleChange(
-                      'rsvpConfirmationMessage',
-                      e.target.value || null
-                    )
-                  }
-                  maxLength={500}
-                  rows={3}
-                  disabled={updateSettings.isPending}
-                />
-                {current.rsvpConfirmationMessage && (
-                  <p className="text-xs text-muted-foreground text-right">
-                    {current.rsvpConfirmationMessage.length}/500
-                  </p>
-                )}
-              </div>
-
               <SettingRow
                 label="Allow RSVP updates"
                 description="Let guests change their response after submitting"
                 checked={current.allowRsvpUpdate}
                 onCheckedChange={(checked) => handleChange('allowRsvpUpdate', checked)}
-                disabled={updateSettings.isPending}
-              />
-
-              <SettingRow
-                label="Allow plus-ones via RSVP"
-                description="Let guests add plus-ones when responding (requires plus-ones enabled in Guest Field Settings)"
-                checked={current.allowRsvpPlusOnes}
-                onCheckedChange={(checked) => handleChange('allowRsvpPlusOnes', checked)}
                 disabled={updateSettings.isPending}
               />
             </>
