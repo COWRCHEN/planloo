@@ -62,6 +62,7 @@ rsvp.get('/:token', async (c) => {
       lastName: schema.guests.lastName,
       email: schema.guests.email,
       rsvpStatus: schema.guests.rsvpStatus,
+      rsvpTokenExpiresAt: schema.guests.rsvpTokenExpiresAt,
       rsvpRespondedAt: schema.guests.rsvpRespondedAt,
       plusOnesAllowed: schema.guests.plusOnesAllowed,
       plusOnesCount: schema.guests.plusOnesCount,
@@ -93,6 +94,14 @@ rsvp.get('/:token', async (c) => {
       { success: false, error: { code: 'NOT_FOUND', message: 'Invalid RSVP link' } },
       404
     );
+  }
+
+  // Check link expiry (before any other checks)
+  if (guest.rsvpTokenExpiresAt && new Date() > new Date(guest.rsvpTokenExpiresAt)) {
+    return c.json({
+      success: true,
+      data: { expired: true },
+    });
   }
 
   // Get RSVP settings for enforcement flags
@@ -359,6 +368,7 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
       email: schema.guests.email,
       plusOnesAllowed: schema.guests.plusOnesAllowed,
       rsvpStatus: schema.guests.rsvpStatus,
+      rsvpTokenExpiresAt: schema.guests.rsvpTokenExpiresAt,
       rsvpRespondedAt: schema.guests.rsvpRespondedAt,
       plusOnesCount: schema.guests.plusOnesCount,
       plusOnesCountAdults: schema.guests.plusOnesCountAdults,
@@ -388,6 +398,20 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Invalid RSVP link' } },
       404
+    );
+  }
+
+  // Check link expiry
+  if (guest.rsvpTokenExpiresAt && new Date() > new Date(guest.rsvpTokenExpiresAt)) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'RSVP_LINK_EXPIRED',
+          message: 'This RSVP link has expired. Please contact the event organizer to receive a new invitation.',
+        },
+      },
+      410
     );
   }
 

@@ -256,6 +256,17 @@ async function getEventByUuidForUser(
 }
 
 /**
+ * Compute the effective link expiry, capped to the RSVP deadline if set.
+ */
+function computeLinkExpiry(expiryHours: number, deadline: Date | null): Date {
+  const computedExpiry = new Date(Date.now() + expiryHours * 3600_000);
+  if (deadline && deadline < computedExpiry) {
+    return deadline;
+  }
+  return computedExpiry;
+}
+
+/**
  * Generate a unique RSVP token
  */
 function generateRsvpToken(): string {
@@ -2143,6 +2154,8 @@ guests.post(
       .select({
         enableRsvp: schema.eventRsvpSettings.enableRsvp,
         sendRsvpInvitation: schema.eventRsvpSettings.sendRsvpInvitation,
+        rsvpDeadline: schema.eventRsvpSettings.rsvpDeadline,
+        rsvpLinkExpiryHours: schema.eventRsvpSettings.rsvpLinkExpiryHours,
       })
       .from(schema.eventRsvpSettings)
       .where(eq(schema.eventRsvpSettings.eventId, event.id))
@@ -2171,6 +2184,10 @@ guests.post(
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
         })
       : 'TBD';
+
+    // Compute link expiry (default 12 hours, capped to RSVP deadline)
+    const expiryHours = rsvpSettings?.rsvpLinkExpiryHours ?? 12;
+    const rsvpTokenExpiresAt = computeLinkExpiry(expiryHours, rsvpSettings?.rsvpDeadline ?? null);
 
     // Get eligible guests
     const baseConditions = [
@@ -2216,11 +2233,17 @@ guests.post(
     for (const guest of targetGuests) {
       const guestName = [guest.firstName, guest.lastName].filter(Boolean).join(' ');
 
-      // Update status to 'invited' if currently 'pending'
+      // Update status to 'invited' and stamp link expiry
       if (guest.rsvpStatus === 'pending') {
         await db
           .update(schema.guests)
-          .set({ rsvpStatus: 'invited', updatedAt: new Date() })
+          .set({ rsvpStatus: 'invited', rsvpTokenExpiresAt, updatedAt: new Date() })
+          .where(eq(schema.guests.uuid, guest.uuid));
+      } else {
+        // Already invited (resend scenario) — refresh the expiry
+        await db
+          .update(schema.guests)
+          .set({ rsvpTokenExpiresAt, updatedAt: new Date() })
           .where(eq(schema.guests.uuid, guest.uuid));
       }
 
@@ -2239,6 +2262,8 @@ guests.post(
           eventDate,
           eventLocation: eventDetails?.locationName ?? null,
           rsvpUrl,
+          rsvpDeadline: rsvpSettings?.rsvpDeadline ?? null,
+          rsvpLinkExpiresAt: rsvpTokenExpiresAt,
         });
         const actuallySent = Boolean(result.id);
         results.push({
@@ -2416,45 +2441,58 @@ guests.post('/:guestUuid/resend-rsvp', requireAuth, requireVerifiedEmail, async 
       })
     : 'TBD';
 
-  // Fetch RSVP settings to respect email toggle
-  const [rsvpSettings] = await db
-    .select({
-      enableRsvp: schema.eventRsvpSettings.enableRsvp,
-      sendRsvpInvitation: schema.eventRsvpSettings.sendRsvpInvitation,
-    })
-    .from(schema.eventRsvpSettings)
-    .where(eq(schema.eventRsvpSettings.eventId, event.id))
-    .limit(1);
+    // Fetch RSVP settings to respect email toggle
+    const [rsvpSettings] = await db
+      .select({
+        enableRsvp: schema.eventRsvpSettings.enableRsvp,
+        sendRsvpInvitation: schema.eventRsvpSettings.sendRsvpInvitation,
+        rsvpDeadline: schema.eventRsvpSettings.rsvpDeadline,
+        rsvpLinkExpiryHours: schema.eventRsvpSettings.rsvpLinkExpiryHours,
+      })
+      .from(schema.eventRsvpSettings)
+      .where(eq(schema.eventRsvpSettings.eventId, event.id))
+      .limit(1);
 
-  if (rsvpSettings && !rsvpSettings.enableRsvp) {
-    return c.json(
-      { success: false, error: { code: 'RSVP_DISABLED', message: 'RSVP is not enabled for this event. Enable it in event settings.' } },
-      400
-    );
-  }
+    if (rsvpSettings && !rsvpSettings.enableRsvp) {
+      return c.json(
+        { success: false, error: { code: 'RSVP_DISABLED', message: 'RSVP is not enabled for this event. Enable it in event settings.' } },
+        400
+      );
+    }
 
-  // Update status to 'invited' if currently 'pending'
-  if (guest.rsvpStatus === 'pending') {
-    await db
-      .update(schema.guests)
-      .set({ rsvpStatus: 'invited', updatedAt: new Date() })
-      .where(eq(schema.guests.uuid, guestUuid));
-  }
+    // Compute link expiry (default 12 hours, capped to RSVP deadline)
+    const expiryHours = rsvpSettings?.rsvpLinkExpiryHours ?? 12;
+    const rsvpTokenExpiresAt = computeLinkExpiry(expiryHours, rsvpSettings?.rsvpDeadline ?? null);
 
-  // Send email if the toggle is on (default: send)
-  const shouldSendEmail = !rsvpSettings || rsvpSettings.sendRsvpInvitation !== false;
-  let sent = true;
+    // Update status to 'invited' if currently 'pending', and always refresh expiry
+    if (guest.rsvpStatus === 'pending') {
+      await db
+        .update(schema.guests)
+        .set({ rsvpStatus: 'invited', rsvpTokenExpiresAt, updatedAt: new Date() })
+        .where(eq(schema.guests.uuid, guestUuid));
+    } else {
+      await db
+        .update(schema.guests)
+        .set({ rsvpTokenExpiresAt, updatedAt: new Date() })
+        .where(eq(schema.guests.uuid, guestUuid));
+    }
 
-  if (shouldSendEmail) {
-    try {
-      const result = await sendRsvpInvitationEmail(c.env, {
-        to: guest.email,
-        guestName,
-        eventTitle: eventDetails?.title ?? 'Event',
-        eventDate,
-        eventLocation: eventDetails?.locationName ?? null,
-        rsvpUrl,
-      });
+    // Send email if the toggle is on (default: send)
+    const shouldSendEmail = !rsvpSettings || rsvpSettings.sendRsvpInvitation !== false;
+    let sent = true;
+
+    if (shouldSendEmail) {
+      try {
+        const result = await sendRsvpInvitationEmail(c.env, {
+          to: guest.email,
+          guestName,
+          eventTitle: eventDetails?.title ?? 'Event',
+          eventDate,
+          eventLocation: eventDetails?.locationName ?? null,
+          rsvpUrl,
+          rsvpDeadline: rsvpSettings?.rsvpDeadline ?? null,
+          rsvpLinkExpiresAt: rsvpTokenExpiresAt,
+        });
       const actuallySent = Boolean(result.id);
       if (!actuallySent) sent = false;
       await logEmail({

@@ -20,7 +20,11 @@
 │                                                         │
 │  4. Send Invitations                                    │
 │     └─► POST /events/:uuid/guests/send-invitations      │
+│     └─► Compute link expiry = min(now + expiryHours,    │
+│         rsvpDeadline)                                   │
+│     └─► Stamp rsvpTokenExpiresAt on each guest          │
 │     └─► Guests receive email with RSVP link             │
+│     └─► Email includes link expiry time + deadline      │
 │     └─► Guest status: pending → invited                 │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
@@ -33,6 +37,7 @@
 │     └─► Receives: event info, guest data, settings      │
 │                                                         │
 │  6. Frontend determines what to show:                   │
+│     ├─► Link expired? → "Link Expired" screen           │
 │     ├─► RSVP disabled? → "Not Available" screen         │
 │     ├─► Deadline passed? → "Deadline Passed" screen     │
 │     ├─► Already responded + no updates? → Read-only     │
@@ -61,6 +66,10 @@
                      ┌────────▼─────────┐             │
                      │ Generate rsvpToken│            │
                      │ if not present    │            │
+                     │ Compute expiry =  │            │
+                     │ min(now+hours,    │            │
+                     │     deadline)     │            │
+                     │ Stamp expiresAt   │            │
                      │ Set status to     │            │
                      │ 'invited'         │            │
                      └────────┬─────────┘             │
@@ -69,7 +78,10 @@
                      │  Log to email    │    │ Guest receives │
                      │  audit table     │    │ invitation     │
                      └──────────────────┘    │ email with     │
-                                             │ RSVP link      │
+                                             │ RSVP link +    │
+                                             │ link expiry +  │
+                                             │ deadline (when │
+                                             │ set)           │
                                              └────────────────┘
 ```
 
@@ -81,6 +93,11 @@ POST /rsvp/:token
         ▼
 ┌─── Find Guest by Token ───┐
 │   (not soft-deleted)       │──── 404 NOT_FOUND
+└────────────┬───────────────┘
+             │
+             ▼
+┌─── Check Link Expiry ─────┐
+│   rsvpTokenExpiresAt       │──── 410 RSVP_LINK_EXPIRED
 └────────────┬───────────────┘
              │
              ▼
@@ -186,8 +203,11 @@ RSVP Settings Lifecycle:
   Guest opens RSVP link → Settings enforced on GET + POST
 
 RSVP Token Lifecycle:
-  Guest created → Token may be null
+  Guest created → Token may be null, expiresAt null
   Send invitation → Token generated (if null)
-  Guest uses link → Token matched, response recorded
-  Token is permanent per guest (not rotated)
+                  → rsvpTokenExpiresAt = min(now + expiryHours, deadline)
+  Guest uses link → Check expiresAt, if expired → "Link Expired"
+                  → Token matched, response recorded
+  Resend invitation → expiresAt refreshed with new computed expiry
+  Token is permanent per guest (not rotated), but expiry refreshes on each send
 ```

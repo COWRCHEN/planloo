@@ -1042,6 +1042,7 @@ const updateRsvpSettingsSchema = z.object({
   allowRsvpPlusOnes: z.boolean().optional(),
   sendRsvpInvitation: z.boolean().optional(),
   sendRsvpConfirmation: z.boolean().optional(),
+  rsvpLinkExpiryHours: z.coerce.number().int().min(1).max(720).optional(),
   rsvpFormFields: rsvpFormFieldsSchema,
 });
 
@@ -1153,6 +1154,7 @@ events.patch(
     if (updates.allowRsvpPlusOnes !== undefined) updateData.allowRsvpPlusOnes = updates.allowRsvpPlusOnes;
     if (updates.sendRsvpInvitation !== undefined) updateData.sendRsvpInvitation = updates.sendRsvpInvitation;
     if (updates.sendRsvpConfirmation !== undefined) updateData.sendRsvpConfirmation = updates.sendRsvpConfirmation;
+    if (updates.rsvpLinkExpiryHours !== undefined) updateData.rsvpLinkExpiryHours = updates.rsvpLinkExpiryHours;
 
     // Merge rsvpFormFields with existing JSON
     if (updates.rsvpFormFields !== undefined) {
@@ -1185,6 +1187,7 @@ events.patch(
           allowRsvpPlusOnes: updates.allowRsvpPlusOnes ?? false,
           sendRsvpInvitation: updates.sendRsvpInvitation ?? true,
           sendRsvpConfirmation: updates.sendRsvpConfirmation ?? true,
+          rsvpLinkExpiryHours: updates.rsvpLinkExpiryHours ?? 12,
           rsvpFormFields: updates.rsvpFormFields ? JSON.stringify(updates.rsvpFormFields) : null,
         })
         .returning();

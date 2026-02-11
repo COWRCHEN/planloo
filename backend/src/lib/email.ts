@@ -41,6 +41,8 @@ interface RsvpInvitationEmailParams {
   eventDate: string;
   eventLocation: string | null;
   rsvpUrl: string;
+  rsvpDeadline: Date | null;
+  rsvpLinkExpiresAt: Date;
 }
 
 interface RsvpConfirmationEmailParams {
@@ -309,12 +311,29 @@ export async function sendRsvpInvitationEmail(
   env: Env,
   params: RsvpInvitationEmailParams
 ): Promise<{ id?: string | undefined }> {
-  const { to, guestName, eventTitle, eventDate, eventLocation, rsvpUrl } = params;
+  const { to, guestName, eventTitle, eventDate, eventLocation, rsvpUrl, rsvpDeadline, rsvpLinkExpiresAt } = params;
 
   const locationHtml = eventLocation
     ? `<p style="color: #4b5563; margin: 4px 0;">📍 ${eventLocation}</p>`
     : '';
   const locationText = eventLocation ? `Location: ${eventLocation}\n` : '';
+
+  const deadlineFormatted = rsvpDeadline
+    ? new Date(rsvpDeadline).toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      })
+    : null;
+  const deadlineHtml = deadlineFormatted
+    ? `<p style="color: #4b5563; margin: 4px 0;">⏰ Please respond by <strong>${deadlineFormatted}</strong></p>`
+    : '';
+  const deadlineText = deadlineFormatted ? `Please respond by: ${deadlineFormatted}\n` : '';
+
+  const linkExpiryFormatted = new Date(rsvpLinkExpiresAt).toLocaleString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+  const linkExpiryHtml = `<p style="color: #9ca3af; font-size: 12px; margin: 4px 0;">🔗 This invitation link expires on <strong>${linkExpiryFormatted}</strong></p>`;
+  const linkExpiryText = `This invitation link expires on: ${linkExpiryFormatted}\n`;
 
   const { html, text } = baseEmailTemplate(
     `You're invited: ${eventTitle}`,
@@ -325,6 +344,8 @@ export async function sendRsvpInvitationEmail(
     <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 20px 0;">
       <p style="color: #4b5563; margin: 4px 0;">📅 ${eventDate}</p>
       ${locationHtml}
+      ${deadlineHtml}
+      ${linkExpiryHtml}
     </div>
     <p>Please let us know if you can make it by responding to this invitation.</p>
     <div style="text-align: center; margin: 30px 0;">
@@ -338,7 +359,7 @@ export async function sendRsvpInvitationEmail(
       <a href="${rsvpUrl}" style="color: #2563EB; word-break: break-all;">${rsvpUrl}</a>
     </p>
     `,
-    `Hi ${guestName},\n\nYou've been invited to ${eventTitle}.\n\nDate: ${eventDate}\n${locationText}\nPlease respond to this invitation:\n${rsvpUrl}`,
+    `Hi ${guestName},\n\nYou've been invited to ${eventTitle}.\n\nDate: ${eventDate}\n${locationText}${deadlineText}${linkExpiryText}\nPlease respond to this invitation:\n${rsvpUrl}`,
     { unsubscribeNote: true }
   );
 

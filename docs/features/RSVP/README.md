@@ -15,6 +15,7 @@ The RSVP system allows event organizers to collect guest responses through a con
 - Public, unauthenticated RSVP form via unique token links
 - Configurable response options (yes/no/maybe)
 - Optional deadline enforcement
+- Per-invitation link expiry (default 12 hours, capped to deadline)
 - Per-field visibility toggles (dietary, meal, address, transportation, accessibility, custom fields)
 - Plus-one management with adult/children split
 - Hotel accommodation selection
@@ -32,6 +33,7 @@ The RSVP system allows event organizers to collect guest responses through a con
 4. [Data Hooks](./hooks.md)
 5. [Validation & Business Rules](./validation.md)
 6. [System Flow](./flow.md)
+7. [Link Expiry](./link-expiry.md)
 
 ---
 

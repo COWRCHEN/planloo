@@ -119,6 +119,7 @@ export interface EventRsvpSettings {
   allowRsvpPlusOnes: boolean;
   sendRsvpInvitation: boolean;
   sendRsvpConfirmation: boolean;
+  rsvpLinkExpiryHours: number;
   rsvpFormFields: RsvpFormFields | null;
   createdAt: string;
   updatedAt: string;
@@ -133,6 +134,7 @@ export interface UpdateRsvpSettingsInput {
   allowRsvpPlusOnes?: boolean;
   sendRsvpInvitation?: boolean;
   sendRsvpConfirmation?: boolean;
+  rsvpLinkExpiryHours?: number;
   rsvpFormFields?: RsvpFormFields;
 }
 

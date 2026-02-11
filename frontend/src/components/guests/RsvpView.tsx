@@ -148,6 +148,31 @@ function RsvpContent({ token }: RsvpViewProps) {
     );
   }
 
+  // Link expired — backend returns { expired: true } instead of full data
+  if ('expired' in data && data.expired === true) {
+    return (
+      <Card className="max-w-2xl mx-auto">
+        <CardContent className="py-12 text-center">
+          <div className="mx-auto mb-4 h-12 w-12 text-amber-500">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium">RSVP Link Expired</h3>
+          <p className="text-muted-foreground mt-2">
+            This RSVP invitation link has expired. Please contact the event
+            organizer to receive a new invitation.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const { event, guest, guestSettings, rsvpSettings } = data;
   const location = formatLocation(event);
   const hasResponded = !!guest.rsvpRespondedAt;

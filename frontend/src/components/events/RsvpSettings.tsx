@@ -24,6 +24,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -87,6 +94,7 @@ export function RsvpSettings({ eventUuid }: RsvpSettingsProps) {
       : settings?.rsvpConfirmationMessage ?? null,
     allowRsvpUpdate: localSettings.allowRsvpUpdate ?? settings?.allowRsvpUpdate ?? true,
     allowRsvpPlusOnes: localSettings.allowRsvpPlusOnes ?? settings?.allowRsvpPlusOnes ?? false,
+    rsvpLinkExpiryHours: localSettings.rsvpLinkExpiryHours ?? settings?.rsvpLinkExpiryHours ?? 12,
   };
 
   const handleChange = <K extends keyof UpdateRsvpSettingsInput>(
@@ -106,6 +114,7 @@ export function RsvpSettings({ eventUuid }: RsvpSettingsProps) {
         rsvpConfirmationMessage: current.rsvpConfirmationMessage,
         allowRsvpUpdate: current.allowRsvpUpdate,
         allowRsvpPlusOnes: current.allowRsvpPlusOnes,
+        rsvpLinkExpiryHours: current.rsvpLinkExpiryHours,
       });
       setLocalSettings({});
       setHasChanges(false);
@@ -200,6 +209,35 @@ export function RsvpSettings({ eventUuid }: RsvpSettingsProps) {
                     </Button>
                   )}
                 </div>
+              </div>
+
+              <div className="py-3 space-y-2">
+                <Label className="text-base">RSVP Link Expiry</Label>
+                <p className="text-sm text-muted-foreground">
+                  Set how long each invitation link remains valid after sending. Guests with expired links will need a new invitation.
+                </p>
+                <Select
+                  value={String(current.rsvpLinkExpiryHours)}
+                  onValueChange={(value) => handleChange('rsvpLinkExpiryHours', Number(value))}
+                  disabled={updateSettings.isPending}
+                >
+                  <SelectTrigger className="w-[240px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="6">6 hours</SelectItem>
+                    <SelectItem value="12">12 hours (default)</SelectItem>
+                    <SelectItem value="24">24 hours</SelectItem>
+                    <SelectItem value="48">48 hours</SelectItem>
+                    <SelectItem value="168">7 days</SelectItem>
+                    <SelectItem value="720">30 days</SelectItem>
+                  </SelectContent>
+                </Select>
+                {current.rsvpDeadline && (
+                  <p className="text-xs text-muted-foreground">
+                    Note: If the link expiry extends past the RSVP deadline, the deadline will be used instead.
+                  </p>
+                )}
               </div>
 
               <div className="py-3 space-y-2">

@@ -3,7 +3,7 @@
 **Feature:** Event-level RSVP configuration, deadlines, response options, and public RSVP page controls.
 **Status:** Implemented
 **Document Date:** 2026-02-08
-**Updated:** 2026-02-11
+**Updated:** 2026-02-11 (added RSVP Link Expiry feature)
 
 > **Note:** This was the original planning document. For comprehensive implementation documentation, see [docs/features/RSVP/](../RSVP/README.md).
 
@@ -53,6 +53,16 @@ The guest schema already supports RSVP (`rsvpStatus`, `rsvpToken`, `rsvpResponde
   - Only available when plus-ones are enabled in Guest Field Settings
   - When enabled, the RSVP form includes a plus-one section
   - Respects the `defaultPlusOnesAllowed` limit from guest settings
+
+### RSVP Link Expiry
+
+- **RSVP link expiry hours** (`rsvpLinkExpiryHours`: integer, default `12`, NOT NULL)
+  - Hours each invitation link remains valid after sending
+  - Range: 1-720 (1 hour to 30 days)
+  - Always applies (organizer cannot disable, only adjust duration)
+  - Capped to RSVP deadline if set and earlier than computed expiry
+  - Resending an invitation refreshes the expiry timestamp
+  - See [Link Expiry documentation](../RSVP/link-expiry.md) for full implementation details
 
 ### Waitlist (future consideration)
 

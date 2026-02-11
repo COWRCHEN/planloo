@@ -18,6 +18,7 @@ Stores per-event RSVP configuration. One row per event, auto-created on first GE
 | `rsvpConfirmationMessage` | TEXT | `null` | Custom message shown after submission (max 500 chars) |
 | `allowRsvpUpdate` | BOOLEAN | `true` | Can guests change their response after submitting |
 | `allowRsvpPlusOnes` | BOOLEAN | `false` | Allow plus-ones via the RSVP form |
+| `rsvpLinkExpiryHours` | INTEGER | `12` | Hours each invitation link remains valid after sending (1-720, always applies) |
 | `sendRsvpInvitation` | BOOLEAN | `true` | Send invitation emails when triggering invitations |
 | `sendRsvpConfirmation` | BOOLEAN | `true` | Send confirmation email after guest submits RSVP |
 | `rsvpFormFields` | TEXT (JSON) | `null` | Controls which fields appear on the RSVP form |
@@ -54,6 +55,7 @@ The `guests` table contains columns that store RSVP response data:
 |--------|------|-------------|
 | `rsvpStatus` | TEXT | Enum: `pending`, `invited`, `confirmed`, `declined`, `maybe` |
 | `rsvpToken` | TEXT UNIQUE | Unique token for public RSVP access |
+| `rsvpTokenExpiresAt` | TIMESTAMP | When this guest's RSVP link expires (computed on each send/resend) |
 | `rsvpRespondedAt` | TIMESTAMP | When the guest submitted their RSVP |
 | `plusOnesAllowed` | INTEGER | Maximum plus-ones this guest can bring |
 | `plusOnesCount` | INTEGER | Total plus-ones (adults + children) |

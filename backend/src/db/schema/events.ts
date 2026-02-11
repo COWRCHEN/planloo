@@ -76,6 +76,7 @@ export const guests = sqliteTable('guests', {
   category: text('category'),
   rsvpStatus: text('rsvp_status', { enum: ['pending', 'invited', 'confirmed', 'declined', 'maybe'] }).default('pending'),
   rsvpToken: text('rsvp_token').unique(),
+  rsvpTokenExpiresAt: integer('rsvp_token_expires_at', { mode: 'timestamp' }),
   rsvpRespondedAt: integer('rsvp_responded_at', { mode: 'timestamp' }),
   plusOnesAllowed: integer('plus_ones_allowed').default(0).notNull(),
   plusOnesCount: integer('plus_ones_count').default(0).notNull(),
@@ -285,6 +286,9 @@ export const eventRsvpSettings = sqliteTable('event_rsvp_settings', {
   rsvpConfirmationMessage: text('rsvp_confirmation_message'),
   allowRsvpUpdate: integer('allow_rsvp_update', { mode: 'boolean' }).default(true).notNull(),
   allowRsvpPlusOnes: integer('allow_rsvp_plus_ones', { mode: 'boolean' }).default(false).notNull(),
+
+  // Link expiry: how long each invitation link remains valid after sending (in hours)
+  rsvpLinkExpiryHours: integer('rsvp_link_expiry_hours').default(12).notNull(),
 
   // Email notification toggles
   sendRsvpInvitation: integer('send_rsvp_invitation', { mode: 'boolean' }).default(true).notNull(),
