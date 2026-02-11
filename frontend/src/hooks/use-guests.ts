@@ -166,7 +166,7 @@ export interface RsvpFormFields {
   address: boolean;
   transportation: boolean;
   accessibility: boolean;
-  customFields: boolean;
+  customFields: Record<string, boolean>;
 }
 
 export interface RsvpPageData {

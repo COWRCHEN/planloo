@@ -1030,7 +1030,7 @@ const rsvpFormFieldsSchema = z.object({
   address: z.boolean().optional(),
   transportation: z.boolean().optional(),
   accessibility: z.boolean().optional(),
-  customFields: z.boolean().optional(),
+  customFields: z.record(z.string(), z.boolean()).optional(),
 }).optional();
 
 const updateRsvpSettingsSchema = z.object({

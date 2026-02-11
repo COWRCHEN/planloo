@@ -79,6 +79,7 @@ function RsvpContent({ token }: RsvpViewProps) {
   const [accessibilityNeeds, setAccessibilityNeeds] = useState('');
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Sync state from guest data when first loaded
   // IMPORTANT: must be before any early returns to satisfy Rules of Hooks
@@ -192,13 +193,46 @@ function RsvpContent({ token }: RsvpViewProps) {
   const showAddress = ff?.address === true;
   const showTransportation = ff?.transportation === true;
   const showAccessibility = ff?.accessibility === true;
-  const showCustomFields = ff?.customFields === true;
+  // customFields is now a Record<string, boolean>; show if any field is enabled
+  const showCustomFields = ff?.customFields != null
+    && typeof ff.customFields === 'object'
+    && Object.values(ff.customFields).some(Boolean);
 
   const mealChoiceOptions = guestSettings?.mealChoiceOptions ?? [];
   const customFieldDefinitions = guestSettings?.customFieldDefinitions ?? [];
 
   const handleSubmit = async () => {
     if (!selectedStatus) return;
+    setValidationError(null);
+
+    // Validate required fields when confirming or maybe
+    if (selectedStatus === 'confirmed' || selectedStatus === 'maybe') {
+      const missing: string[] = [];
+      if (showMealChoice && guestSettings?.requiredMealChoice && !mealChoice) {
+        missing.push('Meal Choice');
+      }
+      if (showAddress && guestSettings?.requiredAddress && !addressStreet && !addressCity) {
+        missing.push('Address');
+      }
+      if (showAccessibility && guestSettings?.requiredAccessibility && !accessibilityNeeds.trim()) {
+        missing.push('Accessibility Needs');
+      }
+      // Validate required custom fields
+      if (showCustomFields && customFieldDefinitions.length > 0) {
+        for (const def of customFieldDefinitions) {
+          if (def.required) {
+            const val = customFieldValues[def.id];
+            if (val == null || val === '' || (Array.isArray(val) && val.length === 0)) {
+              missing.push(def.label);
+            }
+          }
+        }
+      }
+      if (missing.length > 0) {
+        setValidationError(`Please fill in the required fields: ${missing.join(', ')}`);
+        return;
+      }
+    }
 
     const submitData: RsvpSubmitInput = {
       rsvpStatus: selectedStatus,
@@ -536,10 +570,12 @@ function RsvpContent({ token }: RsvpViewProps) {
           </div>
         )}
 
+        {/* === Common Fields === */}
+
         {/* Dietary Restrictions (only for confirmed/maybe and when enabled) */}
         {showDietary && (selectedStatus === 'confirmed' || selectedStatus === 'maybe') && (
           <div className="space-y-2">
-            <Label htmlFor="dietary">Dietary Restrictions (optional)</Label>
+            <Label htmlFor="dietary">Dietary Restrictions <span className="text-muted-foreground font-normal">(optional)</span></Label>
             <Textarea
               id="dietary"
               placeholder="Any food allergies or dietary requirements..."
@@ -550,10 +586,27 @@ function RsvpContent({ token }: RsvpViewProps) {
           </div>
         )}
 
+        {/* Notes (only when enabled and confirmed/maybe) */}
+        {showNotes && (selectedStatus === 'confirmed' || selectedStatus === 'maybe') && (
+          <div className="space-y-2">
+            <Label htmlFor="rsvpNotes">Notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Textarea
+              id="rsvpNotes"
+              placeholder="Any message or notes for the organizer..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              maxLength={1000}
+            />
+          </div>
+        )}
+
+        {/* === Guest Fields === */}
+
         {/* Meal Choice (only when enabled and confirmed/maybe) */}
         {showMealChoice && mealChoiceOptions.length > 0 && (selectedStatus === 'confirmed' || selectedStatus === 'maybe') && (
           <div className="space-y-2">
-            <Label>Meal Choice{guestSettings?.requiredMealChoice ? '' : ' (optional)'}</Label>
+            <Label>Meal Choice{guestSettings?.requiredMealChoice ? <span className="text-destructive"> *</span> : <span className="text-muted-foreground font-normal"> (optional)</span>}</Label>
             <Select value={mealChoice} onValueChange={setMealChoice}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a meal option" />
@@ -569,25 +622,10 @@ function RsvpContent({ token }: RsvpViewProps) {
           </div>
         )}
 
-        {/* Notes (only when enabled and confirmed/maybe) */}
-        {showNotes && (selectedStatus === 'confirmed' || selectedStatus === 'maybe') && (
-          <div className="space-y-2">
-            <Label htmlFor="rsvpNotes">Notes (optional)</Label>
-            <Textarea
-              id="rsvpNotes"
-              placeholder="Any message or notes for the organizer..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              maxLength={1000}
-            />
-          </div>
-        )}
-
         {/* Address (only when enabled and confirmed/maybe) */}
         {showAddress && (selectedStatus === 'confirmed' || selectedStatus === 'maybe') && (
           <div className="space-y-3 rounded-lg border p-4">
-            <Label className="font-medium">Mailing Address{guestSettings?.requiredAddress ? '' : ' (optional)'}</Label>
+            <Label className="font-medium">Mailing Address{guestSettings?.requiredAddress ? <span className="text-destructive"> *</span> : <span className="text-muted-foreground font-normal"> (optional)</span>}</Label>
             <div className="space-y-2">
               <Input
                 placeholder="Street address"
@@ -639,7 +677,7 @@ function RsvpContent({ token }: RsvpViewProps) {
         {/* Accessibility (only when enabled and confirmed/maybe) */}
         {showAccessibility && (selectedStatus === 'confirmed' || selectedStatus === 'maybe') && (
           <div className="space-y-2">
-            <Label htmlFor="accessibility">Accessibility Needs{guestSettings?.requiredAccessibility ? '' : ' (optional)'}</Label>
+            <Label htmlFor="accessibility">Accessibility Needs{guestSettings?.requiredAccessibility ? <span className="text-destructive"> *</span> : <span className="text-muted-foreground font-normal"> (optional)</span>}</Label>
             <Textarea
               id="accessibility"
               placeholder="Any accessibility requirements..."
@@ -742,6 +780,11 @@ function RsvpContent({ token }: RsvpViewProps) {
           )}
 
         {/* Submit */}
+        {validationError && (
+          <Alert variant="destructive">
+            <AlertDescription>{validationError}</AlertDescription>
+          </Alert>
+        )}
         {submitRsvp.isError && (
           <Alert variant="destructive">
             <AlertDescription>

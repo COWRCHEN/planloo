@@ -225,34 +225,39 @@ rsvp.get('/:token', async (c) => {
     address: boolean;
     transportation: boolean;
     accessibility: boolean;
-    customFields: boolean;
+    customFields: Record<string, boolean>;
   };
-  const defaultFormFields: RsvpFormFields = {
+  const defaultFormFields: Omit<RsvpFormFields, 'customFields'> & { customFields: Record<string, boolean> } = {
     dietaryRestrictions: true,
     mealChoice: false,
     notes: false,
     address: false,
     transportation: false,
     accessibility: false,
-    customFields: false,
+    customFields: {},
   };
   let rsvpFormFields: RsvpFormFields = { ...defaultFormFields };
   if (rsvpSettings?.rsvpFormFields) {
     try {
       const parsed = JSON.parse(rsvpSettings.rsvpFormFields);
-      rsvpFormFields = { ...defaultFormFields, ...parsed };
+      // Backward compat: if customFields is a boolean, convert to empty record
+      const customFields = parsed.customFields && typeof parsed.customFields === 'object' && !Array.isArray(parsed.customFields)
+        ? parsed.customFields as Record<string, boolean>
+        : {};
+      rsvpFormFields = { ...defaultFormFields, ...parsed, customFields };
     } catch { /* use defaults */ }
   }
 
   // Compute effective fields: rsvpFormFields toggle AND guestSettings gate (where applicable)
-  const effectiveFields: RsvpFormFields = {
+  const hasAnyCustomFieldEnabled = Object.values(rsvpFormFields.customFields).some(Boolean);
+  const effectiveFields = {
     dietaryRestrictions: rsvpFormFields.dietaryRestrictions,
     mealChoice: rsvpFormFields.mealChoice && (guestSettings?.enableMealChoice ?? false),
     notes: rsvpFormFields.notes,
     address: rsvpFormFields.address && (guestSettings?.enableAddress ?? false),
     transportation: rsvpFormFields.transportation && (guestSettings?.enableTransportation ?? false),
     accessibility: rsvpFormFields.accessibility && (guestSettings?.enableAccessibility ?? false),
-    customFields: rsvpFormFields.customFields && !!(guestSettings?.customFieldDefinitions),
+    customFields: rsvpFormFields.customFields,
   };
 
   // Parse JSON fields for response
@@ -260,12 +265,20 @@ rsvp.get('/:token', async (c) => {
   if (effectiveFields.mealChoice && guestSettings?.mealChoiceOptions) {
     try { mealChoiceOptions = JSON.parse(guestSettings.mealChoiceOptions); } catch { /* ignore */ }
   }
+  // Filter custom field definitions to only include fields enabled in RSVP form
   let customFieldDefinitions: Array<Record<string, unknown>> | null = null;
-  if (effectiveFields.customFields && guestSettings?.customFieldDefinitions) {
-    try { customFieldDefinitions = JSON.parse(guestSettings.customFieldDefinitions); } catch { /* ignore */ }
+  if (hasAnyCustomFieldEnabled && guestSettings?.customFieldDefinitions) {
+    try {
+      const allDefs: Array<Record<string, unknown>> = JSON.parse(guestSettings.customFieldDefinitions);
+      customFieldDefinitions = allDefs.filter((def) => {
+        const id = def.id as string;
+        return id && rsvpFormFields.customFields[id] === true;
+      });
+      if (customFieldDefinitions.length === 0) customFieldDefinitions = null;
+    } catch { /* ignore */ }
   }
   let parsedCustomFieldData: Record<string, unknown> | null = null;
-  if (effectiveFields.customFields && guest.customFieldData) {
+  if (hasAnyCustomFieldEnabled && guest.customFieldData) {
     try { parsedCustomFieldData = JSON.parse(guest.customFieldData); } catch { /* ignore */ }
   }
 
@@ -548,7 +561,7 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     address: boolean;
     transportation: boolean;
     accessibility: boolean;
-    customFields: boolean;
+    customFields: Record<string, boolean>;
   };
   const defaultFormFields: RsvpFormFields = {
     dietaryRestrictions: true,
@@ -557,15 +570,20 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     address: false,
     transportation: false,
     accessibility: false,
-    customFields: false,
+    customFields: {},
   };
   let formFields: RsvpFormFields = { ...defaultFormFields };
   if (rsvpSettings?.rsvpFormFields) {
     try {
       const parsed = JSON.parse(rsvpSettings.rsvpFormFields);
-      formFields = { ...defaultFormFields, ...parsed };
+      // Backward compat: if customFields is a boolean, convert to empty record
+      const customFields = parsed.customFields && typeof parsed.customFields === 'object' && !Array.isArray(parsed.customFields)
+        ? parsed.customFields as Record<string, boolean>
+        : {};
+      formFields = { ...defaultFormFields, ...parsed, customFields };
     } catch { /* use defaults */ }
   }
+  const hasAnyCustomFieldEnabled = Object.values(formFields.customFields).some(Boolean);
 
   // Validate mealChoice against mealChoiceOptions when enabled
   if (formFields.mealChoice && data.mealChoice) {
@@ -585,6 +603,62 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
           );
         }
       } catch { /* skip validation if options are malformed */ }
+    }
+  }
+
+  // ===== VALIDATE REQUIRED FIELDS (only for confirmed/maybe) =====
+  if (data.rsvpStatus === 'confirmed' || data.rsvpStatus === 'maybe') {
+    // Fetch guest settings for required flags
+    const [gsReq] = await db
+      .select({
+        requiredMealChoice: schema.eventGuestSettings.requiredMealChoice,
+        requiredAddress: schema.eventGuestSettings.requiredAddress,
+        requiredAccessibility: schema.eventGuestSettings.requiredAccessibility,
+        enableMealChoice: schema.eventGuestSettings.enableMealChoice,
+        enableAddress: schema.eventGuestSettings.enableAddress,
+        enableAccessibility: schema.eventGuestSettings.enableAccessibility,
+        customFieldDefinitions: schema.eventGuestSettings.customFieldDefinitions,
+      })
+      .from(schema.eventGuestSettings)
+      .where(eq(schema.eventGuestSettings.eventId, guest.eventId))
+      .limit(1);
+
+    if (gsReq) {
+      const missing: string[] = [];
+
+      if (formFields.mealChoice && gsReq.enableMealChoice && gsReq.requiredMealChoice && !data.mealChoice) {
+        missing.push('Meal Choice');
+      }
+      if (formFields.address && gsReq.enableAddress && gsReq.requiredAddress) {
+        if (!data.addressStreet && !data.addressCity) {
+          missing.push('Address');
+        }
+      }
+      if (formFields.accessibility && gsReq.enableAccessibility && gsReq.requiredAccessibility && !data.accessibilityNeeds?.trim()) {
+        missing.push('Accessibility Needs');
+      }
+
+      // Validate required custom fields
+      if (hasAnyCustomFieldEnabled && gsReq.customFieldDefinitions) {
+        try {
+          const defs: Array<{ id: string; label: string; required: boolean }> = JSON.parse(gsReq.customFieldDefinitions);
+          for (const def of defs) {
+            if (def.required && formFields.customFields[def.id]) {
+              const val = data.customFieldData?.[def.id];
+              if (val == null || val === '' || (Array.isArray(val) && val.length === 0)) {
+                missing.push(def.label);
+              }
+            }
+          }
+        } catch { /* skip */ }
+      }
+
+      if (missing.length > 0) {
+        return c.json(
+          { success: false, error: { code: 'VALIDATION_ERROR', message: `Required fields are missing: ${missing.join(', ')}` } },
+          400
+        );
+      }
     }
   }
 
@@ -668,7 +742,7 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     if (data.addressZipCode !== undefined) updatePayload.addressZipCode = data.addressZipCode ?? null;
     if (data.addressCountry !== undefined) updatePayload.addressCountry = data.addressCountry ?? null;
   }
-  if (formFields.customFields && data.customFieldData !== undefined) {
+  if (hasAnyCustomFieldEnabled && data.customFieldData !== undefined) {
     updatePayload.customFieldData = data.customFieldData ? JSON.stringify(data.customFieldData) : null;
   }
 

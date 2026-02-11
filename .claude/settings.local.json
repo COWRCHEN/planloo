@@ -19,7 +19,9 @@
       "Bash(npx wrangler d1 execute:*)",
       "Bash(npm run db:migrate:*)",
       "Bash(curl:*)",
-      "Bash(npx astro build)"
+      "Bash(npx astro build)",
+      "Bash(grep:*)",
+      "Bash(python -m json.tool:*)"
     ]
   }
 }
