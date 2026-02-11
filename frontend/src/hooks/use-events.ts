@@ -98,6 +98,16 @@ export interface UpdateEventInput {
   slug?: string | null;
 }
 
+export interface RsvpFormFields {
+  dietaryRestrictions?: boolean;
+  mealChoice?: boolean;
+  notes?: boolean;
+  address?: boolean;
+  transportation?: boolean;
+  accessibility?: boolean;
+  customFields?: boolean;
+}
+
 export interface EventRsvpSettings {
   id: number;
   eventId: number;
@@ -109,6 +119,7 @@ export interface EventRsvpSettings {
   allowRsvpPlusOnes: boolean;
   sendRsvpInvitation: boolean;
   sendRsvpConfirmation: boolean;
+  rsvpFormFields: RsvpFormFields | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -122,6 +133,7 @@ export interface UpdateRsvpSettingsInput {
   allowRsvpPlusOnes?: boolean;
   sendRsvpInvitation?: boolean;
   sendRsvpConfirmation?: boolean;
+  rsvpFormFields?: RsvpFormFields;
 }
 
 export interface EventPrivacySettings {

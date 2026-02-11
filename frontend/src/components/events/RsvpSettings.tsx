@@ -31,6 +31,7 @@ import {
   useRsvpSettings,
   useUpdateRsvpSettings,
   type UpdateRsvpSettingsInput,
+  type RsvpFormFields,
 } from '@/hooks/use-events';
 
 interface RsvpSettingsProps {
@@ -76,6 +77,16 @@ export function RsvpSettings({ eventUuid }: RsvpSettingsProps) {
     }
   }, [settings?.updatedAt]);
 
+  const defaultFormFields: RsvpFormFields = {
+    dietaryRestrictions: true,
+    mealChoice: false,
+    notes: false,
+    address: false,
+    transportation: false,
+    accessibility: false,
+    customFields: false,
+  };
+
   const current = {
     enableRsvp: localSettings.enableRsvp ?? settings?.enableRsvp ?? false,
     allowMaybeResponse: localSettings.allowMaybeResponse ?? settings?.allowMaybeResponse ?? true,
@@ -87,6 +98,11 @@ export function RsvpSettings({ eventUuid }: RsvpSettingsProps) {
       : settings?.rsvpConfirmationMessage ?? null,
     allowRsvpUpdate: localSettings.allowRsvpUpdate ?? settings?.allowRsvpUpdate ?? true,
     allowRsvpPlusOnes: localSettings.allowRsvpPlusOnes ?? settings?.allowRsvpPlusOnes ?? false,
+    rsvpFormFields: {
+      ...defaultFormFields,
+      ...(settings?.rsvpFormFields ?? {}),
+      ...(localSettings.rsvpFormFields ?? {}),
+    } as RsvpFormFields,
   };
 
   const handleChange = <K extends keyof UpdateRsvpSettingsInput>(
@@ -95,6 +111,11 @@ export function RsvpSettings({ eventUuid }: RsvpSettingsProps) {
   ) => {
     setLocalSettings((prev) => ({ ...prev, [key]: value }));
     setHasChanges(true);
+  };
+
+  const handleFormFieldChange = (field: keyof RsvpFormFields, value: boolean) => {
+    const merged = { ...(localSettings.rsvpFormFields ?? {}), [field]: value };
+    handleChange('rsvpFormFields', merged);
   };
 
   const handleSave = async () => {
@@ -106,6 +127,7 @@ export function RsvpSettings({ eventUuid }: RsvpSettingsProps) {
         rsvpConfirmationMessage: current.rsvpConfirmationMessage,
         allowRsvpUpdate: current.allowRsvpUpdate,
         allowRsvpPlusOnes: current.allowRsvpPlusOnes,
+        rsvpFormFields: current.rsvpFormFields,
       });
       setLocalSettings({});
       setHasChanges(false);
@@ -243,6 +265,67 @@ export function RsvpSettings({ eventUuid }: RsvpSettingsProps) {
                 disabled={updateSettings.isPending}
               />
             </>
+          )}
+
+          {/* RSVP Form Fields */}
+          {current.enableRsvp && (
+            <div className="pt-4">
+              <h3 className="text-sm font-semibold mb-1">RSVP Form Fields</h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                Choose which fields guests can fill in on the RSVP form. Fields gated by Guest Field Settings must also be enabled there.
+              </p>
+              <div className="divide-y">
+                <SettingRow
+                  label="Dietary Restrictions"
+                  description="Guests can specify dietary needs"
+                  checked={current.rsvpFormFields.dietaryRestrictions ?? true}
+                  onCheckedChange={(checked) => handleFormFieldChange('dietaryRestrictions', checked)}
+                  disabled={updateSettings.isPending}
+                />
+                <SettingRow
+                  label="Meal Choice"
+                  description="Guests can select a meal option (requires Meal Choice enabled in Guest Field Settings)"
+                  checked={current.rsvpFormFields.mealChoice ?? false}
+                  onCheckedChange={(checked) => handleFormFieldChange('mealChoice', checked)}
+                  disabled={updateSettings.isPending}
+                />
+                <SettingRow
+                  label="Notes"
+                  description="Guests can leave a note or message"
+                  checked={current.rsvpFormFields.notes ?? false}
+                  onCheckedChange={(checked) => handleFormFieldChange('notes', checked)}
+                  disabled={updateSettings.isPending}
+                />
+                <SettingRow
+                  label="Address"
+                  description="Guests can provide their mailing address (requires Address enabled in Guest Field Settings)"
+                  checked={current.rsvpFormFields.address ?? false}
+                  onCheckedChange={(checked) => handleFormFieldChange('address', checked)}
+                  disabled={updateSettings.isPending}
+                />
+                <SettingRow
+                  label="Transportation"
+                  description="Guests can indicate if they need transportation (requires Transportation enabled in Guest Field Settings)"
+                  checked={current.rsvpFormFields.transportation ?? false}
+                  onCheckedChange={(checked) => handleFormFieldChange('transportation', checked)}
+                  disabled={updateSettings.isPending}
+                />
+                <SettingRow
+                  label="Accessibility"
+                  description="Guests can specify accessibility needs (requires Accessibility enabled in Guest Field Settings)"
+                  checked={current.rsvpFormFields.accessibility ?? false}
+                  onCheckedChange={(checked) => handleFormFieldChange('accessibility', checked)}
+                  disabled={updateSettings.isPending}
+                />
+                <SettingRow
+                  label="Custom Fields"
+                  description="Show custom fields defined in Guest Field Settings"
+                  checked={current.rsvpFormFields.customFields ?? false}
+                  onCheckedChange={(checked) => handleFormFieldChange('customFields', checked)}
+                  disabled={updateSettings.isPending}
+                />
+              </div>
+            </div>
           )}
         </div>
 

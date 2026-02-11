@@ -159,6 +159,16 @@ export interface ListGuestsQuery {
   sortOrder?: 'asc' | 'desc';
 }
 
+export interface RsvpFormFields {
+  dietaryRestrictions: boolean;
+  mealChoice: boolean;
+  notes: boolean;
+  address: boolean;
+  transportation: boolean;
+  accessibility: boolean;
+  customFields: boolean;
+}
+
 export interface RsvpPageData {
   event: {
     uuid: string;
@@ -190,12 +200,39 @@ export interface RsvpPageData {
     hotelName?: string | null;
     checkInDate?: string | null;
     checkOutDate?: string | null;
+    // Configurable RSVP form fields
+    mealChoice?: string | null;
+    notes?: string | null;
+    addressStreet?: string | null;
+    addressCity?: string | null;
+    addressState?: string | null;
+    addressZipCode?: string | null;
+    addressCountry?: string | null;
+    transportationNeeded?: boolean | null;
+    accessibilityNeeds?: string | null;
+    customFieldData?: Record<string, unknown> | null;
   };
   guestSettings?: {
     enableAccommodation: boolean;
     accommodationHotels: AccommodationHotel[] | null;
     accommodationCheckInDate: string | null;
     accommodationCheckOutDate: string | null;
+    mealChoiceOptions: MealChoiceOption[] | null;
+    customFieldDefinitions: CustomFieldDefinition[] | null;
+    requiredMealChoice: boolean;
+    requiredAddress: boolean;
+    requiredTransportation: boolean;
+    requiredAccessibility: boolean;
+  };
+  rsvpSettings?: {
+    enabled: boolean;
+    allowMaybeResponse: boolean;
+    rsvpDeadline: string | null;
+    deadlinePassed: boolean;
+    allowRsvpUpdate: boolean;
+    confirmationMessage: string | null;
+    canRespond: boolean;
+    rsvpFormFields?: RsvpFormFields;
   };
 }
 
@@ -209,6 +246,17 @@ export interface RsvpSubmitInput {
   hotelName?: string | null;
   checkInDate?: string | null;
   checkOutDate?: string | null;
+  // Configurable RSVP form fields
+  mealChoice?: string | null;
+  notes?: string | null;
+  addressStreet?: string | null;
+  addressCity?: string | null;
+  addressState?: string | null;
+  addressZipCode?: string | null;
+  addressCountry?: string | null;
+  transportationNeeded?: boolean | null;
+  accessibilityNeeds?: string | null;
+  customFieldData?: Record<string, unknown> | null;
 }
 
 /** Audit entry for guest history (who created/updated, when, what changed) */
@@ -694,6 +742,40 @@ export function useResendRsvp(eventUuid: string) {
 
       const result = await handleResponse<{ sent: boolean; email: string }>(response);
       return result.data;
+    },
+  });
+}
+
+/**
+ * Hook to batch send RSVP invitations
+ */
+export interface SendInvitationsResult {
+  sent: number;
+  failed: Array<{ guestUuid: string; name: string; email: string; success: boolean; error?: string }>;
+  total: number;
+}
+
+export function useSendInvitations(eventUuid: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (guestUuids: string[] | 'all-eligible') => {
+      const response = await fetch(
+        `${API_URL}/events/${eventUuid}/guests/send-invitations`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ guestUuids }),
+        }
+      );
+
+      const result = await handleResponse<SendInvitationsResult>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: guestKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: guestKeys.stats(eventUuid) });
     },
   });
 }

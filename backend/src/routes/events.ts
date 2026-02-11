@@ -1023,6 +1023,16 @@ events.patch(
 
 // ==================== RSVP SETTINGS ENDPOINTS ====================
 
+const rsvpFormFieldsSchema = z.object({
+  dietaryRestrictions: z.boolean().optional(),
+  mealChoice: z.boolean().optional(),
+  notes: z.boolean().optional(),
+  address: z.boolean().optional(),
+  transportation: z.boolean().optional(),
+  accessibility: z.boolean().optional(),
+  customFields: z.boolean().optional(),
+}).optional();
+
 const updateRsvpSettingsSchema = z.object({
   enableRsvp: z.boolean().optional(),
   allowMaybeResponse: z.boolean().optional(),
@@ -1032,6 +1042,7 @@ const updateRsvpSettingsSchema = z.object({
   allowRsvpPlusOnes: z.boolean().optional(),
   sendRsvpInvitation: z.boolean().optional(),
   sendRsvpConfirmation: z.boolean().optional(),
+  rsvpFormFields: rsvpFormFieldsSchema,
 });
 
 /**
@@ -1077,9 +1088,15 @@ events.get('/:uuid/rsvp-settings', requireAuth, async (c) => {
     settings = newSettings!;
   }
 
+  // Parse rsvpFormFields JSON
+  let rsvpFormFields: Record<string, boolean> | null = null;
+  if (settings.rsvpFormFields) {
+    try { rsvpFormFields = JSON.parse(settings.rsvpFormFields); } catch { /* ignore */ }
+  }
+
   return c.json({
     success: true,
-    data: settings,
+    data: { ...settings, rsvpFormFields },
   });
 });
 
@@ -1119,7 +1136,7 @@ events.patch(
     }
 
     const [existingSettings] = await db
-      .select({ id: schema.eventRsvpSettings.id })
+      .select({ id: schema.eventRsvpSettings.id, rsvpFormFields: schema.eventRsvpSettings.rsvpFormFields })
       .from(schema.eventRsvpSettings)
       .where(eq(schema.eventRsvpSettings.eventId, event.id))
       .limit(1);
@@ -1136,6 +1153,15 @@ events.patch(
     if (updates.allowRsvpPlusOnes !== undefined) updateData.allowRsvpPlusOnes = updates.allowRsvpPlusOnes;
     if (updates.sendRsvpInvitation !== undefined) updateData.sendRsvpInvitation = updates.sendRsvpInvitation;
     if (updates.sendRsvpConfirmation !== undefined) updateData.sendRsvpConfirmation = updates.sendRsvpConfirmation;
+
+    // Merge rsvpFormFields with existing JSON
+    if (updates.rsvpFormFields !== undefined) {
+      let existing: Record<string, boolean> = {};
+      if (existingSettings?.rsvpFormFields) {
+        try { existing = JSON.parse(existingSettings.rsvpFormFields); } catch { /* ignore */ }
+      }
+      updateData.rsvpFormFields = JSON.stringify({ ...existing, ...updates.rsvpFormFields });
+    }
 
     let settings: typeof schema.eventRsvpSettings.$inferSelect;
 
@@ -1159,14 +1185,21 @@ events.patch(
           allowRsvpPlusOnes: updates.allowRsvpPlusOnes ?? false,
           sendRsvpInvitation: updates.sendRsvpInvitation ?? true,
           sendRsvpConfirmation: updates.sendRsvpConfirmation ?? true,
+          rsvpFormFields: updates.rsvpFormFields ? JSON.stringify(updates.rsvpFormFields) : null,
         })
         .returning();
       settings = newSettings!;
     }
 
+    // Parse rsvpFormFields JSON for response
+    let parsedFormFields: Record<string, boolean> | null = null;
+    if (settings.rsvpFormFields) {
+      try { parsedFormFields = JSON.parse(settings.rsvpFormFields); } catch { /* ignore */ }
+    }
+
     return c.json({
       success: true,
-      data: settings,
+      data: { ...settings, rsvpFormFields: parsedFormFields },
     });
   }
 );

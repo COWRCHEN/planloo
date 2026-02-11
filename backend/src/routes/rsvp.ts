@@ -28,13 +28,24 @@ const rsvpSubmitSchema = z.object({
   hotelName: z.string().max(200).optional().nullable(),
   checkInDate: z.coerce.date().optional().nullable(),
   checkOutDate: z.coerce.date().optional().nullable(),
+  // Configurable RSVP form fields
+  mealChoice: z.string().max(200).optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
+  addressStreet: z.string().max(200).optional().nullable(),
+  addressCity: z.string().max(100).optional().nullable(),
+  addressState: z.string().max(100).optional().nullable(),
+  addressZipCode: z.string().max(20).optional().nullable(),
+  addressCountry: z.string().max(100).optional().nullable(),
+  transportationNeeded: z.boolean().optional().nullable(),
+  accessibilityNeeds: z.string().max(500).optional().nullable(),
+  customFieldData: z.record(z.unknown()).optional().nullable(),
 });
 
 // ==================== ROUTES ====================
 
 /**
  * GET /rsvp/:token
- * Get RSVP page data (event info + guest info)
+ * Get RSVP page data (event info + guest info + rsvp settings flags)
  */
 rsvp.get('/:token', async (c) => {
   const token = c.req.param('token');
@@ -61,6 +72,17 @@ rsvp.get('/:token', async (c) => {
       hotelName: schema.guests.hotelName,
       checkInDate: schema.guests.checkInDate,
       checkOutDate: schema.guests.checkOutDate,
+      // Configurable RSVP form fields
+      mealChoice: schema.guests.mealChoice,
+      notes: schema.guests.notes,
+      addressStreet: schema.guests.addressStreet,
+      addressCity: schema.guests.addressCity,
+      addressState: schema.guests.addressState,
+      addressZipCode: schema.guests.addressZipCode,
+      addressCountry: schema.guests.addressCountry,
+      transportationNeeded: schema.guests.transportationNeeded,
+      accessibilityNeeds: schema.guests.accessibilityNeeds,
+      customFieldData: schema.guests.customFieldData,
     })
     .from(schema.guests)
     .where(and(eq(schema.guests.rsvpToken, token), isNull(schema.guests.deletedAt)))
@@ -73,12 +95,37 @@ rsvp.get('/:token', async (c) => {
     );
   }
 
-  // Get event guest settings (for accommodation: hotels + event-level dates)
+  // Get RSVP settings for enforcement flags
+  const [rsvpSettings] = await db
+    .select({
+      enableRsvp: schema.eventRsvpSettings.enableRsvp,
+      allowMaybeResponse: schema.eventRsvpSettings.allowMaybeResponse,
+      rsvpDeadline: schema.eventRsvpSettings.rsvpDeadline,
+      rsvpConfirmationMessage: schema.eventRsvpSettings.rsvpConfirmationMessage,
+      allowRsvpUpdate: schema.eventRsvpSettings.allowRsvpUpdate,
+      allowRsvpPlusOnes: schema.eventRsvpSettings.allowRsvpPlusOnes,
+      rsvpFormFields: schema.eventRsvpSettings.rsvpFormFields,
+    })
+    .from(schema.eventRsvpSettings)
+    .where(eq(schema.eventRsvpSettings.eventId, guest.eventId))
+    .limit(1);
+
+  // Get event guest settings (accommodation, meal, address, transportation, accessibility, custom fields)
   let guestSettings: {
     enableAccommodation: boolean;
     accommodationHotels: string | null;
     accommodationCheckInDate: string | null;
     accommodationCheckOutDate: string | null;
+    enableMealChoice: boolean;
+    mealChoiceOptions: string | null;
+    enableTransportation: boolean;
+    enableAccessibility: boolean;
+    enableAddress: boolean;
+    customFieldDefinitions: string | null;
+    requiredMealChoice: boolean;
+    requiredAddress: boolean;
+    requiredTransportation: boolean;
+    requiredAccessibility: boolean;
   } | null = null;
   const [settingsRow] = await db
     .select({
@@ -86,6 +133,16 @@ rsvp.get('/:token', async (c) => {
       accommodationHotels: schema.eventGuestSettings.accommodationHotels,
       accommodationCheckInDate: schema.eventGuestSettings.accommodationCheckInDate,
       accommodationCheckOutDate: schema.eventGuestSettings.accommodationCheckOutDate,
+      enableMealChoice: schema.eventGuestSettings.enableMealChoice,
+      mealChoiceOptions: schema.eventGuestSettings.mealChoiceOptions,
+      enableTransportation: schema.eventGuestSettings.enableTransportation,
+      enableAccessibility: schema.eventGuestSettings.enableAccessibility,
+      enableAddress: schema.eventGuestSettings.enableAddress,
+      customFieldDefinitions: schema.eventGuestSettings.customFieldDefinitions,
+      requiredMealChoice: schema.eventGuestSettings.requiredMealChoice,
+      requiredAddress: schema.eventGuestSettings.requiredAddress,
+      requiredTransportation: schema.eventGuestSettings.requiredTransportation,
+      requiredAccessibility: schema.eventGuestSettings.requiredAccessibility,
     })
     .from(schema.eventGuestSettings)
     .where(eq(schema.eventGuestSettings.eventId, guest.eventId))
@@ -151,6 +208,67 @@ rsvp.get('/:token', async (c) => {
     }
   }
 
+  // Parse rsvpFormFields JSON — default: { dietaryRestrictions: true }, all others false
+  type RsvpFormFields = {
+    dietaryRestrictions: boolean;
+    mealChoice: boolean;
+    notes: boolean;
+    address: boolean;
+    transportation: boolean;
+    accessibility: boolean;
+    customFields: boolean;
+  };
+  const defaultFormFields: RsvpFormFields = {
+    dietaryRestrictions: true,
+    mealChoice: false,
+    notes: false,
+    address: false,
+    transportation: false,
+    accessibility: false,
+    customFields: false,
+  };
+  let rsvpFormFields: RsvpFormFields = { ...defaultFormFields };
+  if (rsvpSettings?.rsvpFormFields) {
+    try {
+      const parsed = JSON.parse(rsvpSettings.rsvpFormFields);
+      rsvpFormFields = { ...defaultFormFields, ...parsed };
+    } catch { /* use defaults */ }
+  }
+
+  // Compute effective fields: rsvpFormFields toggle AND guestSettings gate (where applicable)
+  const effectiveFields: RsvpFormFields = {
+    dietaryRestrictions: rsvpFormFields.dietaryRestrictions,
+    mealChoice: rsvpFormFields.mealChoice && (guestSettings?.enableMealChoice ?? false),
+    notes: rsvpFormFields.notes,
+    address: rsvpFormFields.address && (guestSettings?.enableAddress ?? false),
+    transportation: rsvpFormFields.transportation && (guestSettings?.enableTransportation ?? false),
+    accessibility: rsvpFormFields.accessibility && (guestSettings?.enableAccessibility ?? false),
+    customFields: rsvpFormFields.customFields && !!(guestSettings?.customFieldDefinitions),
+  };
+
+  // Parse JSON fields for response
+  let mealChoiceOptions: Array<{ key: string; label: string }> | null = null;
+  if (effectiveFields.mealChoice && guestSettings?.mealChoiceOptions) {
+    try { mealChoiceOptions = JSON.parse(guestSettings.mealChoiceOptions); } catch { /* ignore */ }
+  }
+  let customFieldDefinitions: Array<Record<string, unknown>> | null = null;
+  if (effectiveFields.customFields && guestSettings?.customFieldDefinitions) {
+    try { customFieldDefinitions = JSON.parse(guestSettings.customFieldDefinitions); } catch { /* ignore */ }
+  }
+  let parsedCustomFieldData: Record<string, unknown> | null = null;
+  if (effectiveFields.customFields && guest.customFieldData) {
+    try { parsedCustomFieldData = JSON.parse(guest.customFieldData); } catch { /* ignore */ }
+  }
+
+  // Compute enforcement states
+  const rsvpEnabled = rsvpSettings?.enableRsvp !== false; // default true if no settings row
+  const deadlinePassed = rsvpSettings?.rsvpDeadline
+    ? new Date(rsvpSettings.rsvpDeadline) < new Date()
+    : false;
+  const hasResponded = !!guest.rsvpRespondedAt;
+  const allowUpdate = rsvpSettings?.allowRsvpUpdate !== false; // default true
+  const canRespond = rsvpEnabled && !deadlinePassed && (!hasResponded || allowUpdate);
+
   return c.json({
     success: true,
     data: {
@@ -184,16 +302,40 @@ rsvp.get('/:token', async (c) => {
         hotelName: guest.hotelName ?? null,
         checkInDate: guest.checkInDate ?? null,
         checkOutDate: guest.checkOutDate ?? null,
+        // Configurable fields
+        mealChoice: guest.mealChoice ?? null,
+        notes: guest.notes ?? null,
+        addressStreet: guest.addressStreet ?? null,
+        addressCity: guest.addressCity ?? null,
+        addressState: guest.addressState ?? null,
+        addressZipCode: guest.addressZipCode ?? null,
+        addressCountry: guest.addressCountry ?? null,
+        transportationNeeded: guest.transportationNeeded ?? null,
+        accessibilityNeeds: guest.accessibilityNeeds ?? null,
+        customFieldData: parsedCustomFieldData,
       },
-      guestSettings:
-        guestSettings?.enableAccommodation
-          ? {
-              enableAccommodation: true,
-              accommodationHotels,
-              accommodationCheckInDate: guestSettings.accommodationCheckInDate ?? null,
-              accommodationCheckOutDate: guestSettings.accommodationCheckOutDate ?? null,
-            }
-          : { enableAccommodation: false, accommodationHotels: null, accommodationCheckInDate: null, accommodationCheckOutDate: null },
+      guestSettings: {
+        enableAccommodation: guestSettings?.enableAccommodation ?? false,
+        accommodationHotels: guestSettings?.enableAccommodation ? accommodationHotels : null,
+        accommodationCheckInDate: guestSettings?.enableAccommodation ? (guestSettings.accommodationCheckInDate ?? null) : null,
+        accommodationCheckOutDate: guestSettings?.enableAccommodation ? (guestSettings.accommodationCheckOutDate ?? null) : null,
+        mealChoiceOptions,
+        customFieldDefinitions,
+        requiredMealChoice: guestSettings?.requiredMealChoice ?? false,
+        requiredAddress: guestSettings?.requiredAddress ?? false,
+        requiredTransportation: guestSettings?.requiredTransportation ?? false,
+        requiredAccessibility: guestSettings?.requiredAccessibility ?? false,
+      },
+      rsvpSettings: {
+        enabled: rsvpEnabled,
+        allowMaybeResponse: rsvpSettings?.allowMaybeResponse !== false,
+        rsvpDeadline: rsvpSettings?.rsvpDeadline ?? null,
+        deadlinePassed,
+        allowRsvpUpdate: allowUpdate,
+        confirmationMessage: rsvpSettings?.rsvpConfirmationMessage ?? null,
+        canRespond,
+        rsvpFormFields: effectiveFields,
+      },
     },
   });
 });
@@ -217,6 +359,7 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
       email: schema.guests.email,
       plusOnesAllowed: schema.guests.plusOnesAllowed,
       rsvpStatus: schema.guests.rsvpStatus,
+      rsvpRespondedAt: schema.guests.rsvpRespondedAt,
       plusOnesCount: schema.guests.plusOnesCount,
       plusOnesCountAdults: schema.guests.plusOnesCountAdults,
       plusOnesCountChildren: schema.guests.plusOnesCountChildren,
@@ -225,6 +368,17 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
       hotelName: schema.guests.hotelName,
       checkInDate: schema.guests.checkInDate,
       checkOutDate: schema.guests.checkOutDate,
+      // Configurable fields for audit diff
+      mealChoice: schema.guests.mealChoice,
+      notes: schema.guests.notes,
+      addressStreet: schema.guests.addressStreet,
+      addressCity: schema.guests.addressCity,
+      addressState: schema.guests.addressState,
+      addressZipCode: schema.guests.addressZipCode,
+      addressCountry: schema.guests.addressCountry,
+      transportationNeeded: schema.guests.transportationNeeded,
+      accessibilityNeeds: schema.guests.accessibilityNeeds,
+      customFieldData: schema.guests.customFieldData,
     })
     .from(schema.guests)
     .where(and(eq(schema.guests.rsvpToken, token), isNull(schema.guests.deletedAt)))
@@ -234,6 +388,73 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Invalid RSVP link' } },
       404
+    );
+  }
+
+  // ===== ENFORCE RSVP SETTINGS =====
+  const [rsvpSettings] = await db
+    .select({
+      enableRsvp: schema.eventRsvpSettings.enableRsvp,
+      allowMaybeResponse: schema.eventRsvpSettings.allowMaybeResponse,
+      rsvpDeadline: schema.eventRsvpSettings.rsvpDeadline,
+      allowRsvpUpdate: schema.eventRsvpSettings.allowRsvpUpdate,
+      sendRsvpConfirmation: schema.eventRsvpSettings.sendRsvpConfirmation,
+      rsvpFormFields: schema.eventRsvpSettings.rsvpFormFields,
+    })
+    .from(schema.eventRsvpSettings)
+    .where(eq(schema.eventRsvpSettings.eventId, guest.eventId))
+    .limit(1);
+
+  // Check enableRsvp
+  if (rsvpSettings && !rsvpSettings.enableRsvp) {
+    return c.json(
+      { success: false, error: { code: 'RSVP_DISABLED', message: 'RSVP is not available for this event' } },
+      403
+    );
+  }
+
+  // Check rsvpDeadline
+  if (rsvpSettings?.rsvpDeadline) {
+    const deadline = new Date(rsvpSettings.rsvpDeadline);
+    if (deadline < new Date()) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'RSVP_DEADLINE_PASSED',
+            message: `The RSVP deadline has passed (${deadline.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })})`,
+          },
+        },
+        410
+      );
+    }
+  }
+
+  // Check allowRsvpUpdate
+  if (guest.rsvpRespondedAt && rsvpSettings && !rsvpSettings.allowRsvpUpdate) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'RSVP_UPDATE_NOT_ALLOWED',
+          message: 'You have already responded to this invitation. The organizer does not allow response updates.',
+        },
+      },
+      403
+    );
+  }
+
+  // Check allowMaybeResponse
+  if (data.rsvpStatus === 'maybe' && rsvpSettings && !rsvpSettings.allowMaybeResponse) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'MAYBE_NOT_ALLOWED',
+          message: 'The "Maybe" response is not available for this event. Please select Yes or No.',
+        },
+      },
+      400
     );
   }
 
@@ -295,6 +516,54 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     }
   }
 
+  // Parse rsvpFormFields to know which fields are enabled
+  type RsvpFormFields = {
+    dietaryRestrictions: boolean;
+    mealChoice: boolean;
+    notes: boolean;
+    address: boolean;
+    transportation: boolean;
+    accessibility: boolean;
+    customFields: boolean;
+  };
+  const defaultFormFields: RsvpFormFields = {
+    dietaryRestrictions: true,
+    mealChoice: false,
+    notes: false,
+    address: false,
+    transportation: false,
+    accessibility: false,
+    customFields: false,
+  };
+  let formFields: RsvpFormFields = { ...defaultFormFields };
+  if (rsvpSettings?.rsvpFormFields) {
+    try {
+      const parsed = JSON.parse(rsvpSettings.rsvpFormFields);
+      formFields = { ...defaultFormFields, ...parsed };
+    } catch { /* use defaults */ }
+  }
+
+  // Validate mealChoice against mealChoiceOptions when enabled
+  if (formFields.mealChoice && data.mealChoice) {
+    const [gsRow] = await db
+      .select({ enableMealChoice: schema.eventGuestSettings.enableMealChoice, mealChoiceOptions: schema.eventGuestSettings.mealChoiceOptions })
+      .from(schema.eventGuestSettings)
+      .where(eq(schema.eventGuestSettings.eventId, guest.eventId))
+      .limit(1);
+    if (gsRow?.enableMealChoice && gsRow.mealChoiceOptions) {
+      try {
+        const options: Array<{ key: string; label: string }> = JSON.parse(gsRow.mealChoiceOptions);
+        const validKeys = options.map((o) => o.key);
+        if (!validKeys.includes(data.mealChoice)) {
+          return c.json(
+            { success: false, error: { code: 'VALIDATION_ERROR', message: `Meal choice must be one of: ${options.map((o) => o.label).join(', ')}` } },
+            400
+          );
+        }
+      } catch { /* skip validation if options are malformed */ }
+    }
+  }
+
   // Build audit changes for RSVP update
   const auditChanges: { field: string; from: unknown; to: unknown }[] = [];
   if (guest.rsvpStatus !== data.rsvpStatus) {
@@ -323,6 +592,26 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
   if (data.checkOutDate !== undefined && (guest.checkOutDate?.getTime?.() ?? guest.checkOutDate) !== (data.checkOutDate?.getTime?.() ?? null)) {
     auditChanges.push({ field: 'checkOutDate', from: guest.checkOutDate ?? null, to: data.checkOutDate ?? null });
   }
+  // Audit for configurable fields
+  if (formFields.mealChoice && data.mealChoice !== undefined && (guest.mealChoice ?? null) !== (data.mealChoice ?? null)) {
+    auditChanges.push({ field: 'mealChoice', from: guest.mealChoice ?? null, to: data.mealChoice ?? null });
+  }
+  if (formFields.notes && data.notes !== undefined && (guest.notes ?? null) !== (data.notes ?? null)) {
+    auditChanges.push({ field: 'notes', from: guest.notes ?? null, to: data.notes ?? null });
+  }
+  if (formFields.transportation && data.transportationNeeded !== undefined && (guest.transportationNeeded ?? null) !== (data.transportationNeeded ?? null)) {
+    auditChanges.push({ field: 'transportationNeeded', from: guest.transportationNeeded ?? null, to: data.transportationNeeded ?? null });
+  }
+  if (formFields.accessibility && data.accessibilityNeeds !== undefined && (guest.accessibilityNeeds ?? null) !== (data.accessibilityNeeds ?? null)) {
+    auditChanges.push({ field: 'accessibilityNeeds', from: guest.accessibilityNeeds ?? null, to: data.accessibilityNeeds ?? null });
+  }
+  if (formFields.address) {
+    for (const f of ['addressStreet', 'addressCity', 'addressState', 'addressZipCode', 'addressCountry'] as const) {
+      if (data[f] !== undefined && (guest[f] ?? null) !== (data[f] ?? null)) {
+        auditChanges.push({ field: f, from: guest[f] ?? null, to: data[f] ?? null });
+      }
+    }
+  }
 
   const newPlusOnesAdults = data.rsvpStatus === 'confirmed' ? adults : 0;
   const newPlusOnesChildren = data.rsvpStatus === 'confirmed' ? children : 0;
@@ -331,14 +620,33 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     plusOnesCount: data.rsvpStatus === 'confirmed' ? plusOnesCount : 0,
     plusOnesCountAdults: newPlusOnesAdults,
     plusOnesCountChildren: newPlusOnesChildren,
-    dietaryRestrictions: data.dietaryRestrictions ?? null,
+    dietaryRestrictions: formFields.dietaryRestrictions ? (data.dietaryRestrictions ?? null) : undefined,
     rsvpRespondedAt: new Date(),
     updatedAt: new Date(),
   };
+  // Remove undefined keys (dietaryRestrictions when disabled)
+  if (updatePayload.dietaryRestrictions === undefined) delete updatePayload.dietaryRestrictions;
+
   if (data.needsAccommodation !== undefined) updatePayload.needsAccommodation = data.needsAccommodation;
   if (data.hotelName !== undefined) updatePayload.hotelName = data.hotelName ?? null;
   if (data.checkInDate !== undefined) updatePayload.checkInDate = data.checkInDate ?? null;
   if (data.checkOutDate !== undefined) updatePayload.checkOutDate = data.checkOutDate ?? null;
+
+  // Configurable fields — only save when toggle is on
+  if (formFields.mealChoice && data.mealChoice !== undefined) updatePayload.mealChoice = data.mealChoice ?? null;
+  if (formFields.notes && data.notes !== undefined) updatePayload.notes = data.notes ?? null;
+  if (formFields.transportation && data.transportationNeeded !== undefined) updatePayload.transportationNeeded = data.transportationNeeded ?? null;
+  if (formFields.accessibility && data.accessibilityNeeds !== undefined) updatePayload.accessibilityNeeds = data.accessibilityNeeds ?? null;
+  if (formFields.address) {
+    if (data.addressStreet !== undefined) updatePayload.addressStreet = data.addressStreet ?? null;
+    if (data.addressCity !== undefined) updatePayload.addressCity = data.addressCity ?? null;
+    if (data.addressState !== undefined) updatePayload.addressState = data.addressState ?? null;
+    if (data.addressZipCode !== undefined) updatePayload.addressZipCode = data.addressZipCode ?? null;
+    if (data.addressCountry !== undefined) updatePayload.addressCountry = data.addressCountry ?? null;
+  }
+  if (formFields.customFields && data.customFieldData !== undefined) {
+    updatePayload.customFieldData = data.customFieldData ? JSON.stringify(data.customFieldData) : null;
+  }
 
   // Update guest RSVP
   const [updatedGuest] = await db
@@ -372,8 +680,9 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
     });
   }
 
-  // Send confirmation email (best-effort)
-  if (guest.email) {
+  // Send confirmation email (best-effort) — respect sendRsvpConfirmation toggle
+  const shouldSendConfirmation = !rsvpSettings || rsvpSettings.sendRsvpConfirmation !== false;
+  if (shouldSendConfirmation && guest.email) {
     const [eventInfo] = await db
       .select({
         title: schema.events.title,

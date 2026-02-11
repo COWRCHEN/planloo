@@ -1,0 +1,1 @@
+ALTER TABLE `event_rsvp_settings` ADD `rsvp_form_fields` text;

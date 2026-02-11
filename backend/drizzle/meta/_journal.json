@@ -92,6 +92,13 @@
       "when": 1770752954226,
       "tag": "0012_square_alex_power",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1770775070845,
+      "tag": "0013_slippery_gabe_jones",
+      "breakpoints": true
     }
   ]
 }

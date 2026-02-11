@@ -23,3 +23,8 @@ devops - The Developer has implemented the event planner features. Please review
   3. Run the backend: cd backend && npm run dev
   4. Run the frontend: cd frontend && npm run dev
   5. Test by navigating to http://localhost:4321/login
+
+  
+ Developer,   Please implement ### Week 5: Budget Management in @roadmap. 
+ 
+ Developer,   Please implement ### Week 6: Service Provider & Venue Listings in @roadmap.

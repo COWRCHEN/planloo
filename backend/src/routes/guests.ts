@@ -2108,6 +2108,191 @@ guests.delete('/:guestUuid', requireAuth, async (c) => {
 });
 
 /**
+ * POST /events/:eventUuid/guests/send-invitations
+ * Batch send RSVP invitations to eligible guests.
+ * Sets status to 'invited' and sends emails (respecting settings).
+ */
+guests.post(
+  '/send-invitations',
+  requireAuth,
+  requireVerifiedEmail,
+  zValidator(
+    'json',
+    z.object({
+      guestUuids: z.union([z.array(z.string().uuid()), z.literal('all-eligible')]),
+    })
+  ),
+  async (c) => {
+    const user = c.get('user')!;
+    const eventUuid = c.req.param('eventUuid')!;
+    const { guestUuids } = c.req.valid('json');
+
+    const db = createDbClient(c.env.DB);
+
+    // Verify event ownership
+    const event = await getEventByUuidForUser(db, eventUuid, user.id);
+    if (!event) {
+      return c.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
+        404
+      );
+    }
+
+    // Check RSVP settings
+    const [rsvpSettings] = await db
+      .select({
+        enableRsvp: schema.eventRsvpSettings.enableRsvp,
+        sendRsvpInvitation: schema.eventRsvpSettings.sendRsvpInvitation,
+      })
+      .from(schema.eventRsvpSettings)
+      .where(eq(schema.eventRsvpSettings.eventId, event.id))
+      .limit(1);
+
+    if (rsvpSettings && !rsvpSettings.enableRsvp) {
+      return c.json(
+        { success: false, error: { code: 'RSVP_DISABLED', message: 'RSVP is not enabled for this event. Enable it in event settings.' } },
+        400
+      );
+    }
+
+    // Fetch event details for email
+    const [eventDetails] = await db
+      .select({
+        title: schema.events.title,
+        startDate: schema.events.startDate,
+        locationName: schema.events.locationName,
+      })
+      .from(schema.events)
+      .where(eq(schema.events.id, event.id))
+      .limit(1);
+
+    const eventDate = eventDetails?.startDate
+      ? new Date(eventDetails.startDate).toLocaleDateString('en-US', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        })
+      : 'TBD';
+
+    // Get eligible guests
+    const baseConditions = [
+      eq(schema.guests.eventId, event.id),
+      isNull(schema.guests.deletedAt),
+    ];
+
+    // Only pending/invited are eligible
+    const eligibleGuests = await db
+      .select({
+        id: schema.guests.id,
+        uuid: schema.guests.uuid,
+        firstName: schema.guests.firstName,
+        lastName: schema.guests.lastName,
+        email: schema.guests.email,
+        rsvpStatus: schema.guests.rsvpStatus,
+        rsvpToken: schema.guests.rsvpToken,
+      })
+      .from(schema.guests)
+      .where(and(...baseConditions));
+
+    // Filter to eligible (have email, pending or invited status)
+    let targetGuests = eligibleGuests.filter(
+      (g) => g.email && (g.rsvpStatus === 'pending' || g.rsvpStatus === 'invited')
+    );
+
+    // If specific UUIDs, further filter
+    if (guestUuids !== 'all-eligible') {
+      const uuidSet = new Set(guestUuids);
+      targetGuests = targetGuests.filter((g) => uuidSet.has(g.uuid));
+    }
+
+    if (targetGuests.length === 0) {
+      return c.json({
+        success: true,
+        data: { sent: 0, failed: [], total: 0 },
+      });
+    }
+
+    const shouldSendEmail = !rsvpSettings || rsvpSettings.sendRsvpInvitation !== false;
+    const results: Array<{ guestUuid: string; name: string; email: string; success: boolean; error?: string }> = [];
+
+    for (const guest of targetGuests) {
+      const guestName = [guest.firstName, guest.lastName].filter(Boolean).join(' ');
+
+      // Update status to 'invited' if currently 'pending'
+      if (guest.rsvpStatus === 'pending') {
+        await db
+          .update(schema.guests)
+          .set({ rsvpStatus: 'invited', updatedAt: new Date() })
+          .where(eq(schema.guests.uuid, guest.uuid));
+      }
+
+      if (!shouldSendEmail) {
+        results.push({ guestUuid: guest.uuid, name: guestName, email: guest.email!, success: true });
+        continue;
+      }
+
+      const rsvpUrl = `${c.env.FRONTEND_URL}/rsvp/${guest.rsvpToken}`;
+
+      try {
+        const result = await sendRsvpInvitationEmail(c.env, {
+          to: guest.email!,
+          guestName,
+          eventTitle: eventDetails?.title ?? 'Event',
+          eventDate,
+          eventLocation: eventDetails?.locationName ?? null,
+          rsvpUrl,
+        });
+        const actuallySent = Boolean(result.id);
+        results.push({
+          guestUuid: guest.uuid,
+          name: guestName,
+          email: guest.email!,
+          success: actuallySent,
+          ...(actuallySent ? {} : { error: 'Email delivery failed' }),
+        });
+        await logEmail({
+          db,
+          recipientEmail: guest.email!,
+          emailType: 'rsvp_invitation',
+          subject: `You're invited: ${eventDetails?.title ?? 'Event'}`,
+          status: actuallySent ? 'sent' : 'failed',
+          resendId: result.id ?? undefined,
+          errorMessage: actuallySent ? undefined : 'Email not sent',
+          userId: user.id,
+          eventId: event.id,
+          metadata: { guestUuid: guest.uuid, eventUuid, batch: true },
+        });
+      } catch (err) {
+        results.push({
+          guestUuid: guest.uuid,
+          name: guestName,
+          email: guest.email!,
+          success: false,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        });
+        await logEmail({
+          db,
+          recipientEmail: guest.email!,
+          emailType: 'rsvp_invitation',
+          subject: `You're invited: ${eventDetails?.title ?? 'Event'}`,
+          status: 'failed',
+          errorMessage: err instanceof Error ? err.message : 'Unknown error',
+          userId: user.id,
+          eventId: event.id,
+          metadata: { guestUuid: guest.uuid, eventUuid, batch: true },
+        });
+      }
+    }
+
+    const sentCount = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success);
+
+    return c.json({
+      success: true,
+      data: { sent: sentCount, failed, total: targetGuests.length },
+    });
+  }
+);
+
+/**
  * POST /events/:eventUuid/guests/:guestUuid/checkin
  * Toggle guest check-in status
  */
@@ -2231,46 +2416,74 @@ guests.post('/:guestUuid/resend-rsvp', requireAuth, requireVerifiedEmail, async 
       })
     : 'TBD';
 
+  // Fetch RSVP settings to respect email toggle
+  const [rsvpSettings] = await db
+    .select({
+      enableRsvp: schema.eventRsvpSettings.enableRsvp,
+      sendRsvpInvitation: schema.eventRsvpSettings.sendRsvpInvitation,
+    })
+    .from(schema.eventRsvpSettings)
+    .where(eq(schema.eventRsvpSettings.eventId, event.id))
+    .limit(1);
+
+  if (rsvpSettings && !rsvpSettings.enableRsvp) {
+    return c.json(
+      { success: false, error: { code: 'RSVP_DISABLED', message: 'RSVP is not enabled for this event. Enable it in event settings.' } },
+      400
+    );
+  }
+
+  // Update status to 'invited' if currently 'pending'
+  if (guest.rsvpStatus === 'pending') {
+    await db
+      .update(schema.guests)
+      .set({ rsvpStatus: 'invited', updatedAt: new Date() })
+      .where(eq(schema.guests.uuid, guestUuid));
+  }
+
+  // Send email if the toggle is on (default: send)
+  const shouldSendEmail = !rsvpSettings || rsvpSettings.sendRsvpInvitation !== false;
   let sent = true;
-  let resendId: string | undefined;
-  try {
-    const result = await sendRsvpInvitationEmail(c.env, {
-      to: guest.email,
-      guestName,
-      eventTitle: eventDetails?.title ?? 'Event',
-      eventDate,
-      eventLocation: eventDetails?.locationName ?? null,
-      rsvpUrl,
-    });
-    resendId = result.id;
-    const actuallySent = Boolean(result.id);
-    if (!actuallySent) sent = false;
-    await logEmail({
-      db,
-      recipientEmail: guest.email,
-      emailType: 'rsvp_invitation',
-      subject: `You're invited: ${eventDetails?.title ?? 'Event'}`,
-      status: actuallySent ? 'sent' : 'failed',
-      resendId: result.id ?? undefined,
-      errorMessage: actuallySent ? undefined : 'Email not sent (development mode or EMAIL_API_KEY not configured)',
-      userId: user.id,
-      eventId: event.id,
-      metadata: { guestUuid, eventUuid },
-    });
-  } catch (err) {
-    sent = false;
-    console.error('Failed to send RSVP invitation email:', err);
-    await logEmail({
-      db,
-      recipientEmail: guest.email,
-      emailType: 'rsvp_invitation',
-      subject: `You're invited: ${eventDetails?.title ?? 'Event'}`,
-      status: 'failed',
-      errorMessage: err instanceof Error ? err.message : 'Unknown error',
-      userId: user.id,
-      eventId: event.id,
-      metadata: { guestUuid, eventUuid },
-    });
+
+  if (shouldSendEmail) {
+    try {
+      const result = await sendRsvpInvitationEmail(c.env, {
+        to: guest.email,
+        guestName,
+        eventTitle: eventDetails?.title ?? 'Event',
+        eventDate,
+        eventLocation: eventDetails?.locationName ?? null,
+        rsvpUrl,
+      });
+      const actuallySent = Boolean(result.id);
+      if (!actuallySent) sent = false;
+      await logEmail({
+        db,
+        recipientEmail: guest.email,
+        emailType: 'rsvp_invitation',
+        subject: `You're invited: ${eventDetails?.title ?? 'Event'}`,
+        status: actuallySent ? 'sent' : 'failed',
+        resendId: result.id ?? undefined,
+        errorMessage: actuallySent ? undefined : 'Email not sent (development mode or EMAIL_API_KEY not configured)',
+        userId: user.id,
+        eventId: event.id,
+        metadata: { guestUuid, eventUuid },
+      });
+    } catch (err) {
+      sent = false;
+      console.error('Failed to send RSVP invitation email:', err);
+      await logEmail({
+        db,
+        recipientEmail: guest.email,
+        emailType: 'rsvp_invitation',
+        subject: `You're invited: ${eventDetails?.title ?? 'Event'}`,
+        status: 'failed',
+        errorMessage: err instanceof Error ? err.message : 'Unknown error',
+        userId: user.id,
+        eventId: event.id,
+        metadata: { guestUuid, eventUuid },
+      });
+    }
   }
 
   return c.json({

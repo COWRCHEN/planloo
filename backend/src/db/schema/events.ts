@@ -290,6 +290,10 @@ export const eventRsvpSettings = sqliteTable('event_rsvp_settings', {
   sendRsvpInvitation: integer('send_rsvp_invitation', { mode: 'boolean' }).default(true).notNull(),
   sendRsvpConfirmation: integer('send_rsvp_confirmation', { mode: 'boolean' }).default(true).notNull(),
 
+  // JSON: which guest fields appear on the public RSVP form
+  // { dietaryRestrictions, mealChoice, notes, address, transportation, accessibility, customFields }
+  rsvpFormFields: text('rsvp_form_fields'),
+
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
