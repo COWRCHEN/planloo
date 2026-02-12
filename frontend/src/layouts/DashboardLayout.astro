@@ -6,7 +6,7 @@
  */
 
 import BaseLayout from './BaseLayout.astro';
-import { DashboardAuthCheck, UserMenu } from '@/components/dashboard';
+import { DashboardAuthCheck, UserMenu, AdminLink } from '@/components/dashboard';
 
 interface Props {
   title: string;
@@ -95,6 +95,7 @@ export const prerender = false;
               </svg>
               Settings
             </a>
+            <AdminLink client:load />
           </nav>
 
           <!-- User menu -->

@@ -1,0 +1,14 @@
+---
+/**
+ * Admin Audit Log Page
+ */
+
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { AdminAuditLogView } from '@/components/admin';
+
+export const prerender = false;
+---
+
+<AdminLayout title="Audit Log">
+  <AdminAuditLogView client:load />
+</AdminLayout>

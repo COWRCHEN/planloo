@@ -1,0 +1,14 @@
+---
+/**
+ * Admin Dashboard Page
+ */
+
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { AdminDashboardView } from '@/components/admin';
+
+export const prerender = false;
+---
+
+<AdminLayout title="Admin Dashboard">
+  <AdminDashboardView client:load />
+</AdminLayout>

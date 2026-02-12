@@ -1,0 +1,14 @@
+---
+/**
+ * Admin Users Page
+ */
+
+import AdminLayout from '@/layouts/AdminLayout.astro';
+import { AdminUsersView } from '@/components/admin';
+
+export const prerender = false;
+---
+
+<AdminLayout title="User Management">
+  <AdminUsersView client:load />
+</AdminLayout>
