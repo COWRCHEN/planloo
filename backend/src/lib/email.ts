@@ -411,10 +411,10 @@ export async function sendRsvpConfirmationEmail(
       ${locationHtml}
     </div>
     ${rsvpStatus === 'confirmed' ? '<p>We look forward to seeing you there!</p>' : ''}
-    ${rsvpStatus === 'maybe' ? '<p>We hope you can make it! You can update your response at any time.</p>' : ''}
-    <p style="color: #6b7280; font-size: 14px;">If you need to change your response, use the original invitation link.</p>
+    ${rsvpStatus === 'maybe' ? '<p>We hope you can make it! To update your response, contact the event organizer for a new invitation link.</p>' : ''}
+    <p style="color: #6b7280; font-size: 14px;">If you need to change your response, please contact the event organizer to receive a new invitation link.</p>
     `,
-    `Hi ${guestName},\n\nYour RSVP for ${eventTitle} has been recorded.\n\nStatus: ${statusLabel}\nDate: ${eventDate}\n${locationText}\nIf you need to change your response, use the original invitation link.`,
+    `Hi ${guestName},\n\nYour RSVP for ${eventTitle} has been recorded.\n\nStatus: ${statusLabel}\nDate: ${eventDate}\n${locationText}\nIf you need to change your response, please contact the event organizer to receive a new invitation link.`,
     { unsubscribeNote: true }
   );
 
