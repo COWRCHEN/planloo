@@ -1,6 +1,6 @@
 # Organizations & Event Collaboration
 
-Multi-org membership and event collaboration system that extends personal event ownership with organization-based and collaborator-based access.
+Multi-org membership and event collaboration system. Events are always owned by a user; org admins can assign/unassign their own events to an organization so that all org members gain access.
 
 ---
 
@@ -8,12 +8,12 @@ Multi-org membership and event collaboration system that extends personal event 
 
 | Concept | Description |
 |---------|-------------|
-| **Personal event** | Owned by a single user (`events.userId`) |
-| **Org event** | Owned by an organization (`events.organizationId`); all org members have access based on their org role |
-| **Collaborator** | A user invited to a personal event with a specific role (owner/editor/viewer) |
+| **Personal event** | Owned by a single user (`events.userId`, always set) |
+| **Assigned event** | A personal event that is also linked to an org (`events.organizationId`); org members gain access based on their role |
+| **Collaborator** | A user invited to an event with a specific role (owner/editor/viewer) |
 | **Organization** | A team entity (company or family) with admin/member/viewer roles |
 
-Events belong to **either** a user or an organization, never both.
+Events **always** have a `userId` (owner). They can **optionally** have an `organizationId` (assigned to an org). Both fields can be set simultaneously.
 
 ---
 
@@ -65,6 +65,21 @@ Mounted at `/api/v1/organizations`.
 | PATCH | `/:orgId/members/:memberId` | Change member role | requireAuth (admin) |
 | DELETE | `/:orgId/members/:memberId` | Remove member or self-leave | requireAuth (admin or self) |
 
+### Organization Event Assignment
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/:orgId/events` | List events assigned to org | requireAuth (any member) |
+| PUT | `/:orgId/events/:eventUuid` | Assign event to org | requireAuth (admin, must be event owner) |
+| DELETE | `/:orgId/events/:eventUuid` | Unassign event from org | requireAuth (admin) |
+
+**Assign rules:**
+
+- Only org admins can assign/unassign events
+- Admin can only assign events they own (`event.userId === user.id`)
+- If the event is already assigned to another org, the request is rejected (409)
+- Assigning to the same org is idempotent (200)
+
 ### Organization Invitations
 
 | Method | Path | Description | Auth |
@@ -102,10 +117,10 @@ Collaborators are auto-accepted on invite. The invited user must have a Planloo 
 ### Updated Existing Endpoints
 
 - **GET /api/v1/me** &mdash; now includes `organizations: [{ id, name, slug, role }]`
-- **GET /api/v1/events** &mdash; returns personal + org + collaborator events; supports `?source=personal|organization|collaboration|all`
+- **GET /api/v1/events** &mdash; returns personal + org-assigned + collaborator events; supports `?source=personal|organization|collaboration|all`
 - **GET /api/v1/events/:uuid** &mdash; response includes `_access` object with permission flags
-- **GET /api/v1/events/stats** &mdash; counts include org and collaborator events
-- **GET /api/v1/budget/summary** &mdash; aggregates across org and collaborator events
+- **GET /api/v1/events/stats** &mdash; counts include org-assigned and collaborator events
+- **GET /api/v1/budget/summary** &mdash; aggregates across org-assigned and collaborator events
 
 ---
 
@@ -125,32 +140,32 @@ The `/invitations/{token}` page handles both authenticated and unauthenticated u
 
 ```
 Email link clicked
-       │
-       ▼
+       |
+       v
 GET /invitations/:token (public)
-  → Shows org name, role, inviter
-       │
-       ├── User is logged in?
-       │     ├── Yes → "Accept" / "Decline" buttons
-       │     │           │
-       │     │           ▼
-       │     │    POST /invitations/accept (requireAuth)
-       │     │           │
-       │     │           ▼
-       │     │    Redirect to /dashboard/organizations/:orgId
-       │     │
-       │     └── No → "Log In" / "Create Account" buttons
-       │               (both preserve returnUrl=/invitations/{token})
-       │               │
-       │               ├── Existing user → /login?returnUrl=...
-       │               │     → After login → back to /invitations/{token}
-       │               │
-       │               └── New user → /register?returnUrl=...
-       │                     → signUp passes callbackURL to Better Auth
-       │                     → Verification email link includes callbackURL=/invitations/{token}
-       │                     → /verify-email → "Continue to Invitation" button
-       │                     → autoSignInAfterVerification: true
-       │                     → Back to /invitations/{token} → Accept
+  -> Shows org name, role, inviter
+       |
+       +-- User is logged in?
+       |     +-- Yes -> "Accept" / "Decline" buttons
+       |     |           |
+       |     |           v
+       |     |    POST /invitations/accept (requireAuth)
+       |     |           |
+       |     |           v
+       |     |    Redirect to /dashboard/organizations/:orgId
+       |     |
+       |     +-- No -> "Log In" / "Create Account" buttons
+       |               (both preserve returnUrl=/invitations/{token})
+       |               |
+       |               +-- Existing user -> /login?returnUrl=...
+       |               |     -> After login -> back to /invitations/{token}
+       |               |
+       |               +-- New user -> /register?returnUrl=...
+       |                     -> signUp passes callbackURL to Better Auth
+       |                     -> Verification email link includes callbackURL=/invitations/{token}
+       |                     -> /verify-email -> "Continue to Invitation" button
+       |                     -> autoSignInAfterVerification: true
+       |                     -> Back to /invitations/{token} -> Accept
 ```
 
 ### Dashboard Pending Invitations Banner
@@ -163,7 +178,7 @@ As a fallback for when the email link or `callbackURL` chain is lost (e.g. user 
 - Dismissible per session (state resets on page reload)
 - Banner disappears automatically once the invitation is accepted or expires
 
-This is the primary discovery mechanism — works regardless of how the user reached the dashboard (direct login, OAuth, bookmark, etc.).
+This is the primary discovery mechanism -- works regardless of how the user reached the dashboard (direct login, OAuth, bookmark, etc.).
 
 ### Key Implementation Details
 
@@ -173,7 +188,7 @@ This is the primary discovery mechanism — works regardless of how the user rea
 | Email failures don't break invitation creation | `.catch()` logs error, invitation is still created |
 | Unauthenticated users can view invitation | `GET /invitations/:token` has no auth middleware |
 | Pending invitations shown on dashboard | `GET /invitations/pending` + `PendingInvitationsBanner` component |
-| `returnUrl` preserved through registration | Passed as `callbackURL` to `authClient.signUp.email()` → included in verification email |
+| `returnUrl` preserved through registration | Passed as `callbackURL` to `authClient.signUp.email()` -> included in verification email |
 | User auto-signed-in after verification | `autoSignInAfterVerification: true` in Better Auth config |
 | Email must match to accept | `POST /invitations/accept` checks `invitation.email === user.email` |
 
@@ -187,6 +202,8 @@ Already defined in `backend/src/db/schema/`:
 - `organizationMember` &mdash; organizationId, userId, role (admin/member/viewer)
 - `organizationInvitation` &mdash; organizationId, email, role, token, expiresAt, acceptedAt
 - `eventCollaborators` &mdash; eventId, userId, role (owner/editor/viewer), invitedBy, acceptedAt
+- `events.userId` &mdash; always set (NOT NULL), the personal owner
+- `events.organizationId` &mdash; optional, set when assigned to an org (ON DELETE SET NULL)
 
 ---
 
@@ -210,6 +227,7 @@ Already defined in `backend/src/db/schema/`:
 - `useOrgMembers(orgId)`, `useUpdateMemberRole(orgId)`, `useRemoveMember(orgId)`
 - `useOrgInvitations(orgId)`, `useInviteMember(orgId)`, `useRevokeInvitation(orgId)`
 - `useInvitationDetails(token)`, `useAcceptInvitation()`
+- `useOrgEvents(orgId)`, `useAssignEvent(orgId)`, `useUnassignEvent(orgId)`
 
 **`hooks/use-collaborators.ts`** &mdash; TanStack Query hooks:
 
@@ -224,17 +242,17 @@ Already defined in `backend/src/db/schema/`:
 |-----------|-------------|
 | `OrganizationsView` | Org list grid with cards |
 | `CreateOrgView` | Create form with slug auto-generation and availability check |
-| `OrgDetailView` | Tabs: Members (role management), Invitations, Settings (delete) |
+| `OrgDetailView` | Tabs: Members, Events (assign/unassign), Invitations, Settings (delete) |
 | `AcceptInvitationView` | Invitation acceptance page |
 | `OrgRoleBadge` | Badge for admin/member/viewer |
 
-**`components/dashboard/`** (new)
+**`components/dashboard/`**
 
 | Component | Description |
 |-----------|-------------|
 | `PendingInvitationsBanner` | Shows pending org invitations at the top of the dashboard |
 
-**`components/events/`** (new)
+**`components/events/`**
 
 | Component | Description |
 |-----------|-------------|
@@ -244,10 +262,10 @@ Already defined in `backend/src/db/schema/`:
 
 ### Modified Components
 
-- **`EventForm`** &mdash; optional organization select on step 1 (only shown when user belongs to orgs, only for new events)
+- **`EventForm`** &mdash; no longer has an organization selector; events are always personal
 - **`EventFilters`** &mdash; source filter dropdown (All / Personal / Organization / Shared with Me)
 - **`EventList`** &mdash; source filter state wired to EventFilters
-- **`EventSettingsView`** &mdash; Collaborators accordion section (personal events only; org events use org membership)
+- **`EventSettingsView`** &mdash; shows org assignment badge; Collaborators section always visible
 - **`DashboardLayout`** &mdash; Organizations link in sidebar navigation
 
 ---
@@ -283,29 +301,31 @@ frontend/src/pages/invitations/[token].astro
 ### Modified Files
 
 ```
-backend/src/routes/index.ts          # mount routes, /me orgs, invitations (public GET, pending), budget summary
-backend/src/routes/organizations.ts  # invitation email sending via sendOrgInvitationEmail
-backend/src/routes/events.ts         # resolveEventAccess, source filter, stats
-backend/src/routes/budget.ts         # resolveEventAccess
-backend/src/routes/guests.ts         # resolveEventAccess
-backend/src/routes/event-providers.ts # resolveEventAccess
+backend/src/db/schema/events.ts           # userId is NOT NULL, organizationId ON DELETE SET NULL
+backend/src/routes/index.ts               # mount routes, /me orgs, invitations (public GET, pending), budget summary
+backend/src/routes/organizations.ts       # event assign/unassign endpoints, invitation email sending
+backend/src/routes/events.ts              # resolveEventAccess, source filter, stats
+backend/src/routes/budget.ts              # resolveEventAccess
+backend/src/routes/guests.ts              # resolveEventAccess
+backend/src/routes/event-providers.ts     # resolveEventAccess
 backend/src/routes/notification-settings.ts # resolveEventAccess
-backend/src/types/env.ts             # EventAccess in HonoEnv Variables
-backend/src/lib/email.ts             # sendOrgInvitationEmail
-shared/schemas/index.ts              # barrel exports
-frontend/src/hooks/use-events.ts     # source filter, CreateEventInput.organizationId
-frontend/src/hooks/use-organizations.ts # usePendingInvitations hook, accept invalidates pending
-frontend/src/hooks/use-auth.ts       # useSignUp accepts callbackURL for verification email redirect
+backend/src/types/env.ts                  # EventAccess in HonoEnv Variables
+backend/src/lib/email.ts                  # sendOrgInvitationEmail
+shared/schemas/index.ts                   # barrel exports
+shared/schemas/event.ts                   # EventResponse.userId is non-nullable
+frontend/src/hooks/use-events.ts          # source filter, removed organizationId from CreateEventInput
+frontend/src/hooks/use-organizations.ts   # useOrgEvents, useAssignEvent, useUnassignEvent, usePendingInvitations
+frontend/src/hooks/use-auth.ts            # useSignUp accepts callbackURL for verification email redirect
 frontend/src/components/dashboard/DashboardView.tsx  # PendingInvitationsBanner integration
 frontend/src/components/dashboard/index.ts           # barrel export for PendingInvitationsBanner
 frontend/src/components/events/index.ts
-frontend/src/components/events/EventForm.tsx
+frontend/src/components/events/EventForm.tsx          # removed org selector
 frontend/src/components/events/EventList.tsx
 frontend/src/components/events/EventFilters.tsx
-frontend/src/components/events/EventSettingsView.tsx
-frontend/src/components/auth/RegisterForm.tsx   # passes returnUrl as callbackURL to signup
-frontend/src/components/auth/RegisterView.tsx   # accepts returnUrl prop
-frontend/src/components/auth/VerifyEmailHandler.tsx # invitation-aware button label
-frontend/src/pages/register.astro    # reads returnUrl query param
+frontend/src/components/events/EventSettingsView.tsx  # shows org badge, collaborators always visible
+frontend/src/components/auth/RegisterForm.tsx         # passes returnUrl as callbackURL to signup
+frontend/src/components/auth/RegisterView.tsx         # accepts returnUrl prop
+frontend/src/components/auth/VerifyEmailHandler.tsx   # invitation-aware button label
+frontend/src/pages/register.astro         # reads returnUrl query param
 frontend/src/layouts/DashboardLayout.astro
 ```

@@ -408,3 +408,92 @@ export function useAcceptInvitation() {
     },
   });
 }
+
+// ==================== ORG EVENT ASSIGNMENT HOOKS ====================
+
+export interface OrgEventResponse {
+  id: number;
+  uuid: string;
+  userId: string;
+  organizationId: string | null;
+  title: string;
+  description: string | null;
+  eventType: string | null;
+  status: string;
+  startDate: string;
+  endDate: string | null;
+  timezone: string | null;
+  locationName: string | null;
+  locationCity: string | null;
+  locationCountry: string | null;
+  guestCountExpected: number | null;
+  guestCountConfirmed: number | null;
+  budgetTotal: number | null;
+  budgetCurrency: string | null;
+  isPublic: boolean;
+  coverImageUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Fetch events assigned to an organization.
+ */
+export function useOrgEvents(orgId: string) {
+  return useQuery({
+    queryKey: orgKeys.events(orgId),
+    queryFn: async () => {
+      const response = await fetch(`${API_URL}/organizations/${orgId}/events`, {
+        credentials: 'include',
+      });
+      const result = await handleResponse<OrgEventResponse[]>(response);
+      return result.data ?? [];
+    },
+    enabled: !!orgId,
+    staleTime: 1000 * 60,
+  });
+}
+
+/**
+ * Assign an event to an organization. Admin only, event must be owned by the caller.
+ */
+export function useAssignEvent(orgId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (eventUuid: string) => {
+      const response = await fetch(`${API_URL}/organizations/${orgId}/events/${eventUuid}`, {
+        method: 'PUT',
+        credentials: 'include',
+      });
+      const result = await handleResponse<{ assigned: boolean; eventUuid: string; organizationId: string }>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: orgKeys.events(orgId) });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+    },
+  });
+}
+
+/**
+ * Unassign an event from an organization. Admin only.
+ */
+export function useUnassignEvent(orgId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (eventUuid: string) => {
+      const response = await fetch(`${API_URL}/organizations/${orgId}/events/${eventUuid}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const result = await handleResponse<{ unassigned: boolean; eventUuid: string }>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: orgKeys.events(orgId) });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+    },
+  });
+}

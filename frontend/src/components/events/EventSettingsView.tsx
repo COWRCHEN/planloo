@@ -7,6 +7,7 @@
 
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -25,6 +26,7 @@ import { PrivacySharingSettings } from '@/components/events/PrivacySharingSettin
 import { CollaboratorsList } from '@/components/events/CollaboratorsList';
 import { useEvent, useRsvpSettings } from '@/hooks/use-events';
 import { useSession } from '@/hooks/use-auth';
+import { useOrganizations } from '@/hooks/use-organizations';
 
 interface EventSettingsViewProps {
   uuid: string;
@@ -68,6 +70,12 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
   const { data: session, isLoading: sessionLoading } = useSession();
   const { data: event, isLoading, error } = useEvent(uuid);
   const { data: rsvpSettings } = useRsvpSettings(uuid);
+  const { data: orgs } = useOrganizations();
+
+  // Find the org name if the event is assigned to one
+  const assignedOrg = event?.organizationId && orgs
+    ? orgs.find((o) => o.id === event.organizationId)
+    : null;
 
   if (sessionLoading || isLoading) {
     return <EventSettingsSkeleton />;
@@ -136,6 +144,11 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
             <p className="text-muted-foreground">
               {event.title}
               {event.eventType && ` - ${eventTypeLabels[event.eventType]}`}
+              {assignedOrg && (
+                <Badge variant="secondary" className="ml-2 text-xs">
+                  {assignedOrg.name}
+                </Badge>
+              )}
             </p>
           </div>
         </div>
@@ -289,14 +302,12 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
           </AccordionContent>
         </AccordionItem>
 
-        {!event.organizationId && (
-          <AccordionItem value="collaborators">
-            <AccordionTrigger>Collaborators</AccordionTrigger>
-            <AccordionContent>
-              <CollaboratorsList eventUuid={uuid} />
-            </AccordionContent>
-          </AccordionItem>
-        )}
+        <AccordionItem value="collaborators">
+          <AccordionTrigger>Collaborators</AccordionTrigger>
+          <AccordionContent>
+            <CollaboratorsList eventUuid={uuid} />
+          </AccordionContent>
+        </AccordionItem>
       </Accordion>
     </div>
   );

@@ -102,7 +102,7 @@ export type ListEventsQuery = z.infer<typeof listEventsQuerySchema>;
 export interface EventResponse {
   id: number;
   uuid: string;
-  userId: string | null;
+  userId: string;
   organizationId: string | null;
   title: string;
   description: string | null;

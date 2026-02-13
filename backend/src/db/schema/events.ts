@@ -5,13 +5,14 @@ import { organization } from './organization';
 
 /**
  * Events Table
- * Core table for event data. Events can belong to a user (personal) or an organization
+ * Core table for event data. Events always belong to a user (personal owner).
+ * Events can optionally be assigned to an organization for team access.
  */
 export const events = sqliteTable('events', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   uuid: text('uuid').notNull().unique(),
-  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }), // NULL if org event
-  organizationId: text('organization_id').references(() => organization.id, { onDelete: 'cascade' }), // NULL if personal
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  organizationId: text('organization_id').references(() => organization.id, { onDelete: 'set null' }), // NULL if not assigned to an org
   title: text('title').notNull(),
   description: text('description'),
   eventType: text('event_type', { enum: ['wedding', 'birthday', 'corporate', 'conference', 'other'] }),

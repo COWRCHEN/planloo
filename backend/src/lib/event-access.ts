@@ -21,7 +21,7 @@ export interface EventAccess {
   event: {
     id: number;
     uuid: string;
-    userId: string | null;
+    userId: string;
     organizationId: string | null;
     eventType: string | null;
   };
@@ -40,7 +40,7 @@ export interface EventAccess {
  *
  * Resolution order:
  * 1. Direct ownership (event.userId === userId) → 'owner'
- * 2. Organization membership (if event.organizationId is set) → org_admin/org_member/org_viewer
+ * 2. Organization membership (if event is assigned to an org) → org_admin/org_member/org_viewer
  * 3. Event collaborator (if acceptedAt is not null) → collaborator_owner/collaborator_editor/collaborator_viewer
  * 4. No access → null
  */
@@ -77,8 +77,8 @@ export async function resolveEventAccess(
     eventType: event.eventType,
   };
 
-  // 2. Check direct ownership
-  if (event.userId && event.userId === userId) {
+  // 2. Check direct ownership (userId is always set)
+  if (event.userId === userId) {
     return {
       event: eventData,
       accessType: 'owner',

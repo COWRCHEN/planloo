@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { QueryProvider } from '@/components/providers/QueryProvider';
-import { useOrganization, useOrgMembers, useOrgInvitations, useDeleteOrganization, useInviteMember, useRevokeInvitation, useUpdateMemberRole, useRemoveMember, type OrgRole } from '@/hooks/use-organizations';
+import { useOrganization, useOrgMembers, useOrgInvitations, useDeleteOrganization, useInviteMember, useRevokeInvitation, useUpdateMemberRole, useRemoveMember, useOrgEvents, useAssignEvent, useUnassignEvent, type OrgRole } from '@/hooks/use-organizations';
+import { useEvents } from '@/hooks/use-events';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -28,12 +30,25 @@ function OrgDetailContent({ orgId }: OrgDetailViewProps) {
   const removeMember = useRemoveMember(orgId);
   const deleteOrg = useDeleteOrganization();
 
+  const { data: orgEvents } = useOrgEvents(orgId);
+  const assignEvent = useAssignEvent(orgId);
+  const unassignEvent = useUnassignEvent(orgId);
+
+  // Fetch user's personal events for the assign dialog (source=personal to get only unassigned)
+  const { data: personalEventsData } = useEvents({ source: 'personal', limit: 100 });
+  const personalEvents = personalEventsData?.events ?? [];
+  // Filter to only events not already assigned to any org
+  const unassignedEvents = personalEvents.filter((e) => !e.organizationId);
+
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<OrgRole>('member');
   const [inviteError, setInviteError] = useState<string | null>(null);
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assigningEventId, setAssigningEventId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -92,6 +107,7 @@ function OrgDetailContent({ orgId }: OrgDetailViewProps) {
       <Tabs defaultValue="members">
         <TabsList>
           <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="events">Events</TabsTrigger>
           {isAdmin && <TabsTrigger value="invitations">Invitations</TabsTrigger>}
           {isAdmin && <TabsTrigger value="settings">Settings</TabsTrigger>}
         </TabsList>
@@ -160,6 +176,79 @@ function OrgDetailContent({ orgId }: OrgDetailViewProps) {
               </TableBody>
             </Table>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="events" className="space-y-4">
+          {isAdmin && (
+            <div className="flex justify-end">
+              <Button onClick={() => setShowAssignDialog(true)}>Assign Event</Button>
+            </div>
+          )}
+
+          {orgEvents && orgEvents.length > 0 ? (
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Event</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orgEvents.map((event) => (
+                    <TableRow key={event.uuid}>
+                      <TableCell>
+                        <a
+                          href={`/dashboard/events/${event.uuid}`}
+                          className="font-medium hover:underline"
+                        >
+                          {event.title}
+                        </a>
+                        {event.eventType && (
+                          <span className="ml-2 text-xs text-muted-foreground capitalize">
+                            {event.eventType}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(event.startDate).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {event.status}
+                        </Badge>
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => unassignEvent.mutate(event.uuid)}
+                            disabled={unassignEvent.isPending}
+                          >
+                            Unassign
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          ) : (
+            <Card className="py-8 text-center">
+              <CardContent>
+                <p className="text-muted-foreground">No events assigned to this organization.</p>
+                {isAdmin && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Use &quot;Assign Event&quot; to link your personal events to this organization.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {isAdmin && (
@@ -281,6 +370,65 @@ function OrgDetailContent({ orgId }: OrgDetailViewProps) {
             <Button variant="destructive" onClick={handleDelete} disabled={deleteOrg.isPending}>
               {deleteOrg.isPending ? 'Deleting...' : 'Delete'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Event Dialog */}
+      <Dialog open={showAssignDialog} onOpenChange={(open) => { setShowAssignDialog(open); setAssignError(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Event to {org.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {assignError && (
+              <Alert variant="destructive">
+                <AlertDescription>{assignError}</AlertDescription>
+              </Alert>
+            )}
+            {unassignedEvents.length > 0 ? (
+              <div className="max-h-64 space-y-2 overflow-y-auto">
+                {unassignedEvents.map((event) => (
+                  <div
+                    key={event.uuid}
+                    className="flex items-center justify-between rounded-md border p-3"
+                  >
+                    <div>
+                      <p className="font-medium">{event.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(event.startDate).toLocaleDateString()}
+                        {event.eventType && ` \u00B7 ${event.eventType}`}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        setAssignError(null);
+                        setAssigningEventId(event.uuid);
+                        try {
+                          await assignEvent.mutateAsync(event.uuid);
+                          setShowAssignDialog(false);
+                        } catch (err) {
+                          setAssignError(err instanceof Error ? err.message : 'Failed to assign');
+                        } finally {
+                          setAssigningEventId(null);
+                        }
+                      }}
+                      disabled={assignEvent.isPending}
+                    >
+                      {assigningEventId === event.uuid ? 'Assigning...' : 'Assign'}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-4">
+                You have no unassigned personal events to assign.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAssignDialog(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

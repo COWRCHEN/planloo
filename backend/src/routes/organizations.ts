@@ -1,8 +1,9 @@
 /**
  * Organizations Routes
  *
- * CRUD endpoints for organization management, member management, and invitations.
- * Organizations can own events and have multiple members with role-based access.
+ * CRUD endpoints for organization management, member management, invitations,
+ * and event assignment. Admins can assign/unassign their own events to an org
+ * so that org members gain access based on their role.
  */
 
 import { Hono } from 'hono';
@@ -45,25 +46,6 @@ const inviteMemberSchema = z.object({
 
 const updateMemberRoleSchema = z.object({
   role: z.enum(['admin', 'member', 'viewer']),
-});
-
-const createOrgEventSchema = z.object({
-  title: z.string().min(1).max(200),
-  description: z.string().max(5000).optional().nullable(),
-  eventType: z.enum(['wedding', 'birthday', 'corporate', 'conference', 'other']).optional().nullable(),
-  startDate: z.coerce.date(),
-  endDate: z.coerce.date().optional().nullable(),
-  timezone: z.string().default('UTC'),
-  locationName: z.string().max(200).optional().nullable(),
-  locationAddress: z.string().max(500).optional().nullable(),
-  locationCity: z.string().max(100).optional().nullable(),
-  locationState: z.string().max(100).optional().nullable(),
-  locationCountry: z.string().max(100).optional().nullable(),
-  locationPostalCode: z.string().max(20).optional().nullable(),
-  guestCountExpected: z.coerce.number().int().min(0).optional().nullable(),
-  budgetTotal: z.coerce.number().min(0).optional().nullable(),
-  budgetCurrency: z.string().length(3).default('USD'),
-  isPublic: z.boolean().default(false),
 });
 
 const listOrgEventsQuerySchema = z.object({
@@ -923,95 +905,215 @@ organizations.get(
 );
 
 /**
- * POST /organizations/:orgId/events
- * Create an event under an organization. Admin or member role required (not viewer).
- * The event is linked to the org; userId is null for org-owned events.
+ * PUT /organizations/:orgId/events/:eventUuid
+ * Assign an event to an organization. Admin only.
+ * The caller must be the event owner (event.userId === user.id).
+ * Rejects if the event is already assigned to another org.
  */
-organizations.post(
-  '/:orgId/events',
-  requireAuth,
-  requireVerifiedEmail,
-  zValidator('json', createOrgEventSchema),
-  async (c) => {
-    const user = c.get('user')!;
-    const orgId = c.req.param('orgId');
-    const data = c.req.valid('json');
-    const db = createDbClient(c.env.DB);
+organizations.put('/:orgId/events/:eventUuid', requireAuth, async (c) => {
+  const user = c.get('user')!;
+  const orgId = c.req.param('orgId');
+  const eventUuid = c.req.param('eventUuid');
+  const db = createDbClient(c.env.DB);
 
-    // Admin or member (not viewer)
-    const membership = await requireOrgRole(db, orgId, user.id, ['admin', 'member']);
-    if (!membership) {
-      return c.json(
-        {
-          success: false,
-          error: {
-            code: 'FORBIDDEN',
-            message: 'Admin or member access required to create events',
-          },
-        },
-        403
-      );
-    }
-
-    // Verify org is not deleted
-    const [org] = await db
-      .select({ id: schema.organization.id })
-      .from(schema.organization)
-      .where(
-        and(
-          eq(schema.organization.id, orgId),
-          isNull(schema.organization.deletedAt)
-        )
-      )
-      .limit(1);
-
-    if (!org) {
-      return c.json(
-        {
-          success: false,
-          error: { code: 'NOT_FOUND', message: 'Organization not found' },
-        },
-        404
-      );
-    }
-
-    const uuid = crypto.randomUUID();
-
-    const [newEvent] = await db
-      .insert(schema.events)
-      .values({
-        uuid,
-        userId: null,
-        organizationId: orgId,
-        title: data.title,
-        description: data.description ?? null,
-        eventType: data.eventType ?? null,
-        status: 'draft',
-        startDate: data.startDate,
-        endDate: data.endDate ?? null,
-        timezone: data.timezone,
-        locationName: data.locationName ?? null,
-        locationAddress: data.locationAddress ?? null,
-        locationCity: data.locationCity ?? null,
-        locationState: data.locationState ?? null,
-        locationCountry: data.locationCountry ?? null,
-        locationPostalCode: data.locationPostalCode ?? null,
-        guestCountExpected: data.guestCountExpected ?? null,
-        budgetTotal: data.budgetTotal ?? null,
-        budgetCurrency: data.budgetCurrency,
-        isPublic: data.isPublic,
-      })
-      .returning();
-
+  // Admin only
+  const membership = await requireOrgRole(db, orgId, user.id, ['admin']);
+  if (!membership) {
     return c.json(
       {
-        success: true,
-        data: newEvent,
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Admin access required' },
       },
-      201
+      403
     );
   }
-);
+
+  // Verify org is not deleted
+  const [org] = await db
+    .select({ id: schema.organization.id })
+    .from(schema.organization)
+    .where(
+      and(
+        eq(schema.organization.id, orgId),
+        isNull(schema.organization.deletedAt)
+      )
+    )
+    .limit(1);
+
+  if (!org) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Organization not found' },
+      },
+      404
+    );
+  }
+
+  // Fetch the event
+  const [event] = await db
+    .select({
+      id: schema.events.id,
+      uuid: schema.events.uuid,
+      userId: schema.events.userId,
+      organizationId: schema.events.organizationId,
+    })
+    .from(schema.events)
+    .where(
+      and(
+        eq(schema.events.uuid, eventUuid),
+        isNull(schema.events.deletedAt)
+      )
+    )
+    .limit(1);
+
+  if (!event) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Event not found' },
+      },
+      404
+    );
+  }
+
+  // Only the event owner can assign it
+  if (event.userId !== user.id) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Only the event owner can assign it to an organization' },
+      },
+      403
+    );
+  }
+
+  // Reject if already assigned to another org
+  if (event.organizationId && event.organizationId !== orgId) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'ALREADY_ASSIGNED',
+          message: 'Event is already assigned to another organization. Unassign it first.',
+        },
+      },
+      409
+    );
+  }
+
+  // Already assigned to this org — idempotent success
+  if (event.organizationId === orgId) {
+    return c.json({
+      success: true,
+      data: { assigned: true, eventUuid, organizationId: orgId },
+    });
+  }
+
+  // Assign
+  await db
+    .update(schema.events)
+    .set({ organizationId: orgId, updatedAt: new Date() })
+    .where(eq(schema.events.id, event.id));
+
+  return c.json({
+    success: true,
+    data: { assigned: true, eventUuid, organizationId: orgId },
+  });
+});
+
+/**
+ * DELETE /organizations/:orgId/events/:eventUuid
+ * Unassign an event from an organization. Admin only.
+ * Clears event.organizationId to null.
+ */
+organizations.delete('/:orgId/events/:eventUuid', requireAuth, async (c) => {
+  const user = c.get('user')!;
+  const orgId = c.req.param('orgId');
+  const eventUuid = c.req.param('eventUuid');
+  const db = createDbClient(c.env.DB);
+
+  // Admin only
+  const membership = await requireOrgRole(db, orgId, user.id, ['admin']);
+  if (!membership) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'Admin access required' },
+      },
+      403
+    );
+  }
+
+  // Verify org is not deleted
+  const [org] = await db
+    .select({ id: schema.organization.id })
+    .from(schema.organization)
+    .where(
+      and(
+        eq(schema.organization.id, orgId),
+        isNull(schema.organization.deletedAt)
+      )
+    )
+    .limit(1);
+
+  if (!org) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Organization not found' },
+      },
+      404
+    );
+  }
+
+  // Fetch the event
+  const [event] = await db
+    .select({
+      id: schema.events.id,
+      organizationId: schema.events.organizationId,
+    })
+    .from(schema.events)
+    .where(
+      and(
+        eq(schema.events.uuid, eventUuid),
+        isNull(schema.events.deletedAt)
+      )
+    )
+    .limit(1);
+
+  if (!event) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Event not found' },
+      },
+      404
+    );
+  }
+
+  // Event must be assigned to this org
+  if (event.organizationId !== orgId) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Event is not assigned to this organization' },
+      },
+      404
+    );
+  }
+
+  // Unassign
+  await db
+    .update(schema.events)
+    .set({ organizationId: null, updatedAt: new Date() })
+    .where(eq(schema.events.id, event.id));
+
+  return c.json({
+    success: true,
+    data: { unassigned: true, eventUuid },
+  });
+});
 
 /**
  * POST /organizations/:orgId/invitations

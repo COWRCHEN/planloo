@@ -20,7 +20,7 @@ export type EventStatus = (typeof EVENT_STATUSES)[number];
 export interface EventResponse {
   id: number;
   uuid: string;
-  userId: string | null;
+  userId: string;
   organizationId: string | null;
   title: string;
   description: string | null;
@@ -61,7 +61,6 @@ export interface CreateEventInput {
   title: string;
   description?: string | null;
   eventType?: EventType | null;
-  organizationId?: number;
   startDate: Date;
   endDate?: Date | null;
   timezone?: string;
