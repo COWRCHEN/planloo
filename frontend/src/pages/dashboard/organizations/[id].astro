@@ -1,0 +1,18 @@
+---
+/**
+ * Organization Detail Page
+ *
+ * Displays organization details with tabs for members, events, and settings.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { OrgDetailView } from '@/components/organizations';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+---
+
+<DashboardLayout title="Organization" description="Organization details">
+  <OrgDetailView client:load orgId={id!} />
+</DashboardLayout>

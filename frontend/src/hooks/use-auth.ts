@@ -134,12 +134,20 @@ export function useSignUp() {
       email,
       password,
       name,
+      callbackURL,
     }: {
       email: string;
       password: string;
       name: string;
+      /** Passed through to the verification email link so the user is redirected back after verifying. */
+      callbackURL?: string;
     }) => {
-      const { error } = await authClient.signUp.email({ email, password, name });
+      const { error } = await authClient.signUp.email({
+        email,
+        password,
+        name,
+        callbackURL: callbackURL || '/',
+      });
       if (error) {
         throw new Error(error.message || 'Registration failed');
       }

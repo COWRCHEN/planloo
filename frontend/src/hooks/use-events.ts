@@ -61,6 +61,7 @@ export interface CreateEventInput {
   title: string;
   description?: string | null;
   eventType?: EventType | null;
+  organizationId?: number;
   startDate: Date;
   endDate?: Date | null;
   timezone?: string;
@@ -156,9 +157,12 @@ export interface UpdatePrivacySettingsInput {
   enableSocialPreview?: boolean;
 }
 
+export type EventSource = 'all' | 'personal' | 'organization' | 'collaboration';
+
 export interface ListEventsQuery {
   status?: EventStatus;
   eventType?: EventType;
+  source?: EventSource;
   limit?: number;
   offset?: number;
   sortBy?: 'startDate' | 'createdAt' | 'title';
@@ -216,6 +220,7 @@ export function useEvents(filters?: Partial<ListEventsQuery>) {
       if (filters?.offset) params.set('offset', filters.offset.toString());
       if (filters?.sortBy) params.set('sortBy', filters.sortBy);
       if (filters?.sortOrder) params.set('sortOrder', filters.sortOrder);
+      if (filters?.source && filters.source !== 'all') params.set('source', filters.source);
 
       const url = `${API_URL}/events${params.toString() ? `?${params}` : ''}`;
       const response = await fetch(url, {

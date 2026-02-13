@@ -22,6 +22,7 @@ import { CustomFieldManager } from '@/components/guests/CustomFieldManager';
 import { RsvpSettings } from '@/components/events/RsvpSettings';
 import { RsvpFormFieldSettings } from '@/components/events/RsvpFormFieldSettings';
 import { PrivacySharingSettings } from '@/components/events/PrivacySharingSettings';
+import { CollaboratorsList } from '@/components/events/CollaboratorsList';
 import { useEvent, useRsvpSettings } from '@/hooks/use-events';
 import { useSession } from '@/hooks/use-auth';
 
@@ -287,6 +288,15 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
             <PrivacySharingSettings eventUuid={uuid} />
           </AccordionContent>
         </AccordionItem>
+
+        {!event.organizationId && (
+          <AccordionItem value="collaborators">
+            <AccordionTrigger>Collaborators</AccordionTrigger>
+            <AccordionContent>
+              <CollaboratorsList eventUuid={uuid} />
+            </AccordionContent>
+          </AccordionItem>
+        )}
       </Accordion>
     </div>
   );

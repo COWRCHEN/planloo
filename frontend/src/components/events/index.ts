@@ -19,3 +19,6 @@ export { RsvpSettings } from './RsvpSettings';
 export { PrivacySharingSettings } from './PrivacySharingSettings';
 export { DeleteEventDialog } from './DeleteEventDialog';
 export { NotificationsView } from './NotificationsView';
+export { CollaboratorsList } from './CollaboratorsList';
+export { InviteCollaboratorDialog } from './InviteCollaboratorDialog';
+export { CollaboratorRoleBadge } from './CollaboratorRoleBadge';

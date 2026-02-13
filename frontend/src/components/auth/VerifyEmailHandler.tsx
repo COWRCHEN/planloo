@@ -64,7 +64,10 @@ export function VerifyEmailHandler() {
           </AlertDescription>
         </Alert>
         <Button asChild className="w-full">
-          <a href={callbackURL}>Continue to {callbackURL === '/dashboard' ? 'Dashboard' : 'App'}</a>
+          <a href={callbackURL}>
+            {callbackURL.startsWith('/invitations/') ? 'Continue to Invitation' :
+             callbackURL === '/dashboard' ? 'Continue to Dashboard' : 'Continue'}
+          </a>
         </Button>
       </div>
     );

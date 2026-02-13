@@ -4,6 +4,8 @@
  * Defines the bindings and environment variables available in Workers.
  */
 
+import type { EventAccess } from '@/lib/event-access';
+
 export interface Env {
   // Database binding
   DB: D1Database;
@@ -53,5 +55,6 @@ export type HonoEnv = {
       userId: string;
       expiresAt: Date;
     };
+    eventAccess?: EventAccess;
   };
 };

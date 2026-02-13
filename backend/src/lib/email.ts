@@ -425,3 +425,56 @@ export async function sendRsvpConfirmationEmail(
     text,
   });
 }
+
+interface OrgInvitationEmailParams {
+  to: string;
+  inviterName: string | null;
+  organizationName: string;
+  role: string;
+  acceptUrl: string;
+  expiresAt: Date;
+}
+
+/**
+ * Send organization invitation email
+ */
+export async function sendOrgInvitationEmail(
+  env: Env,
+  params: OrgInvitationEmailParams
+): Promise<{ id?: string | undefined }> {
+  const { to, inviterName, organizationName, role, acceptUrl, expiresAt } = params;
+
+  const inviterLabel = inviterName || 'A team member';
+  const expiryFormatted = new Date(expiresAt).toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+
+  const { html, text } = baseEmailTemplate(
+    `You're invited to join ${organizationName}`,
+    `
+    <h2 style="margin-top: 0; color: #1f2937;">You're Invited!</h2>
+    <p>${inviterLabel} has invited you to join <strong>${organizationName}</strong> as a <strong>${role}</strong>.</p>
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${acceptUrl}" style="background: #2563EB; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">
+        Accept Invitation
+      </a>
+    </div>
+    <p style="color: #6b7280; font-size: 14px;">
+      If the button doesn't work, copy and paste this link into your browser:
+      <br>
+      <a href="${acceptUrl}" style="color: #2563EB; word-break: break-all;">${acceptUrl}</a>
+    </p>
+    <p style="color: #6b7280; font-size: 14px;">
+      This invitation expires on ${expiryFormatted}. If you didn't expect this invitation, you can safely ignore this email.
+    </p>
+    `,
+    `${inviterLabel} has invited you to join ${organizationName} as a ${role}.\n\nAccept the invitation: ${acceptUrl}\n\nThis invitation expires on ${expiryFormatted}. If you didn't expect this invitation, you can safely ignore this email.`
+  );
+
+  return sendEmail(env, {
+    to,
+    subject: `You're invited to join ${organizationName} on Planloo`,
+    html,
+    text,
+  });
+}

@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCreateEvent, useUpdateEvent, type EventResponse } from '@/hooks/use-events';
+import { useOrganizations } from '@/hooks/use-organizations';
 
 // Form schema
 const eventFormSchema = z.object({
@@ -43,6 +44,7 @@ const eventFormSchema = z.object({
   budgetTotal: z.coerce.number().min(0).optional(),
   budgetCurrency: z.string().length(3).default('USD'),
   isPublic: z.boolean().default(false),
+  organizationId: z.coerce.number().optional(),
 });
 
 type EventFormData = z.infer<typeof eventFormSchema>;
@@ -98,6 +100,7 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
 
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent(event?.uuid ?? '');
+  const { data: orgs } = useOrganizations();
 
   const startDateTime = formatDateTimeForInput(event?.startDate);
   const endDateTime = formatDateTimeForInput(event?.endDate);
@@ -129,6 +132,7 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
       budgetTotal: event?.budgetTotal ?? undefined,
       budgetCurrency: event?.budgetCurrency ?? 'USD',
       isPublic: event?.isPublic ?? false,
+      organizationId: event?.organizationId ? Number(event.organizationId) : undefined,
     },
   });
 
@@ -144,6 +148,7 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
       title: data.title,
       description: data.description || null,
       eventType: data.eventType || null,
+      ...(data.organizationId ? { organizationId: data.organizationId } : {}),
       startDate: startDate!,
       endDate,
       timezone: data.timezone,
@@ -295,6 +300,33 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                   </SelectContent>
                 </Select>
               </div>
+
+              {!isEditing && orgs && orgs.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="organizationId">Organization (optional)</Label>
+                  <Select
+                    value={formData.organizationId?.toString() ?? 'personal'}
+                    onValueChange={(value) =>
+                      setValue('organizationId', value === 'personal' ? undefined : Number(value))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Personal event" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="personal">Personal event</SelectItem>
+                      {orgs.map((org) => (
+                        <SelectItem key={org.id} value={org.id.toString()}>
+                          {org.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Assign this event to an organization for team collaboration.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DashboardStats } from './DashboardStats';
 import { RecentEvents } from './RecentEvents';
+import { PendingInvitationsBanner } from './PendingInvitationsBanner';
 import { useSession } from '@/hooks/use-auth';
 
 function DashboardContent() {
@@ -40,6 +41,9 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6">
+      {/* Pending organization invitations */}
+      <PendingInvitationsBanner />
+
       {/* Stats */}
       <DashboardStats />
 

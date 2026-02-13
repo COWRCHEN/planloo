@@ -13,6 +13,7 @@ import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
 import { eq, and, isNull } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
+import { resolveEventAccess } from '@/lib/event-access';
 
 const eventProviders = new Hono<HonoEnv>();
 
@@ -59,26 +60,6 @@ const updateEventVenueSchema = z.object({
 });
 
 // ==================== HELPERS ====================
-
-async function getEventByUuidForUser(
-  db: ReturnType<typeof createDbClient>,
-  eventUuid: string,
-  userId: string
-): Promise<{ id: number } | null> {
-  const [event] = await db
-    .select({ id: schema.events.id })
-    .from(schema.events)
-    .where(
-      and(
-        eq(schema.events.uuid, eventUuid),
-        eq(schema.events.userId, userId),
-        isNull(schema.events.deletedAt)
-      )
-    )
-    .limit(1);
-
-  return event ?? null;
-}
 
 function parseJson(raw: string | null): string[] | null {
   if (!raw) return null;
@@ -149,13 +130,14 @@ eventProviders.get('/', requireAuth, async (c) => {
   const eventUuid = c.req.param('eventUuid')!;
   const db = createDbClient(c.env.DB);
 
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
-  if (!event) {
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
     );
   }
+  const event = { id: access.event.id };
 
   const links = await db
     .select({
@@ -210,13 +192,20 @@ eventProviders.post(
     const body = c.req.valid('json');
     const db = createDbClient(c.env.DB);
 
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
-    if (!event) {
+    const access = await resolveEventAccess(db, eventUuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canEdit) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = access.event;
 
     // Lookup provider by uuid
     const [provider] = await db
@@ -319,13 +308,14 @@ eventProviders.get('/venues', requireAuth, async (c) => {
   const eventUuid = c.req.param('eventUuid')!;
   const db = createDbClient(c.env.DB);
 
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
-  if (!event) {
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
     );
   }
+  const event = { id: access.event.id };
 
   const links = await db
     .select({
@@ -383,13 +373,20 @@ eventProviders.post(
     const body = c.req.valid('json');
     const db = createDbClient(c.env.DB);
 
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
-    if (!event) {
+    const access = await resolveEventAccess(db, eventUuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canEdit) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = access.event;
 
     const [venue] = await db
       .select({ id: schema.venues.id })
@@ -491,13 +488,20 @@ eventProviders.patch(
     const updates = c.req.valid('json');
     const db = createDbClient(c.env.DB);
 
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
-    if (!event) {
+    const access = await resolveEventAccess(db, eventUuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canEdit) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = access.event;
 
     const [existing] = await db
       .select({ id: schema.eventVenues.id })
@@ -589,13 +593,14 @@ eventProviders.delete('/venues/:linkId', requireAuth, requireVerifiedEmail, asyn
   const linkId = parseInt(c.req.param('linkId')!, 10);
   const db = createDbClient(c.env.DB);
 
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
-  if (!event) {
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
     );
   }
+  const event = { id: access.event.id };
 
   const [existing] = await db
     .select({ id: schema.eventVenues.id })
@@ -638,13 +643,20 @@ eventProviders.patch(
     const updates = c.req.valid('json');
     const db = createDbClient(c.env.DB);
 
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
-    if (!event) {
+    const access = await resolveEventAccess(db, eventUuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canEdit) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = access.event;
 
     const [existing] = await db
       .select({ id: schema.eventServiceProviders.id })
@@ -730,13 +742,14 @@ eventProviders.delete('/:linkId', requireAuth, requireVerifiedEmail, async (c) =
   const linkId = parseInt(c.req.param('linkId')!, 10);
   const db = createDbClient(c.env.DB);
 
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
-  if (!event) {
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
     );
   }
+  const event = { id: access.event.id };
 
   const [existing] = await db
     .select({ id: schema.eventServiceProviders.id })

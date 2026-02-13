@@ -22,6 +22,7 @@ import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { parseGuestsCsv, generateGuestsCsv } from '@/lib/csv';
 import type { EventType, CustomFieldDefinition } from '@/db/types';
 import { sendRsvpInvitationEmail, logEmail } from '@/lib/email';
+import { resolveEventAccess } from '@/lib/event-access';
 
 const guests = new Hono<HonoEnv>();
 
@@ -230,29 +231,16 @@ function validateAccommodation(
 // ==================== HELPERS ====================
 
 /**
- * Verify event ownership and return event info including type
+ * Verify event access and return event info including type
  */
-async function getEventByUuidForUser(
+async function getEventWithAccess(
   db: ReturnType<typeof createDbClient>,
   eventUuid: string,
   userId: string
 ): Promise<{ id: number; eventType: EventType } | null> {
-  const [event] = await db
-    .select({
-      id: schema.events.id,
-      eventType: schema.events.eventType,
-    })
-    .from(schema.events)
-    .where(
-      and(
-        eq(schema.events.uuid, eventUuid),
-        eq(schema.events.userId, userId),
-        isNull(schema.events.deletedAt)
-      )
-    )
-    .limit(1);
-
-  return event ?? null;
+  const access = await resolveEventAccess(db, eventUuid, userId);
+  if (!access) return null;
+  return { id: access.event.id, eventType: access.event.eventType as EventType };
 }
 
 /**
@@ -399,7 +387,7 @@ guests.get(
     const db = createDbClient(c.env.DB);
 
     // Verify event ownership
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
+    const event = await getEventWithAccess(db, eventUuid, user.id);
     if (!event) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
@@ -653,7 +641,7 @@ guests.get('/stats', requireAuth, async (c) => {
   const db = createDbClient(c.env.DB);
 
   // Verify event ownership
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
+  const event = await getEventWithAccess(db, eventUuid, user.id);
   if (!event) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
@@ -907,7 +895,7 @@ guests.get('/export', requireAuth, async (c) => {
   const db = createDbClient(c.env.DB);
 
   // Verify event ownership
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
+  const event = await getEventWithAccess(db, eventUuid, user.id);
   if (!event) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
@@ -947,7 +935,7 @@ guests.get('/:guestUuid/audit', requireAuth, async (c) => {
 
   const db = createDbClient(c.env.DB);
 
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
+  const event = await getEventWithAccess(db, eventUuid, user.id);
   if (!event) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
@@ -1020,7 +1008,7 @@ guests.get('/:guestUuid', requireAuth, async (c) => {
   const db = createDbClient(c.env.DB);
 
   // Verify event ownership
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
+  const event = await getEventWithAccess(db, eventUuid, user.id);
   if (!event) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
@@ -1130,7 +1118,7 @@ guests.post(
     const db = createDbClient(c.env.DB);
 
     // Verify event ownership
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
+    const event = await getEventWithAccess(db, eventUuid, user.id);
     if (!event) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
@@ -1430,7 +1418,7 @@ guests.post('/import', requireAuth, requireVerifiedEmail, async (c) => {
   const db = createDbClient(c.env.DB);
 
   // Verify event ownership
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
+  const event = await getEventWithAccess(db, eventUuid, user.id);
   if (!event) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
@@ -1591,7 +1579,7 @@ guests.patch(
     const db = createDbClient(c.env.DB);
 
     // Verify event ownership
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
+    const event = await getEventWithAccess(db, eventUuid, user.id);
     if (!event) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
@@ -2075,7 +2063,7 @@ guests.delete('/:guestUuid', requireAuth, async (c) => {
   const db = createDbClient(c.env.DB);
 
   // Verify event ownership
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
+  const event = await getEventWithAccess(db, eventUuid, user.id);
   if (!event) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
@@ -2141,7 +2129,7 @@ guests.post(
     const db = createDbClient(c.env.DB);
 
     // Verify event ownership
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
+    const event = await getEventWithAccess(db, eventUuid, user.id);
     if (!event) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
@@ -2329,7 +2317,7 @@ guests.post('/:guestUuid/checkin', requireAuth, async (c) => {
   const db = createDbClient(c.env.DB);
 
   // Verify event ownership
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
+  const event = await getEventWithAccess(db, eventUuid, user.id);
   if (!event) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
@@ -2387,7 +2375,7 @@ guests.post('/:guestUuid/resend-rsvp', requireAuth, requireVerifiedEmail, async 
   const db = createDbClient(c.env.DB);
 
   // Verify event ownership
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
+  const event = await getEventWithAccess(db, eventUuid, user.id);
   if (!event) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },

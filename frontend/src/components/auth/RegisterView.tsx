@@ -8,10 +8,14 @@
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 
-export function RegisterView() {
+interface RegisterViewProps {
+  returnUrl?: string;
+}
+
+export function RegisterView({ returnUrl = '/dashboard' }: RegisterViewProps) {
   return (
     <QueryProvider>
-      <RegisterForm />
+      <RegisterForm returnUrl={returnUrl} />
     </QueryProvider>
   );
 }

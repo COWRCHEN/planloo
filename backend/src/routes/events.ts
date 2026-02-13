@@ -12,6 +12,7 @@ import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
 import { eq, and, isNull, desc, asc, sql, count } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
+import { resolveEventAccess } from '@/lib/event-access';
 
 const events = new Hono<HonoEnv>();
 
@@ -66,6 +67,7 @@ const updateEventSchema = z.object({
 const listEventsQuerySchema = z.object({
   status: z.enum(EVENT_STATUSES).optional(),
   eventType: z.enum(EVENT_TYPES).optional(),
+  source: z.enum(['all', 'personal', 'organization', 'collaboration']).default('all'),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   sortBy: z.enum(['startDate', 'createdAt', 'title']).default('startDate'),
@@ -80,13 +82,46 @@ const listEventsQuerySchema = z.object({
  */
 events.get('/', requireAuth, zValidator('query', listEventsQuerySchema), async (c) => {
   const user = c.get('user')!;
-  const { status, eventType, limit, offset, sortBy, sortOrder } = c.req.valid('query');
+  const { status, eventType, source, limit, offset, sortBy, sortOrder } = c.req.valid('query');
 
   const db = createDbClient(c.env.DB);
 
+  // Build ownership/access condition based on source filter
+  let ownershipCondition;
+  if (source === 'personal') {
+    ownershipCondition = eq(schema.events.userId, user.id);
+  } else if (source === 'organization') {
+    // Events where user is an org member
+    ownershipCondition = sql`${schema.events.organizationId} IN (
+      SELECT ${schema.organizationMember.organizationId} FROM ${schema.organizationMember}
+      WHERE ${schema.organizationMember.userId} = ${user.id}
+    )`;
+  } else if (source === 'collaboration') {
+    // Events where user is a collaborator
+    ownershipCondition = sql`${schema.events.id} IN (
+      SELECT ${schema.eventCollaborators.eventId} FROM ${schema.eventCollaborators}
+      WHERE ${schema.eventCollaborators.userId} = ${user.id}
+      AND ${schema.eventCollaborators.acceptedAt} IS NOT NULL
+    )`;
+  } else {
+    // 'all' — personal OR org member OR collaborator
+    ownershipCondition = sql`(
+      ${schema.events.userId} = ${user.id}
+      OR ${schema.events.organizationId} IN (
+        SELECT ${schema.organizationMember.organizationId} FROM ${schema.organizationMember}
+        WHERE ${schema.organizationMember.userId} = ${user.id}
+      )
+      OR ${schema.events.id} IN (
+        SELECT ${schema.eventCollaborators.eventId} FROM ${schema.eventCollaborators}
+        WHERE ${schema.eventCollaborators.userId} = ${user.id}
+        AND ${schema.eventCollaborators.acceptedAt} IS NOT NULL
+      )
+    )`;
+  }
+
   // Build where conditions
   const conditions = [
-    eq(schema.events.userId, user.id),
+    ownershipCondition,
     isNull(schema.events.deletedAt),
   ];
 
@@ -167,6 +202,20 @@ events.get('/stats', requireAuth, async (c) => {
 
   const now = new Date();
 
+  // Access condition: personal OR org member OR collaborator
+  const accessCondition = sql`(
+    ${schema.events.userId} = ${user.id}
+    OR ${schema.events.organizationId} IN (
+      SELECT ${schema.organizationMember.organizationId} FROM ${schema.organizationMember}
+      WHERE ${schema.organizationMember.userId} = ${user.id}
+    )
+    OR ${schema.events.id} IN (
+      SELECT ${schema.eventCollaborators.eventId} FROM ${schema.eventCollaborators}
+      WHERE ${schema.eventCollaborators.userId} = ${user.id}
+      AND ${schema.eventCollaborators.acceptedAt} IS NOT NULL
+    )
+  )`;
+
   // Get event counts by status
   const eventStats = await db
     .select({
@@ -174,7 +223,7 @@ events.get('/stats', requireAuth, async (c) => {
       count: count(),
     })
     .from(schema.events)
-    .where(and(eq(schema.events.userId, user.id), isNull(schema.events.deletedAt)))
+    .where(and(accessCondition, isNull(schema.events.deletedAt)))
     .groupBy(schema.events.status);
 
   // Get upcoming events count
@@ -183,20 +232,20 @@ events.get('/stats', requireAuth, async (c) => {
     .from(schema.events)
     .where(
       and(
-        eq(schema.events.userId, user.id),
+        accessCondition,
         isNull(schema.events.deletedAt),
         sql`${schema.events.startDate} > ${Math.floor(now.getTime() / 1000)}`
       )
     );
 
-  // Get total guests across all user's events
+  // Get total guests across all accessible events
   const [guestStats] = await db
     .select({
       total: sql<number>`COALESCE(SUM(${schema.events.guestCountExpected}), 0)`,
       confirmed: sql<number>`COALESCE(SUM(${schema.events.guestCountConfirmed}), 0)`,
     })
     .from(schema.events)
-    .where(and(eq(schema.events.userId, user.id), isNull(schema.events.deletedAt)));
+    .where(and(accessCondition, isNull(schema.events.deletedAt)));
 
   // Calculate stats
   const statsMap: Record<string, number> = {};
@@ -276,19 +325,8 @@ events.get('/:uuid', requireAuth, async (c) => {
 
   const db = createDbClient(c.env.DB);
 
-  const [event] = await db
-    .select()
-    .from(schema.events)
-    .where(
-      and(
-        eq(schema.events.uuid, uuid),
-        eq(schema.events.userId, user.id),
-        isNull(schema.events.deletedAt)
-      )
-    )
-    .limit(1);
-
-  if (!event) {
+  const access = await resolveEventAccess(db, uuid, user.id);
+  if (!access) {
     return c.json(
       {
         success: false,
@@ -301,9 +339,16 @@ events.get('/:uuid', requireAuth, async (c) => {
     );
   }
 
+  // Fetch full event data
+  const [event] = await db
+    .select()
+    .from(schema.events)
+    .where(eq(schema.events.id, access.event.id))
+    .limit(1);
+
   return c.json({
     success: true,
-    data: event,
+    data: { ...event, _access: { type: access.accessType, canEdit: access.canEdit, canDelete: access.canDelete } },
   });
 });
 
@@ -375,31 +420,21 @@ events.patch(
 
     const db = createDbClient(c.env.DB);
 
-    // Check event exists and belongs to user
-    const [existingEvent] = await db
-      .select({ id: schema.events.id })
-      .from(schema.events)
-      .where(
-        and(
-          eq(schema.events.uuid, uuid),
-          eq(schema.events.userId, user.id),
-          isNull(schema.events.deletedAt)
-        )
-      )
-      .limit(1);
-
-    if (!existingEvent) {
+    const access = await resolveEventAccess(db, uuid, user.id);
+    if (!access) {
       return c.json(
-        {
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Event not found',
-          },
-        },
+        { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canEdit) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+
+    const existingEvent = { id: access.event.id };
 
     // Build update object, only including defined fields
     const updateData: Record<string, unknown> = {
@@ -479,29 +514,17 @@ events.delete('/:uuid', requireAuth, async (c) => {
 
   const db = createDbClient(c.env.DB);
 
-  // Check event exists and belongs to user
-  const [existingEvent] = await db
-    .select({ id: schema.events.id })
-    .from(schema.events)
-    .where(
-      and(
-        eq(schema.events.uuid, uuid),
-        eq(schema.events.userId, user.id),
-        isNull(schema.events.deletedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existingEvent) {
+  const access = await resolveEventAccess(db, uuid, user.id);
+  if (!access) {
     return c.json(
-      {
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Event not found',
-        },
-      },
+      { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
+    );
+  }
+  if (!access.canDelete) {
+    return c.json(
+      { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+      403
     );
   }
 
@@ -626,25 +649,15 @@ events.get('/:uuid/guest-settings', requireAuth, async (c) => {
 
   const db = createDbClient(c.env.DB);
 
-  // Get event
-  const [event] = await db
-    .select({ id: schema.events.id, eventType: schema.events.eventType })
-    .from(schema.events)
-    .where(
-      and(
-        eq(schema.events.uuid, uuid),
-        eq(schema.events.userId, user.id),
-        isNull(schema.events.deletedAt)
-      )
-    )
-    .limit(1);
-
-  if (!event) {
+  // Get event via access check
+  const access = await resolveEventAccess(db, uuid, user.id);
+  if (!access) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
     );
   }
+  const event = { id: access.event.id, eventType: access.event.eventType };
 
   // Get or create settings
   let [settings] = await db
@@ -778,25 +791,21 @@ events.patch(
 
     const db = createDbClient(c.env.DB);
 
-    // Get event
-    const [event] = await db
-      .select({ id: schema.events.id })
-      .from(schema.events)
-      .where(
-        and(
-          eq(schema.events.uuid, uuid),
-          eq(schema.events.userId, user.id),
-          isNull(schema.events.deletedAt)
-        )
-      )
-      .limit(1);
-
-    if (!event) {
+    // Get event via access check
+    const access = await resolveEventAccess(db, uuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canEdit) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = { id: access.event.id };
 
     // Check if settings exist
     const [existingSettings] = await db

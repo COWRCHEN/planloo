@@ -1,0 +1,33 @@
+---
+/**
+ * Accept Invitation Page
+ *
+ * Allows authenticated users to accept organization invitations.
+ */
+
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { AcceptInvitationView } from '@/components/organizations';
+
+export const prerender = false;
+
+const { token } = Astro.params;
+---
+
+<BaseLayout title="Accept Invitation" description="Accept your organization invitation">
+  <div class="min-h-screen bg-muted/30 py-8 px-4">
+    <div class="max-w-md mx-auto">
+      <div class="text-center mb-8">
+        <a href="/" class="inline-flex items-center gap-2">
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-600 to-secondary-600">
+            <span class="text-lg font-bold text-white">P</span>
+          </div>
+          <span class="font-heading text-2xl font-bold text-foreground">Planloo</span>
+        </a>
+      </div>
+
+      <div class="rounded-xl border bg-card p-8 shadow-lg">
+        <AcceptInvitationView client:load token={token!} />
+      </div>
+    </div>
+  </div>
+</BaseLayout>

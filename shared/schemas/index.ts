@@ -7,3 +7,5 @@
 export * from './event';
 export * from './budget';
 export * from './provider';
+export * from './organization';
+export * from './collaborator';

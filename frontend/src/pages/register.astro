@@ -5,6 +5,9 @@
 
 import AuthLayout from '@/layouts/AuthLayout.astro';
 import { RegisterView } from '@/components/auth/RegisterView';
+
+// Get return URL from query params (e.g. from invitation flow)
+const returnUrl = Astro.url.searchParams.get('returnUrl') || '/dashboard';
 ---
 
 <AuthLayout title="Create Account" description="Create your Planloo account">
@@ -18,6 +21,6 @@ import { RegisterView } from '@/components/auth/RegisterView';
       </p>
     </div>
 
-    <RegisterView client:load />
+    <RegisterView client:load returnUrl={returnUrl} />
   </div>
 </AuthLayout>

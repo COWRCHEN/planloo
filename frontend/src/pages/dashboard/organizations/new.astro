@@ -1,0 +1,23 @@
+---
+/**
+ * Create Organization Page
+ *
+ * Form to create a new organization.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { CreateOrgView } from '@/components/organizations';
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Create Organization" description="Create a new organization">
+  <div class="mx-auto max-w-2xl space-y-6">
+    <div>
+      <h1 class="font-heading text-3xl font-bold">Create Organization</h1>
+      <p class="text-muted-foreground">Set up a new organization for team-based event planning.</p>
+    </div>
+
+    <CreateOrgView client:load />
+  </div>
+</DashboardLayout>

@@ -13,6 +13,7 @@ import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
 import { eq, and, isNull, desc, asc, sql, count } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
+import { resolveEventAccess } from '@/lib/event-access';
 
 const budget = new Hono<HonoEnv>();
 
@@ -76,33 +77,6 @@ const updatePaymentSchema = z.object({
 // ==================== HELPERS ====================
 
 /**
- * Verify event ownership and return event info
- */
-async function getEventByUuidForUser(
-  db: ReturnType<typeof createDbClient>,
-  eventUuid: string,
-  userId: string
-): Promise<{ id: number; budgetTotal: number | null; budgetCurrency: string | null } | null> {
-  const [event] = await db
-    .select({
-      id: schema.events.id,
-      budgetTotal: schema.events.budgetTotal,
-      budgetCurrency: schema.events.budgetCurrency,
-    })
-    .from(schema.events)
-    .where(
-      and(
-        eq(schema.events.uuid, eventUuid),
-        eq(schema.events.userId, userId),
-        isNull(schema.events.deletedAt)
-      )
-    )
-    .limit(1);
-
-  return event ?? null;
-}
-
-/**
  * Compute total paid for a budget item and update its paymentStatus
  */
 async function recomputePaymentStatus(
@@ -162,13 +136,25 @@ budget.get('/summary', requireAuth, async (c) => {
 
   const db = createDbClient(c.env.DB);
 
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
-  if (!event) {
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
     );
   }
+
+  // Fetch budget-specific fields
+  const [eventBudgetInfo] = await db
+    .select({
+      budgetTotal: schema.events.budgetTotal,
+      budgetCurrency: schema.events.budgetCurrency,
+    })
+    .from(schema.events)
+    .where(eq(schema.events.id, access.event.id))
+    .limit(1);
+
+  const event = { id: access.event.id, budgetTotal: eventBudgetInfo?.budgetTotal ?? null, budgetCurrency: eventBudgetInfo?.budgetCurrency ?? null };
 
   const baseCondition = and(
     eq(schema.budgetItems.eventId, event.id),
@@ -272,13 +258,20 @@ budget.get(
 
     const db = createDbClient(c.env.DB);
 
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
-    if (!event) {
+    const access = await resolveEventAccess(db, eventUuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canManageBudget) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = access.event;
 
     // Build where conditions
     const conditions = [
@@ -396,13 +389,20 @@ budget.post(
 
     const db = createDbClient(c.env.DB);
 
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
-    if (!event) {
+    const access = await resolveEventAccess(db, eventUuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canManageBudget) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = access.event;
 
     const uuid = crypto.randomUUID();
 
@@ -458,13 +458,14 @@ budget.get('/:uuid', requireAuth, async (c) => {
 
   const db = createDbClient(c.env.DB);
 
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
-  if (!event) {
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
     );
   }
+  const event = { id: access.event.id, budgetTotal: null as number | null, budgetCurrency: null as string | null };
 
   const [item] = await db
     .select()
@@ -542,13 +543,20 @@ budget.patch(
 
     const db = createDbClient(c.env.DB);
 
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
-    if (!event) {
+    const access = await resolveEventAccess(db, eventUuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canManageBudget) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = access.event;
 
     const [existing] = await db
       .select({ id: schema.budgetItems.id })
@@ -637,13 +645,14 @@ budget.delete('/:uuid', requireAuth, requireVerifiedEmail, async (c) => {
 
   const db = createDbClient(c.env.DB);
 
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
-  if (!event) {
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
     );
   }
+  const event = { id: access.event.id, budgetTotal: null as number | null, budgetCurrency: null as string | null };
 
   const [existing] = await db
     .select({ id: schema.budgetItems.id })
@@ -692,13 +701,20 @@ budget.post(
 
     const db = createDbClient(c.env.DB);
 
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
-    if (!event) {
+    const access = await resolveEventAccess(db, eventUuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canManageBudget) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = access.event;
 
     const [budgetItem] = await db
       .select({ id: schema.budgetItems.id })
@@ -776,13 +792,20 @@ budget.patch(
 
     const db = createDbClient(c.env.DB);
 
-    const event = await getEventByUuidForUser(db, eventUuid, user.id);
-    if (!event) {
+    const access = await resolveEventAccess(db, eventUuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canManageBudget) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = access.event;
 
     const [budgetItem] = await db
       .select({ id: schema.budgetItems.id })
@@ -868,13 +891,14 @@ budget.delete('/:uuid/payments/:paymentUuid', requireAuth, requireVerifiedEmail,
 
   const db = createDbClient(c.env.DB);
 
-  const event = await getEventByUuidForUser(db, eventUuid, user.id);
-  if (!event) {
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
     );
   }
+  const event = { id: access.event.id, budgetTotal: null as number | null, budgetCurrency: null as string | null };
 
   const [budgetItem] = await db
     .select({ id: schema.budgetItems.id })

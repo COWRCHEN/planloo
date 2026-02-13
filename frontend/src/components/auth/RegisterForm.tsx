@@ -39,9 +39,10 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 interface RegisterFormProps {
   onSuccess?: () => void;
+  returnUrl?: string;
 }
 
-export function RegisterForm({ onSuccess }: RegisterFormProps) {
+export function RegisterForm({ onSuccess, returnUrl = '/dashboard' }: RegisterFormProps) {
   const signUp = useSignUp();
   const oauthSignIn = useOAuthSignIn();
 
@@ -55,7 +56,12 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
 
   const onSubmit = (data: RegisterFormData) => {
     signUp.mutate(
-      { email: data.email, password: data.password, name: data.name },
+      {
+        email: data.email,
+        password: data.password,
+        name: data.name,
+        callbackURL: returnUrl,
+      },
       {
         onSuccess: () => {
           onSuccess?.();
@@ -65,7 +71,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
   };
 
   const handleOAuthSignUp = (provider: 'google') => {
-    oauthSignIn.mutate({ provider, callbackURL: '/dashboard' });
+    oauthSignIn.mutate({ provider, callbackURL: returnUrl });
   };
 
   const isLoading = signUp.isPending || oauthSignIn.isPending;
@@ -202,7 +208,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{' '}
-        <a href="/login" className="text-primary hover:text-primary/80 font-medium">
+        <a href={`/login?returnUrl=${encodeURIComponent(returnUrl)}`} className="text-primary hover:text-primary/80 font-medium">
           Sign in
         </a>
       </p>

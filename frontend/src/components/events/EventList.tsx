@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EventCard } from './EventCard';
 import { EventFilters } from './EventFilters';
 import { EmptyEventState } from './EmptyEventState';
-import { useEvents, type EventStatus, type EventType } from '@/hooks/use-events';
+import { useEvents, type EventStatus, type EventType, type EventSource } from '@/hooks/use-events';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -39,6 +39,7 @@ function EventCardSkeleton() {
 export function EventList() {
   const [status, setStatus] = useState<EventStatus | undefined>(undefined);
   const [eventType, setEventType] = useState<EventType | undefined>(undefined);
+  const [source, setSource] = useState<EventSource | undefined>(undefined);
   const [sortBy, setSortBy] = useState<'startDate' | 'createdAt' | 'title'>('startDate');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(0);
@@ -46,6 +47,7 @@ export function EventList() {
   const filters = {
     ...(status && { status }),
     ...(eventType && { eventType }),
+    ...(source && source !== 'all' && { source }),
     sortBy,
     sortOrder,
     limit: ITEMS_PER_PAGE,
@@ -56,6 +58,7 @@ export function EventList() {
   const handleClearFilters = () => {
     setStatus(undefined);
     setEventType(undefined);
+    setSource(undefined);
     setPage(0);
   };
 
@@ -65,7 +68,7 @@ export function EventList() {
     setPage(0);
   };
 
-  const hasFilters = status !== undefined || eventType !== undefined;
+  const hasFilters = status !== undefined || eventType !== undefined || (source !== undefined && source !== 'all');
   const totalPages = Math.ceil((data?.meta?.total ?? 0) / ITEMS_PER_PAGE);
 
   if (error) {
@@ -86,6 +89,7 @@ export function EventList() {
         <EventFilters
           status={status ?? undefined}
           eventType={eventType ?? undefined}
+          source={source ?? undefined}
           sortBy={sortBy}
           sortOrder={sortOrder}
           onStatusChange={(s) => {
@@ -94,6 +98,10 @@ export function EventList() {
           }}
           onEventTypeChange={(t) => {
             setEventType(t);
+            setPage(0);
+          }}
+          onSourceChange={(s) => {
+            setSource(s);
             setPage(0);
           }}
           onSortChange={handleSortChange}

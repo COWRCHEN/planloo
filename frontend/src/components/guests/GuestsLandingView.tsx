@@ -140,6 +140,7 @@ function GuestsLandingContent() {
         sortOrder={sortOrder}
         onStatusChange={setStatus}
         onEventTypeChange={setEventType}
+        onSourceChange={() => {}}
         onSortChange={handleSortChange}
         onClearFilters={handleClearFilters}
       />

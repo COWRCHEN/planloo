@@ -12,7 +12,8 @@ import type { HonoEnv } from '@/types/env';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and, isNull, desc, count } from 'drizzle-orm';
+import { eq, desc, count } from 'drizzle-orm';
+import { resolveEventAccess } from '@/lib/event-access';
 
 const emailLogRoutes = new Hono<HonoEnv>();
 
@@ -36,25 +37,15 @@ emailLogRoutes.get(
     const { limit, offset } = c.req.valid('query');
     const db = createDbClient(c.env.DB);
 
-    // Verify event ownership
-    const [event] = await db
-      .select({ id: schema.events.id })
-      .from(schema.events)
-      .where(
-        and(
-          eq(schema.events.uuid, eventUuid),
-          eq(schema.events.userId, user.id),
-          isNull(schema.events.deletedAt)
-        )
-      )
-      .limit(1);
-
-    if (!event) {
+    // Verify event access
+    const access = await resolveEventAccess(db, eventUuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    const event = { id: access.event.id };
 
     const [countResult] = await db
       .select({ count: count() })

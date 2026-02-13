@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { EventStatus, EventType } from '@/hooks/use-events';
+import type { EventStatus, EventType, EventSource } from '@/hooks/use-events';
 
 const EVENT_STATUSES: { value: EventStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All Statuses' },
@@ -32,6 +32,13 @@ const EVENT_TYPES: { value: EventType | 'all'; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
+const EVENT_SOURCES: { value: EventSource; label: string }[] = [
+  { value: 'all', label: 'All Events' },
+  { value: 'personal', label: 'Personal' },
+  { value: 'organization', label: 'Organization' },
+  { value: 'collaboration', label: 'Shared with Me' },
+];
+
 const SORT_OPTIONS = [
   { value: 'startDate-asc', label: 'Date (Earliest)' },
   { value: 'startDate-desc', label: 'Date (Latest)' },
@@ -44,10 +51,12 @@ const SORT_OPTIONS = [
 interface EventFiltersProps {
   status?: EventStatus | undefined;
   eventType?: EventType | undefined;
+  source?: EventSource | undefined;
   sortBy?: string | undefined;
   sortOrder?: 'asc' | 'desc' | undefined;
   onStatusChange: (status: EventStatus | undefined) => void;
   onEventTypeChange: (eventType: EventType | undefined) => void;
+  onSourceChange: (source: EventSource | undefined) => void;
   onSortChange: (sortBy: string, sortOrder: 'asc' | 'desc') => void;
   onClearFilters: () => void;
 }
@@ -55,14 +64,16 @@ interface EventFiltersProps {
 export function EventFilters({
   status,
   eventType,
+  source,
   sortBy = 'startDate',
   sortOrder = 'asc',
   onStatusChange,
   onEventTypeChange,
+  onSourceChange,
   onSortChange,
   onClearFilters,
 }: EventFiltersProps) {
-  const hasFilters = status !== undefined || eventType !== undefined;
+  const hasFilters = status !== undefined || eventType !== undefined || (source !== undefined && source !== 'all');
   const currentSort = `${sortBy}-${sortOrder}`;
 
   return (
@@ -94,6 +105,24 @@ export function EventFilters({
         </SelectTrigger>
         <SelectContent>
           {EVENT_TYPES.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={source ?? 'all'}
+        onValueChange={(value) =>
+          onSourceChange(value === 'all' ? undefined : (value as EventSource))
+        }
+      >
+        <SelectTrigger className="w-[160px]">
+          <SelectValue placeholder="Source" />
+        </SelectTrigger>
+        <SelectContent>
+          {EVENT_SOURCES.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
             </SelectItem>
