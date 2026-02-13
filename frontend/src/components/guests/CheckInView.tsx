@@ -220,7 +220,7 @@ function CheckInContent({ eventUuid }: CheckInViewProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-12">
       {/* Stats Bar */}
       <CheckInStats
         checkedIn={stats?.checkedIn ?? 0}
