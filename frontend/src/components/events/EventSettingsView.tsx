@@ -77,6 +77,13 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
     ? orgs.find((o) => o.id === event.organizationId)
     : null;
 
+  // Derive permissions from _access (default to full access for backward compatibility)
+  const access = event?._access;
+  const canEdit = access?.canEdit ?? true;
+  const canManageGuests = access?.canManageGuests ?? true;
+  const canManageCollaborators = access?.canManageCollaborators ?? true;
+  const isViewer = access ? !access.canEdit : false;
+
   if (sessionLoading || isLoading) {
     return <EventSettingsSkeleton />;
   }
@@ -162,26 +169,98 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
         </div>
       </div>
 
+      {/* Read-only notice for viewers */}
+      {isViewer && (
+        <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3">
+              <svg
+                className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+              <div>
+                <p className="font-medium text-yellow-900 dark:text-yellow-100">
+                  View-only access
+                </p>
+                <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                  You can view these settings but don't have permission to make changes.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Settings Accordion */}
       <Accordion type="single" collapsible className="w-full space-y-4">
-        <AccordionItem value="field-settings">
-          <AccordionTrigger>Guest Field Settings</AccordionTrigger>
-          <AccordionContent>
-            <Tabs defaultValue="common-fields" className="space-y-6">
-              <TabsList>
-                <TabsTrigger value="common-fields">Common Fields</TabsTrigger>
-                <TabsTrigger value="guest-fields">Guest Fields</TabsTrigger>
-                <TabsTrigger value="custom-fields">Custom Fields</TabsTrigger>
-              </TabsList>
+        {canManageGuests && (
+          <AccordionItem value="field-settings">
+            <AccordionTrigger>Guest Field Settings</AccordionTrigger>
+            <AccordionContent>
+              <Tabs defaultValue="common-fields" className="space-y-6">
+                <TabsList>
+                  <TabsTrigger value="common-fields">Common Fields</TabsTrigger>
+                  <TabsTrigger value="guest-fields">Guest Fields</TabsTrigger>
+                  <TabsTrigger value="custom-fields">Custom Fields</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="guest-fields" className="space-y-6">
-                {/* Event Type Info */}
-                {event.eventType && event.eventType !== 'other' && (
-                  <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+                <TabsContent value="guest-fields" className="space-y-6">
+                  {/* Event Type Info */}
+                  {event.eventType && event.eventType !== 'other' && (
+                    <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+                      <CardContent className="py-4">
+                        <div className="flex items-start gap-3">
+                          <svg
+                            className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          <div>
+                            <p className="font-medium text-blue-900 dark:text-blue-100">
+                              {eventTypeLabels[event.eventType]} Event
+                            </p>
+                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                              This event includes specialized fields for {eventTypeLabels[event.eventType]?.toLowerCase() ?? 'this'} events.
+                              These fields are automatically available in guest forms based on your event type.
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <GuestFieldSettings eventUuid={uuid} />
+                </TabsContent>
+
+                <TabsContent value="common-fields" className="space-y-6">
+                  <Card className="border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
                     <CardContent className="py-4">
                       <div className="flex items-start gap-3">
                         <svg
-                          className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5"
+                          className="h-5 w-5 text-slate-600 dark:text-slate-400 mt-0.5"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -190,103 +269,72 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                           />
                         </svg>
                         <div>
-                          <p className="font-medium text-blue-900 dark:text-blue-100">
-                            {eventTypeLabels[event.eventType]} Event
+                          <p className="font-medium text-slate-900 dark:text-slate-100">
+                            Common Fields
                           </p>
-                          <p className="text-sm text-blue-700 dark:text-blue-300">
-                            This event includes specialized fields for {eventTypeLabels[event.eventType]?.toLowerCase() ?? 'this'} events.
-                            These fields are automatically available in guest forms based on your event type.
+                          <p className="text-sm text-slate-700 dark:text-slate-300">
+                            Mark which base fields (first name, last name, email, phone) are required when guests are added or updated.
                           </p>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
-                )}
 
-                <GuestFieldSettings eventUuid={uuid} />
-              </TabsContent>
+                  <CommonFieldSettings eventUuid={uuid} />
+                </TabsContent>
 
-              <TabsContent value="common-fields" className="space-y-6">
-                <Card className="border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
-                  <CardContent className="py-4">
-                    <div className="flex items-start gap-3">
-                      <svg
-                        className="h-5 w-5 text-slate-600 dark:text-slate-400 mt-0.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                        />
-                      </svg>
-                      <div>
-                        <p className="font-medium text-slate-900 dark:text-slate-100">
-                          Common Fields
-                        </p>
-                        <p className="text-sm text-slate-700 dark:text-slate-300">
-                          Mark which base fields (first name, last name, email, phone) are required when guests are added or updated.
-                        </p>
+                <TabsContent value="custom-fields" className="space-y-6">
+                  {/* Custom Fields Info */}
+                  <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+                    <CardContent className="py-4">
+                      <div className="flex items-start gap-3">
+                        <svg
+                          className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                          />
+                        </svg>
+                        <div>
+                          <p className="font-medium text-amber-900 dark:text-amber-100">
+                            Custom Fields
+                          </p>
+                          <p className="text-sm text-amber-700 dark:text-amber-300">
+                            Create your own fields to collect any additional information from guests.
+                            Supports text, numbers, dates, checkboxes, and dropdown selections.
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
 
-                <CommonFieldSettings eventUuid={uuid} />
-              </TabsContent>
+                  <CustomFieldManager eventUuid={uuid} />
+                </TabsContent>
+              </Tabs>
+            </AccordionContent>
+          </AccordionItem>
+        )}
 
-              <TabsContent value="custom-fields" className="space-y-6">
-                {/* Custom Fields Info */}
-                <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
-                  <CardContent className="py-4">
-                    <div className="flex items-start gap-3">
-                      <svg
-                        className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                        />
-                      </svg>
-                      <div>
-                        <p className="font-medium text-amber-900 dark:text-amber-100">
-                          Custom Fields
-                        </p>
-                        <p className="text-sm text-amber-700 dark:text-amber-300">
-                          Create your own fields to collect any additional information from guests.
-                          Supports text, numbers, dates, checkboxes, and dropdown selections.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+        {canEdit && (
+          <AccordionItem value="rsvp-settings">
+            <AccordionTrigger>RSVP & Invitations</AccordionTrigger>
+            <AccordionContent>
+              <RsvpSettings eventUuid={uuid} />
+            </AccordionContent>
+          </AccordionItem>
+        )}
 
-                <CustomFieldManager eventUuid={uuid} />
-              </TabsContent>
-            </Tabs>
-          </AccordionContent>
-        </AccordionItem>
-
-        <AccordionItem value="rsvp-settings">
-          <AccordionTrigger>RSVP & Invitations</AccordionTrigger>
-          <AccordionContent>
-            <RsvpSettings eventUuid={uuid} />
-          </AccordionContent>
-        </AccordionItem>
-
-        {rsvpSettings?.enableRsvp && (
+        {canEdit && rsvpSettings?.enableRsvp && (
           <AccordionItem value="rsvp-form-fields">
             <AccordionTrigger>RSVP Form Fields</AccordionTrigger>
             <AccordionContent>
@@ -295,19 +343,23 @@ function EventSettingsContent({ uuid }: EventSettingsViewProps) {
           </AccordionItem>
         )}
 
-        <AccordionItem value="privacy-settings">
-          <AccordionTrigger>Privacy & Sharing</AccordionTrigger>
-          <AccordionContent>
-            <PrivacySharingSettings eventUuid={uuid} />
-          </AccordionContent>
-        </AccordionItem>
+        {canEdit && (
+          <AccordionItem value="privacy-settings">
+            <AccordionTrigger>Privacy & Sharing</AccordionTrigger>
+            <AccordionContent>
+              <PrivacySharingSettings eventUuid={uuid} />
+            </AccordionContent>
+          </AccordionItem>
+        )}
 
-        <AccordionItem value="collaborators">
-          <AccordionTrigger>Collaborators</AccordionTrigger>
-          <AccordionContent>
-            <CollaboratorsList eventUuid={uuid} />
-          </AccordionContent>
-        </AccordionItem>
+        {canManageCollaborators && (
+          <AccordionItem value="collaborators">
+            <AccordionTrigger>Collaborators</AccordionTrigger>
+            <AccordionContent>
+              <CollaboratorsList eventUuid={uuid} />
+            </AccordionContent>
+          </AccordionItem>
+        )}
       </Accordion>
     </div>
   );

@@ -149,13 +149,14 @@ events.get('/', requireAuth, zValidator('query', listEventsQuerySchema), async (
     .from(schema.events)
     .where(and(...conditions));
 
-  // Get events
+  // Get events (LEFT JOIN organization to include org name)
   const eventsList = await db
     .select({
       id: schema.events.id,
       uuid: schema.events.uuid,
       userId: schema.events.userId,
       organizationId: schema.events.organizationId,
+      organizationName: schema.organization.name,
       title: schema.events.title,
       description: schema.events.description,
       eventType: schema.events.eventType,
@@ -176,6 +177,7 @@ events.get('/', requireAuth, zValidator('query', listEventsQuerySchema), async (
       updatedAt: schema.events.updatedAt,
     })
     .from(schema.events)
+    .leftJoin(schema.organization, eq(schema.events.organizationId, schema.organization.id))
     .where(and(...conditions))
     .orderBy(orderFn(sortColumn))
     .limit(limit)
@@ -348,7 +350,17 @@ events.get('/:uuid', requireAuth, async (c) => {
 
   return c.json({
     success: true,
-    data: { ...event, _access: { type: access.accessType, canEdit: access.canEdit, canDelete: access.canDelete } },
+    data: {
+      ...event,
+      _access: {
+        type: access.accessType,
+        canEdit: access.canEdit,
+        canDelete: access.canDelete,
+        canManageGuests: access.canManageGuests,
+        canManageCollaborators: access.canManageCollaborators,
+        canManageBudget: access.canManageBudget,
+      },
+    },
   });
 });
 
@@ -1065,24 +1077,15 @@ events.get('/:uuid/rsvp-settings', requireAuth, async (c) => {
 
   const db = createDbClient(c.env.DB);
 
-  const [event] = await db
-    .select({ id: schema.events.id })
-    .from(schema.events)
-    .where(
-      and(
-        eq(schema.events.uuid, uuid),
-        eq(schema.events.userId, user.id),
-        isNull(schema.events.deletedAt)
-      )
-    )
-    .limit(1);
-
-  if (!event) {
+  // Use resolveEventAccess so org members and collaborators can read RSVP settings
+  const access = await resolveEventAccess(db, uuid, user.id);
+  if (!access) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
     );
   }
+  const event = { id: access.event.id };
 
   let [settings] = await db
     .select()
@@ -1126,24 +1129,21 @@ events.patch(
 
     const db = createDbClient(c.env.DB);
 
-    const [event] = await db
-      .select({ id: schema.events.id })
-      .from(schema.events)
-      .where(
-        and(
-          eq(schema.events.uuid, uuid),
-          eq(schema.events.userId, user.id),
-          isNull(schema.events.deletedAt)
-        )
-      )
-      .limit(1);
-
-    if (!event) {
+    // Use resolveEventAccess so org members and collaborators can update RSVP settings
+    const access = await resolveEventAccess(db, uuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canEdit) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = { id: access.event.id };
 
     const [existingSettings] = await db
       .select({ id: schema.eventRsvpSettings.id, rsvpFormFields: schema.eventRsvpSettings.rsvpFormFields })
@@ -1235,24 +1235,15 @@ events.get('/:uuid/privacy-settings', requireAuth, async (c) => {
 
   const db = createDbClient(c.env.DB);
 
-  const [event] = await db
-    .select({ id: schema.events.id })
-    .from(schema.events)
-    .where(
-      and(
-        eq(schema.events.uuid, uuid),
-        eq(schema.events.userId, user.id),
-        isNull(schema.events.deletedAt)
-      )
-    )
-    .limit(1);
-
-  if (!event) {
+  // Use resolveEventAccess so org members and collaborators can read privacy settings
+  const access = await resolveEventAccess(db, uuid, user.id);
+  if (!access) {
     return c.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
       404
     );
   }
+  const event = { id: access.event.id };
 
   let [settings] = await db
     .select()
@@ -1290,24 +1281,21 @@ events.patch(
 
     const db = createDbClient(c.env.DB);
 
-    const [event] = await db
-      .select({ id: schema.events.id })
-      .from(schema.events)
-      .where(
-        and(
-          eq(schema.events.uuid, uuid),
-          eq(schema.events.userId, user.id),
-          isNull(schema.events.deletedAt)
-        )
-      )
-      .limit(1);
-
-    if (!event) {
+    // Use resolveEventAccess so org members and collaborators can update privacy settings
+    const access = await resolveEventAccess(db, uuid, user.id);
+    if (!access) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
     }
+    if (!access.canEdit) {
+      return c.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
+        403
+      );
+    }
+    const event = { id: access.event.id };
 
     const [existingSettings] = await db
       .select({ id: schema.eventPrivacySettings.id })

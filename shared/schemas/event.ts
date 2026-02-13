@@ -97,6 +97,19 @@ export type UpdateEventInput = z.infer<typeof updateEventSchema>;
 export type ListEventsQuery = z.infer<typeof listEventsQuerySchema>;
 
 /**
+ * Access permissions returned by the event detail endpoint.
+ * Populated by resolveEventAccess based on the user's relationship to the event.
+ */
+export interface EventAccessInfo {
+  type: 'owner' | 'org_admin' | 'org_member' | 'org_viewer' | 'collaborator_owner' | 'collaborator_editor' | 'collaborator_viewer';
+  canEdit: boolean;
+  canDelete: boolean;
+  canManageGuests: boolean;
+  canManageCollaborators: boolean;
+  canManageBudget: boolean;
+}
+
+/**
  * Event response type (from API)
  */
 export interface EventResponse {
@@ -104,6 +117,7 @@ export interface EventResponse {
   uuid: string;
   userId: string;
   organizationId: string | null;
+  organizationName?: string | null;
   title: string;
   description: string | null;
   eventType: EventType | null;
@@ -128,6 +142,7 @@ export interface EventResponse {
   coverImageUrl: string | null;
   createdAt: string;
   updatedAt: string;
+  _access?: EventAccessInfo;
 }
 
 /**

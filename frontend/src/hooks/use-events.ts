@@ -17,11 +17,21 @@ export const EVENT_STATUSES = ['draft', 'planning', 'confirmed', 'completed', 'c
 export type EventType = (typeof EVENT_TYPES)[number];
 export type EventStatus = (typeof EVENT_STATUSES)[number];
 
+export interface EventAccessInfo {
+  type: 'owner' | 'org_admin' | 'org_member' | 'org_viewer' | 'collaborator_owner' | 'collaborator_editor' | 'collaborator_viewer';
+  canEdit: boolean;
+  canDelete: boolean;
+  canManageGuests: boolean;
+  canManageCollaborators: boolean;
+  canManageBudget: boolean;
+}
+
 export interface EventResponse {
   id: number;
   uuid: string;
   userId: string;
   organizationId: string | null;
+  organizationName?: string | null;
   title: string;
   description: string | null;
   eventType: EventType | null;
@@ -46,6 +56,7 @@ export interface EventResponse {
   coverImageUrl: string | null;
   createdAt: string;
   updatedAt: string;
+  _access?: EventAccessInfo;
 }
 
 export interface EventStatsResponse {
