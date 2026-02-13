@@ -192,7 +192,7 @@ function GuestsLandingContent() {
                   </span>
                 </div>
                 <div className="flex gap-2">
-                  <Button asChild className="flex-1">
+                  <Button variant="outline" asChild className="flex-1">
                     <a href={`/dashboard/events/${event.uuid}/guests`}>Manage Guests</a>
                   </Button>
                   <Button variant="outline" asChild>

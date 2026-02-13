@@ -77,11 +77,14 @@ primary-900: #1E3A8A  /* Darkest - text on light backgrounds */
 ```
 
 **Usage Guidelines:**
-- `primary-500` for primary buttons, active nav items, important links
-- `primary-600` for button hover states
-- `primary-700` for button pressed/active states
-- `primary-50` for subtle background highlights
-- `primary-100` for hover states on white backgrounds
+- `primary-500` for primary buttons (bg), active nav items, important links, icon button default color
+- `primary-600` for primary button bg, ghost/icon button text color, focus rings
+- `primary-700` for primary button hover, secondary button text color, ghost hover text
+- `primary-800` for active/pressed states on ghost/icon buttons
+- `primary-300` for secondary button border (default)
+- `primary-400` for secondary button border (hover)
+- `primary-50` for hover backgrounds on secondary/ghost/icon buttons
+- `primary-100` for active/pressed backgrounds on secondary/ghost/icon buttons
 
 ### Secondary Palette
 
@@ -179,6 +182,7 @@ dark-border: #334155  /* Borders */
 2. **Never Use Color Alone:** Always pair color with icons, text, or patterns for state indication
 3. **Consistent Mapping:** Success = green, warning = amber, error = red, info = cyan (never deviate)
 4. **Limited Palette:** Use only the defined colors; avoid creating new shades
+5. **Buttons vs. Text Separation:** All interactive buttons use the primary blue palette (text, backgrounds, borders) to clearly distinguish them from body content, which uses the gray palette. Buttons should never use gray-600/700 for their text color, as those are reserved for body copy and headings.
 
 ---
 
@@ -550,12 +554,12 @@ shadow-2xl:  0 25px 50px -12px rgb(0 0 0 / 0.25);
 ```css
 .btn-secondary {
   background: #FFFFFF;
-  color: #374151;             /* gray-700 */
+  color: #1D4ED8;             /* primary-700 — distinct from gray body text */
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
   font-weight: 600;
   border-radius: 0.375rem;
-  border: 1px solid #D1D5DB;  /* gray-300 */
+  border: 1px solid #93C5FD;  /* primary-300 — blue-tinted border */
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   transition: all 150ms ease-in-out;
   cursor: pointer;
@@ -563,20 +567,21 @@ shadow-2xl:  0 25px 50px -12px rgb(0 0 0 / 0.25);
 }
 
 .btn-secondary:hover {
-  background: #F9FAFB;        /* gray-50 */
-  border-color: #9CA3AF;      /* gray-400 */
+  background: #EFF6FF;        /* primary-50 */
+  border-color: #60A5FA;      /* primary-400 */
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
 
 .btn-secondary:active {
-  background: #F3F4F6;        /* gray-100 */
+  background: #DBEAFE;        /* primary-100 */
+  border-color: #3B82F6;      /* primary-500 */
 }
 
 .btn-secondary:disabled {
-  background: #F9FAFB;
-  color: #9CA3AF;
+  background: #F9FAFB;        /* gray-50 */
+  color: #BFDBFE;             /* primary-200 — faded blue */
   cursor: not-allowed;
-  border-color: #E5E7EB;
+  border-color: #DBEAFE;      /* primary-100 */
 }
 ```
 
@@ -599,7 +604,7 @@ shadow-2xl:  0 25px 50px -12px rgb(0 0 0 / 0.25);
 ```css
 .btn-ghost {
   background: transparent;
-  color: #4B5563;             /* gray-600 */
+  color: #2563EB;             /* primary-600 — blue text signals interactivity */
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
   font-weight: 600;
@@ -611,8 +616,13 @@ shadow-2xl:  0 25px 50px -12px rgb(0 0 0 / 0.25);
 }
 
 .btn-ghost:hover {
-  background: #F3F4F6;        /* gray-100 */
-  color: #1F2937;             /* gray-800 */
+  background: #EFF6FF;        /* primary-50 — light blue tint */
+  color: #1D4ED8;             /* primary-700 */
+}
+
+.btn-ghost:active {
+  background: #DBEAFE;        /* primary-100 */
+  color: #1E40AF;             /* primary-800 */
 }
 ```
 
@@ -621,7 +631,7 @@ shadow-2xl:  0 25px 50px -12px rgb(0 0 0 / 0.25);
 ```css
 .btn-icon {
   background: transparent;
-  color: #6B7280;             /* gray-500 */
+  color: #3B82F6;             /* primary-500 — blue icons for clear interactivity */
   padding: 0.5rem;            /* 8px */
   border-radius: 0.375rem;
   border: none;
@@ -635,8 +645,13 @@ shadow-2xl:  0 25px 50px -12px rgb(0 0 0 / 0.25);
 }
 
 .btn-icon:hover {
-  background: #F3F4F6;
-  color: #1F2937;
+  background: #EFF6FF;        /* primary-50 */
+  color: #1D4ED8;             /* primary-700 */
+}
+
+.btn-icon:active {
+  background: #DBEAFE;        /* primary-100 */
+  color: #1E40AF;             /* primary-800 */
 }
 ```
 
@@ -2202,8 +2217,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: "bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-sm hover:shadow-md hover:-translate-y-0.5",
-        secondary: "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 shadow-sm",
-        ghost: "hover:bg-gray-100 hover:text-gray-900",
+        secondary: "bg-white text-primary-700 border border-primary-300 hover:bg-primary-50 hover:border-primary-400 active:bg-primary-100 shadow-sm",
+        ghost: "text-primary-600 hover:bg-primary-50 hover:text-primary-700 active:bg-primary-100",
         danger: "bg-error-600 text-white hover:bg-error-700",
       },
       size: {

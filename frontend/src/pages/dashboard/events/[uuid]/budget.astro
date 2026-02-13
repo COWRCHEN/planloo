@@ -11,13 +11,33 @@ import { BudgetView } from '@/components/budget';
 export const prerender = false;
 
 const { uuid } = Astro.params;
+
+// Fetch event name server-side for the page title
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
+let eventName = '';
+try {
+  const cookie = Astro.request.headers.get('cookie') ?? '';
+  const res = await fetch(`${API_URL}/events/${uuid}`, {
+    headers: { cookie },
+  });
+  if (res.ok) {
+    const json = await res.json();
+    eventName = json?.data?.title ?? '';
+  }
+} catch {
+  // Silently fall back to no event name
+}
+
+const pageTitle = eventName ? `Budget — ${eventName}` : 'Budget';
 ---
 
-<DashboardLayout title="Budget" description="Manage event budget">
+<DashboardLayout title={pageTitle} description="Manage event budget">
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight">Budget</h1>
+        <h1 class="text-2xl font-bold tracking-tight">
+          Budget{eventName && <span class="font-normal text-muted-foreground"> ({eventName})</span>}
+        </h1>
         <p class="text-muted-foreground">
           Track expenses, manage payments, and monitor your budget.
         </p>
@@ -25,7 +45,7 @@ const { uuid } = Astro.params;
       <div class="flex items-center gap-2">
         <a
           href={`/dashboard/events/${uuid}`}
-          class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-primary-300 bg-white text-primary-700 shadow-sm hover:bg-primary-50 hover:border-primary-400 h-9 px-4 py-2"
         >
           Back to Event
         </a>

@@ -203,7 +203,7 @@ function BudgetLandingContent() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">{event.itemCount} item{event.itemCount !== 1 ? 's' : ''}</span>
-                <Button asChild size="sm">
+                <Button variant="outline" asChild size="sm">
                   <a href={`/dashboard/events/${event.uuid}/budget`}>View Budget</a>
                 </Button>
               </div>

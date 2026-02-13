@@ -158,7 +158,7 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
         <div className="flex items-center gap-4">
           <a
             href="/dashboard/events"
-            className="flex h-10 w-10 items-center justify-center rounded-lg border hover:bg-muted"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-primary-300 text-primary-600 hover:bg-primary-50 hover:border-primary-400"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -329,7 +329,7 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
               </div>
             </dl>
             <div className="mt-4 flex gap-2">
-              <Button size="sm" asChild>
+              <Button size="sm" variant="outline" asChild>
                 <a href={`/dashboard/events/${event.uuid}/guests`}>Manage Guests</a>
               </Button>
               <Button size="sm" variant="outline" asChild>
@@ -364,7 +364,7 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
               </div>
             </dl>
             <div className="mt-4">
-              <Button size="sm" asChild>
+              <Button size="sm" variant="outline" asChild>
                 <a href={`/dashboard/events/${event.uuid}/budget`}>Manage Budget</a>
               </Button>
             </div>
