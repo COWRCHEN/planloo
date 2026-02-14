@@ -184,6 +184,9 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
             <a href={`/dashboard/events/${event.uuid}/guests`}>Guest List</a>
           </Button>
           <Button variant="outline" asChild>
+            <a href={`/dashboard/events/${event.uuid}/seating`}>Seating Chart</a>
+          </Button>
+          <Button variant="outline" asChild>
             <a href={`/dashboard/events/${event.uuid}/budget`}>Budget</a>
           </Button>
           <Button variant="outline" asChild>

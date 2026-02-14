@@ -101,6 +101,20 @@ export type NewImage = InferInsertModel<typeof schema.images>;
 export type Review = InferSelectModel<typeof schema.reviews>;
 export type NewReview = InferInsertModel<typeof schema.reviews>;
 
+// ==================== FLOOR PLAN TYPES ====================
+
+export type FloorPlan = InferSelectModel<typeof schema.floorPlans>;
+export type NewFloorPlan = InferInsertModel<typeof schema.floorPlans>;
+
+export type FloorPlanObject = InferSelectModel<typeof schema.floorPlanObjects>;
+export type NewFloorPlanObject = InferInsertModel<typeof schema.floorPlanObjects>;
+
+export type SeatAssignment = InferSelectModel<typeof schema.seatAssignments>;
+export type NewSeatAssignment = InferInsertModel<typeof schema.seatAssignments>;
+
+export type GuestRelationship = InferSelectModel<typeof schema.guestRelationships>;
+export type NewGuestRelationship = InferInsertModel<typeof schema.guestRelationships>;
+
 // ==================== ADMIN TYPES ====================
 
 export type AuditLog = InferSelectModel<typeof schema.auditLog>;
@@ -144,6 +158,12 @@ export type WeddingInvitedTo = 'ceremony' | 'reception' | 'both';
 export type AgeGroup = 'child' | 'teen' | 'adult';
 export type AttendeeType = 'employee' | 'client' | 'vendor' | 'partner' | 'other';
 export type BadgeType = 'speaker' | 'vip' | 'standard' | 'press' | 'exhibitor' | 'staff';
+
+// Floor Plan Enums
+export type FloorPlanObjectType = 'table' | 'element';
+export type TableShape = 'round' | 'rectangular' | 'square' | 'oval' | 'semicircle' | 'head_table';
+export type ElementType = 'dance_floor' | 'bar' | 'buffet' | 'stage' | 'dj_booth' | 'photo_booth' | 'entrance' | 'exit' | 'restroom' | 'dessert_station' | 'gift_table' | 'custom';
+export type RelationshipType = 'prefer_together' | 'avoid';
 
 // Custom Field Types (for Phase 3)
 export type CustomFieldType = 'text' | 'number' | 'select' | 'multiselect' | 'date' | 'checkbox';

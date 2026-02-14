@@ -13,6 +13,7 @@ import { serviceProviders, venues, eventServiceProviders, eventVenues, reviews }
 import { auditLog, impersonationSession } from './admin';
 import { guestAudit } from './guestAudit';
 import { emailLog } from './notifications';
+import { floorPlans, floorPlanObjects, seatAssignments, guestRelationships } from './floorPlan';
 
 /**
  * User Relations
@@ -138,6 +139,8 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
     references: [eventPrivacySettings.eventId]
   }),
   emailLogs: many(emailLog),
+  floorPlans: many(floorPlans),
+  guestRelationships: many(guestRelationships),
 }));
 
 /**
@@ -149,6 +152,7 @@ export const guestsRelations = relations(guests, ({ one, many }) => ({
     references: [events.id]
   }),
   auditEntries: many(guestAudit),
+  seatAssignments: many(seatAssignments),
   // Event-type-specific detail tables (1:1, only one will be populated based on event type)
   weddingDetails: one(weddingGuestDetails, {
     fields: [guests.id],
@@ -422,5 +426,63 @@ export const emailLogRelations = relations(emailLog, ({ one }) => ({
   event: one(events, {
     fields: [emailLog.eventId],
     references: [events.id]
+  }),
+}));
+
+// ==================== FLOOR PLAN TABLES ====================
+
+/**
+ * Floor Plan Relations
+ */
+export const floorPlansRelations = relations(floorPlans, ({ one, many }) => ({
+  event: one(events, {
+    fields: [floorPlans.eventId],
+    references: [events.id]
+  }),
+  objects: many(floorPlanObjects),
+}));
+
+/**
+ * Floor Plan Object Relations
+ */
+export const floorPlanObjectsRelations = relations(floorPlanObjects, ({ one, many }) => ({
+  floorPlan: one(floorPlans, {
+    fields: [floorPlanObjects.floorPlanId],
+    references: [floorPlans.id]
+  }),
+  seatAssignments: many(seatAssignments),
+}));
+
+/**
+ * Seat Assignment Relations
+ */
+export const seatAssignmentsRelations = relations(seatAssignments, ({ one }) => ({
+  floorPlanObject: one(floorPlanObjects, {
+    fields: [seatAssignments.floorPlanObjectId],
+    references: [floorPlanObjects.id]
+  }),
+  guest: one(guests, {
+    fields: [seatAssignments.guestId],
+    references: [guests.id]
+  }),
+}));
+
+/**
+ * Guest Relationship Relations
+ */
+export const guestRelationshipsRelations = relations(guestRelationships, ({ one }) => ({
+  event: one(events, {
+    fields: [guestRelationships.eventId],
+    references: [events.id]
+  }),
+  guest1: one(guests, {
+    fields: [guestRelationships.guestId1],
+    references: [guests.id],
+    relationName: 'guestRelationship1'
+  }),
+  guest2: one(guests, {
+    fields: [guestRelationships.guestId2],
+    references: [guests.id],
+    relationName: 'guestRelationship2'
   }),
 }));

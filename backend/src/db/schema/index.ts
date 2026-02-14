@@ -26,6 +26,9 @@ export * from './budget';
 // Provider/Venue schemas (6 tables)
 export * from './providers';
 
+// Floor Plan schemas (4 tables: floorPlans, floorPlanObjects, seatAssignments, guestRelationships)
+export * from './floorPlan';
+
 // Admin schemas (2 tables)
 export * from './admin';
 

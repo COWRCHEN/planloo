@@ -21,7 +21,8 @@
       "Bash(curl:*)",
       "Bash(npx astro build)",
       "Bash(grep:*)",
-      "Bash(python -m json.tool:*)"
+      "Bash(python -m json.tool:*)",
+      "Bash(npx astro check:*)"
     ]
   }
 }
