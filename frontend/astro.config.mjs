@@ -36,10 +36,10 @@ export default defineConfig({
 
   vite: {
     optimizeDeps: {
-      include: ['react', 'react-dom', 'nanostores', '@nanostores/react']
+      include: ['react', 'react-dom', 'nanostores', '@nanostores/react', 'konva', 'react-konva']
     },
     ssr: {
-      noExternal: ['better-auth']
+      noExternal: ['better-auth', 'konva', 'react-konva']
     }
   },
 

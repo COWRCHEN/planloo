@@ -1,10 +1,17 @@
+import { Group, Rect, Text } from 'react-konva';
+import type Konva from 'konva';
 import type { FloorPlanObjectResponse } from '@/hooks/use-floor-plans';
 
 interface Props {
   object: FloorPlanObjectResponse;
   isSelected: boolean;
   onSelect: () => void;
-  onDragStart: (e: React.PointerEvent) => void;
+  onDragMove: (posXFt: number, posYFt: number) => void;
+  onDragEnd: (posXFt: number, posYFt: number) => void;
+  pixelsPerFoot: number;
+  gridSnap: number;
+  planWidthFt: number;
+  planHeightFt: number;
 }
 
 const ELEMENT_COLORS: Record<string, { fill: string; stroke: string }> = {
@@ -22,42 +29,116 @@ const ELEMENT_COLORS: Record<string, { fill: string; stroke: string }> = {
   custom: { fill: '#f1f5f9', stroke: '#64748b' },
 };
 
-export function ElementObject({ object, isSelected, onSelect, onDragStart }: Props) {
+export function ElementObject({
+  object,
+  isSelected,
+  onSelect,
+  onDragMove,
+  onDragEnd,
+  pixelsPerFoot: ppf,
+  gridSnap,
+  planWidthFt,
+  planHeightFt,
+}: Props) {
   const { posX, posY, widthFt, heightFt, rotation, label, elementType } = object;
-  const colors = (ELEMENT_COLORS[elementType ?? 'custom'] ?? ELEMENT_COLORS.custom) as { fill: string; stroke: string };
+  const colors = (ELEMENT_COLORS[elementType ?? 'custom'] ?? ELEMENT_COLORS.custom) as {
+    fill: string;
+    stroke: string;
+  };
+
+  const snapToGrid = (value: number) => {
+    if (gridSnap <= 0) return value;
+    return Math.round(value / gridSnap) * gridSnap;
+  };
+
+  const handleDragBound = (pos: { x: number; y: number }) => {
+    const ftX = snapToGrid(Math.max(0, Math.min(planWidthFt - widthFt, pos.x / ppf)));
+    const ftY = snapToGrid(Math.max(0, Math.min(planHeightFt - heightFt, pos.y / ppf)));
+    return { x: ftX * ppf, y: ftY * ppf };
+  };
+
+  const extractFeetFromNode = (node: Konva.Node) => {
+    const ftX = node.x() / ppf;
+    const ftY = node.y() / ppf;
+    return { ftX, ftY };
+  };
+
+  const handleDragMoveEvent = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const { ftX, ftY } = extractFeetFromNode(e.target);
+    onDragMove(ftX, ftY);
+  };
+
+  const handleDragEndEvent = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const { ftX, ftY } = extractFeetFromNode(e.target);
+    onDragEnd(ftX, ftY);
+  };
+
+  const handleClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    e.cancelBubble = true;
+    onSelect();
+  };
+
+  const setCursor = (cursor: string) => (e: Konva.KonvaEventObject<MouseEvent>) => {
+    const c = e.target.getStage()?.container();
+    if (c) c.style.cursor = cursor;
+  };
+
+  const centerX = (widthFt / 2) * ppf;
+  const centerY = (heightFt / 2) * ppf;
+
+  // Selected fill: stroke color with low alpha
+  const selectedFill = colors.stroke + '20';
+  const selectedStroke = colors.stroke;
+  const normalStroke = colors.stroke + '80';
 
   return (
-    <g
-      transform={`translate(${posX}, ${posY}) rotate(${rotation}, ${widthFt / 2}, ${heightFt / 2})`}
-      onPointerDown={(e) => {
-        e.stopPropagation();
-        onSelect();
-        if (!object.isLocked) onDragStart(e);
-      }}
-      style={{ cursor: object.isLocked ? 'default' : 'move' }}
+    <Group
+      x={posX * ppf}
+      y={posY * ppf}
+      draggable={!object.isLocked}
+      dragBoundFunc={handleDragBound}
+      onDragMove={handleDragMoveEvent}
+      onDragEnd={handleDragEndEvent}
+      onClick={handleClick}
+      onTap={handleClick}
+      onMouseEnter={setCursor(object.isLocked ? 'default' : 'move')}
+      onMouseLeave={setCursor('default')}
     >
-      <rect
-        x={0}
-        y={0}
-        width={widthFt}
-        height={heightFt}
-        rx={0.5}
-        fill={isSelected ? colors.stroke + '20' : colors.fill}
-        stroke={isSelected ? colors.stroke : colors.stroke + '80'}
-        strokeWidth={isSelected ? 0.3 : 0.15}
-        strokeDasharray={elementType === 'dance_floor' ? '1 0.5' : undefined}
-      />
-      <text
-        x={widthFt / 2}
-        y={heightFt / 2}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontSize={Math.min(1.2, widthFt / 8, heightFt / 3)}
-        fill={colors.stroke}
-        fontWeight="600"
+      {/* Inner group handles rotation around center */}
+      <Group
+        x={centerX}
+        y={centerY}
+        offsetX={centerX}
+        offsetY={centerY}
+        rotation={rotation}
       >
-        {label}
-      </text>
-    </g>
+        <Rect
+          x={0}
+          y={0}
+          width={widthFt * ppf}
+          height={heightFt * ppf}
+          cornerRadius={0.5 * ppf}
+          fill={isSelected ? selectedFill : colors.fill}
+          stroke={isSelected ? selectedStroke : normalStroke}
+          strokeWidth={isSelected ? 3 : 1.5}
+          {...(elementType === 'dance_floor' ? { dash: [1 * ppf, 0.5 * ppf] } : {})}
+        />
+
+        {/* Label */}
+        <Text
+          x={0}
+          y={0}
+          width={widthFt * ppf}
+          height={heightFt * ppf}
+          text={label}
+          fontSize={Math.min(1.2, widthFt / 8, heightFt / 3) * ppf}
+          fill={colors.stroke}
+          fontStyle="600"
+          align="center"
+          verticalAlign="middle"
+          listening={false}
+        />
+      </Group>
+    </Group>
   );
 }

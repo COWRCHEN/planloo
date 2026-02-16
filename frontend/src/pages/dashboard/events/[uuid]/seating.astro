@@ -57,6 +57,6 @@ const pageTitle = eventName ? `Seating Chart — ${eventName}` : 'Seating Chart'
       </div>
     </div>
 
-    <SeatingChartView client:load eventUuid={uuid} />
+    <SeatingChartView client:only="react" eventUuid={uuid} />
   </div>
 </DashboardLayout>

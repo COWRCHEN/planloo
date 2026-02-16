@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { useStore } from '@nanostores/react';
-import { $zoom, $gridVisible } from '@/stores/seating';
+import { $zoom, $panOffset, $gridVisible } from '@/stores/seating';
 
 interface Props {
   planName?: string;
@@ -50,7 +50,7 @@ export function FloorPlanToolbar({ planName, isSaving }: Props) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => { $zoom.set(1); }}
+          onClick={() => { $zoom.set(1); $panOffset.set({ x: 0, y: 0 }); }}
           className="text-xs h-7 px-2"
         >
           Reset
