@@ -9,13 +9,13 @@ Client-side UI state for the floor plan canvas. These stores are **not** synced 
 | Store | Type | Default | Description |
 |-------|------|---------|-------------|
 | `$zoom` | `number` | `1` | Current zoom level (1 = 100%). Range: 0.25x to 3x |
-| `$panOffset` | `{ x: number; y: number }` | `{ x: 0, y: 0 }` | Pan offset in pixels |
+| `$panOffset` | `{ x: number; y: number }` | `{ x: 0, y: 0 }` | Stage x/y position (pan offset). Updated by Stage drag and zoom-to-cursor. Reset button sets to `{0,0}`. |
 | `$selectedObjectUuids` | `string[]` | `[]` | Currently selected object UUIDs |
-| `$isDragging` | `boolean` | `false` | Whether user is dragging an object on canvas |
+| `$isDragging` | `boolean` | `false` | Whether user is dragging an object on canvas (legacy — no longer set by canvas after Konva migration, retained for potential external use) |
 | `$gridVisible` | `boolean` | `true` | Whether to show the grid overlay |
 | `$activePanel` | `'palette' \| 'properties' \| 'guests' \| null` | `'palette'` | Which right-side panel is open |
 
-**Usage:** Stores are read by canvas components via `useStore()` from `@nanostores/react`, and written to by `SeatingChartView` and toolbar interactions.
+**Usage:** Stores are read by canvas components via `useStore()` from `@nanostores/react`, and written to by `FloorPlanCanvas` (zoom/pan), `FloorPlanToolbar` (zoom/pan/grid), and `SeatingChartView` (selection).
 
 ---
 

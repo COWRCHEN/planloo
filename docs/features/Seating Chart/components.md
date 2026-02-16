@@ -6,7 +6,7 @@
 
 **File:** `frontend/src/pages/dashboard/events/[uuid]/seating.astro`
 
-SSR page (`prerender = false`). Fetches event title server-side for the page heading. Renders `SeatingChartView` as a client-side island (`client:load`). Uses `DashboardLayout`.
+SSR page (`prerender = false`). Fetches event title server-side for the page heading. Renders `SeatingChartView` as a client-only island (`client:only="react"`) to bypass SSR for Konva (which requires `window`/`document` at import time). Uses `DashboardLayout`.
 
 **Navigation links:** "Back to Event" and "Guest List" buttons in header.
 
@@ -49,18 +49,20 @@ Main orchestrator. Creates its own `QueryClientProvider` and manages all state c
 
 **Props:** `{ plan, onObjectDragged, onSelectObject }`
 
-SVG-based canvas where `viewBox` maps to floor plan dimensions in feet.
+**Rendering library:** [Konva.js](https://konvajs.org/) via `react-konva`. Uses a `<Stage>` with two `<Layer>`s:
+1. **Background layer:** White floor plan rectangle, grid lines (`<Line>`), dimensions label — rarely redraws.
+2. **Objects layer:** `TableObject` and `ElementObject` components — redraws on drag/selection.
+
+**Container sizing:** A `ResizeObserver` on a wrapper `<div>` measures available space. `pixelsPerFoot` is derived as `min(containerWidth / plan.widthFt, containerHeight / plan.heightFt)`, and all child objects receive `ppf` to convert feet to canvas pixels.
 
 **Features:**
-- Grid lines based on `gridSnap` value
-- Pan via pointer drag on background
-- Zoom via mouse wheel (0.25x to 3x)
-- Object selection on click
-- Object drag via `onPointerDown/Move/Up` (not dnd-kit, for free-form positioning)
-- Coordinate conversion: screen pixels to SVG feet
-- Grid snapping during drag
+- **Zoom-to-cursor:** Mouse wheel adjusts `$zoom` (0.25x to 3x) while keeping the point under the cursor fixed by recalculating `$panOffset`
+- **Pan:** `Stage` is `draggable` — dragging empty background pans; dragging a child Group moves that object (Konva resolves drag target automatically)
+- **Grid:** Lines rendered as Konva `<Line>` elements in the background layer, toggled via `$gridVisible`
+- **Deselect:** `Stage.onClick` fires `onSelectObject(null)` when `e.target === stage` (click on empty area)
+- **No manual pointer handling:** Drag, pan, and zoom are handled by Konva's built-in systems — no `dragState`, `isPanning`, `screenToSvg()`, or pointer capture
 
-**State (Nanostores):** Reads `$zoom`, `$panOffset`, `$selectedObjectUuids`, `$gridVisible`.
+**State (Nanostores):** Reads `$zoom`, `$panOffset`, `$selectedObjectUuids`, `$gridVisible`. Writes to `$zoom` and `$panOffset` on wheel/pan events.
 
 ---
 
@@ -68,18 +70,37 @@ SVG-based canvas where `viewBox` maps to floor plan dimensions in feet.
 
 **File:** `frontend/src/components/seating/TableObject.tsx`
 
-**Props:** `{ object, isSelected, onSelect, onDragStart }`
+**Props:** `{ object, isSelected, onSelect, onDragMove, onDragEnd, pixelsPerFoot, gridSnap, planWidthFt, planHeightFt }`
 
-SVG group rendering a table shape with seat circles around the perimeter.
+Konva `<Group>` rendering a table shape with seat circles around the perimeter.
+
+**Nested Group pattern:**
+```
+<Group x y draggable dragBoundFunc>   ← Outer: position + drag
+  <Group rotation offsetX offsetY>    ← Inner: rotation around center
+    <Ellipse | Rect />                ← Table shape
+    <Text /> (label)
+    <Text /> (seat count)
+    <Circle /> × N (seats)
+  </Group>
+</Group>
+```
+
+The outer Group's `x`/`y` is `posX * ppf` / `posY * ppf` and handles dragging. The inner Group rotates around the object's center using `offsetX`/`offsetY`.
+
+**Grid snapping:** `dragBoundFunc` converts pixel position back to feet, snaps to `gridSnap`, clamps within plan bounds, then converts back to pixels. This makes snapping feel instant during drag.
 
 **Rendering logic:**
-- **Round/oval:** `<ellipse>` with seats distributed evenly around circumference
-- **Rectangular/square/head_table:** `<rect>` with seats distributed around perimeter
-- **Seat circles:** Color-coded by RSVP status (green/amber/red/purple/gray)
-- **Dietary icons:** Small colored circles with letter codes (V=vegan/vegetarian, G=gluten-free, K=kosher/halal, !=allergy, D=other)
-- **Label + capacity:** Centered text showing table name and assigned/total count
+- **Round/oval:** `<Ellipse>` with seats distributed evenly around circumference
+- **Rectangular/square/head_table:** `<Rect>` with seats distributed around perimeter
+- **Seat circles:** `<Circle>` color-coded by RSVP status (green/amber/red/purple/gray)
+- **Dietary icons:** Small `<Circle>` + `<Text>` with letter codes (V=vegan/vegetarian, G=gluten-free, K=kosher/halal, !=allergy, D=other)
+- **Label + capacity:** `<Text>` with `align="center"` showing table name and assigned/total count
 
-**Selection:** Purple border highlight when selected. Click selects, pointer down starts drag (if not locked).
+**Interaction:**
+- `onClick` with `e.cancelBubble = true` to prevent Stage deselect
+- `onMouseEnter`/`onMouseLeave` set cursor to `move` (or `default` if locked) via `stage.container().style.cursor`
+- `onDragMove` fires optimistic position updates; `onDragEnd` fires final save
 
 ---
 
@@ -87,9 +108,9 @@ SVG group rendering a table shape with seat circles around the perimeter.
 
 **File:** `frontend/src/components/seating/ElementObject.tsx`
 
-**Props:** `{ object, isSelected, onSelect, onDragStart }`
+**Props:** `{ object, isSelected, onSelect, onDragMove, onDragEnd, pixelsPerFoot, gridSnap, planWidthFt, planHeightFt }`
 
-SVG rectangle with element-type-specific colors (amber for dance floor, blue for bar, green for buffet, pink for stage, etc.). Dashed border for dance floor.
+Same nested Group pattern as `TableObject` but simpler — just a `<Rect>` body + `<Text>` label. Element-type-specific colors (amber for dance floor, blue for bar, green for buffet, pink for stage, etc.). Dance floor uses `dash={[1 * ppf, 0.5 * ppf]}` for a dashed border. Grid snapping and cursor behavior identical to TableObject.
 
 ---
 
@@ -99,7 +120,7 @@ SVG rectangle with element-type-specific colors (amber for dance floor, blue for
 
 **Props:** `{ planName, isSaving }`
 
-Horizontal bar above the canvas. Shows plan name, "Saving..." indicator, grid toggle, zoom controls (-/+/reset), and current zoom percentage.
+Horizontal bar above the canvas. Shows plan name, "Saving..." indicator, grid toggle, zoom controls (-/+/reset), and current zoom percentage. The reset button resets both `$zoom` to 1 and `$panOffset` to `{x: 0, y: 0}`.
 
 ---
 

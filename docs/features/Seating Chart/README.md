@@ -2,20 +2,20 @@
 
 **Feature:** Interactive floor plan builder with seat-level guest assignment
 **Status:** Implemented (Phase 1)
-**Last Updated:** 2026-02-13
+**Last Updated:** 2026-02-15
 
 ---
 
 ## Overview
 
-The Seating Chart feature provides an interactive, SVG-based floor plan builder where event organizers can design venue layouts, place tables and venue elements, and assign guests to specific seats. It integrates with the existing guest list and RSVP data to show real-time status on the seating canvas.
+The Seating Chart feature provides an interactive floor plan builder powered by [Konva.js](https://konvajs.org/) (via `react-konva`) where event organizers can design venue layouts, place tables and venue elements, and assign guests to specific seats. It integrates with the existing guest list and RSVP data to show real-time status on the seating canvas.
 
 ### Key Capabilities
 
 - Create multiple floor plans per event (e.g., ceremony vs reception)
 - Place different table types (round, rectangular, square, head table) on a visual canvas
 - Add venue elements (dance floor, bar, buffet, stage, DJ booth, etc.)
-- Drag-and-drop tables/elements with grid snapping and auto-save
+- Drag-and-drop tables/elements with grid snapping (`dragBoundFunc`) and auto-save
 - Assign guests to specific numbered seats at each table
 - RSVP status color-coding on seat indicators (green=confirmed, amber=pending, red=declined)
 - Dietary restriction icons on occupied seats
@@ -23,7 +23,7 @@ The Seating Chart feature provides an interactive, SVG-based floor plan builder 
 - Guest relationship mapping (prefer together / avoid pairs)
 - Conflict detection: over-capacity tables and avoid-pair violations
 - Preset table arrangements (Round Tables, Banquet, U-Shape, Classroom, Workshop)
-- Pan/zoom canvas with configurable grid overlay
+- Pan/zoom canvas with zoom-to-cursor and configurable grid overlay
 - Syncs `tableAssignment` text field on the guest record for guest list filtering
 
 ---
@@ -46,7 +46,7 @@ Event Detail Page                            Seating Chart Page
 │ EventDetailView   │                        │  SeatingChartView                  │
 │ "Seating Chart"   │──navigate──►           │  ┌──────┬──────────┬────────────┐ │
 │  button           │                        │  │Palette│  Canvas  │ Properties │ │
-└───────────────────┘                        │  │      │  (SVG)   │ / Assign   │ │
+└───────────────────┘                        │  │      │  (Konva)   │ / Assign   │ │
                                              │  └──────┴──────────┴────────────┘ │
                                              └────────────────┬──────────────────┘
                                                               │
@@ -87,14 +87,14 @@ Event Detail Page                            Seating Chart Page
 
 | File | Purpose |
 |------|---------|
-| `frontend/src/pages/dashboard/events/[uuid]/seating.astro` | SSR page |
+| `frontend/src/pages/dashboard/events/[uuid]/seating.astro` | SSR page (`client:only="react"` for Konva SSR bypass) |
 | `frontend/src/components/seating/index.ts` | Barrel exports |
 | `frontend/src/components/seating/SeatingChartView.tsx` | Top-level wrapper: QueryClient, plan tabs, layout orchestration |
-| `frontend/src/components/seating/FloorPlanCanvas.tsx` | SVG canvas with pan/zoom, grid, pointer-based drag |
+| `frontend/src/components/seating/FloorPlanCanvas.tsx` | Konva Stage/Layer canvas with zoom-to-cursor, pan, grid |
 | `frontend/src/components/seating/FloorPlanToolbar.tsx` | Zoom controls, grid toggle, save indicator |
 | `frontend/src/components/seating/ObjectPalette.tsx` | Left sidebar: draggable table/element presets |
-| `frontend/src/components/seating/TableObject.tsx` | SVG table with seat circles (RSVP-colored + dietary icons) |
-| `frontend/src/components/seating/ElementObject.tsx` | SVG venue element rendering |
+| `frontend/src/components/seating/TableObject.tsx` | Konva table with draggable Group, seat circles (RSVP-colored + dietary icons) |
+| `frontend/src/components/seating/ElementObject.tsx` | Konva venue element (Rect + Text) with drag and rotation |
 | `frontend/src/components/seating/ObjectPropertyPanel.tsx` | Right panel: label, seats, dimensions, rotation, lock |
 | `frontend/src/components/seating/GuestAssignmentPanel.tsx` | Right panel: per-seat assignment with guest search |
 | `frontend/src/components/seating/UnassignedGuestsPanel.tsx` | Expandable panel with multi-select auto-assign |

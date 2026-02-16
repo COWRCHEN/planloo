@@ -8,7 +8,7 @@ User navigates to /dashboard/events/[uuid]/seating
     ▼
 seating.astro (SSR)
     ├── Fetches event title server-side (for heading)
-    └── Renders SeatingChartView island (client:load)
+    └── Renders SeatingChartView island (client:only="react")
             │
             ▼
 SeatingChartView mounts
@@ -86,14 +86,18 @@ Canvas re-renders with new object at default position
 User presses pointer down on object (if not locked)
     │
     ▼
-FloorPlanCanvas records drag start position
+Konva detects drag target (Group with draggable=true)
     │
     ▼
-onPointerMove events fire
+dragBoundFunc fires on each move
     │
-    ├── Convert screen pixels → SVG feet via coordinate transform
+    ├── Convert pixel position → feet (pos / pixelsPerFoot)
     ├── Apply grid snapping (round to nearest gridSnap value)
-    ├── Set $isDragging = true
+    ├── Clamp within plan bounds (0..planWidthFt-widthFt, 0..planHeightFt-heightFt)
+    └── Return snapped pixel position (feet * pixelsPerFoot)
+    │
+    ▼
+onDragMove fires
     └── Call handleObjectDragged(BulkPositionUpdate)
             │
             ├── Optimistic: setLocalPositions (immediate visual update)
@@ -104,10 +108,10 @@ onPointerMove events fire
                     └── { updates: [{ uuid, posX, posY }] }
     │
     ▼
-onPointerUp → stop drag, set $isDragging = false
+onDragEnd fires → final position save
 ```
 
-**Coordinate conversion:** `screenX → (screenX - panOffset.x) / (zoom * scaleFactor)` where `scaleFactor = containerWidth / viewBoxWidth`
+**Coordinate system:** All positions stored in feet. `pixelsPerFoot = min(containerWidth / planWidthFt, containerHeight / planHeightFt)`. Objects convert via `posX * ppf` / `posY * ppf`.
 
 ---
 
@@ -328,16 +332,24 @@ Conflicts auto-refresh after:
 ### Zoom
 
 ```
-Mouse wheel on canvas → adjust $zoom (0.25x to 3x)
-Toolbar buttons: [-] zoom out, [+] zoom in, [Reset] → 1x
+Mouse wheel on canvas → zoom-to-cursor
+    │
+    ├── Calculate point under cursor in stage coordinates
+    ├── Apply scale factor (ZOOM_SPEED = 1.1, range 0.25x to 3x)
+    ├── Recalculate $panOffset so cursor point stays fixed
+    └── Update $zoom and $panOffset atomically
+
+Toolbar buttons: [-] zoom out, [+] zoom in, [Reset] → 1x + pan reset
 Zoom percentage displayed in toolbar
 ```
 
 ### Pan
 
 ```
-Pointer drag on canvas background (not on an object)
-    └── Updates $panOffset by delta in pixels
+Stage has draggable=true
+Drag on empty canvas background (Konva resolves target)
+    ├── Stage.x / Stage.y update live during drag
+    └── onDragEnd → persist to $panOffset store
 ```
 
 ### Grid
