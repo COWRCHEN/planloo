@@ -8,6 +8,7 @@ interface Props {
   unassignedGuests: UnassignedGuestResponse[];
   onAssign: (guestUuid: string, seatNumber: number) => void;
   onUnassign: (guestUuid: string) => void;
+  onClose?: () => void;
   isAssigning?: boolean;
 }
 
@@ -19,7 +20,7 @@ const RSVP_BADGE: Record<string, { label: string; className: string }> = {
   maybe: { label: 'Maybe', className: 'bg-purple-100 text-purple-700' },
 };
 
-export function GuestAssignmentPanel({ object, unassignedGuests, onAssign, onUnassign, isAssigning }: Props) {
+export function GuestAssignmentPanel({ object, unassignedGuests, onAssign, onUnassign, onClose, isAssigning }: Props) {
   const [search, setSearch] = useState('');
   const seats = object.seatCount ?? 8;
 
@@ -46,9 +47,16 @@ export function GuestAssignmentPanel({ object, unassignedGuests, onAssign, onUna
     : unassignedGuests;
 
   return (
-    <div className="w-64 border-l bg-white p-3 overflow-y-auto space-y-3">
+    <div className="w-64 h-full border-l bg-white p-3 overflow-y-auto space-y-3 shadow-lg">
       <div>
-        <h3 className="text-sm font-semibold">{object.label} — Seats</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold">{object.label} — Seats</h3>
+          {onClose && (
+            <button onClick={onClose} className="text-xs text-primary hover:underline">
+              Hide
+            </button>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground">
           {object.assignments.length}/{seats} seats filled
         </p>

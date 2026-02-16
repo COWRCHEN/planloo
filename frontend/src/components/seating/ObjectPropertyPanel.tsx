@@ -10,10 +10,11 @@ interface Props {
   object: FloorPlanObjectResponse;
   onUpdate: (data: UpdateObjectInput) => void;
   onDelete: () => void;
+  onClose?: () => void;
   isUpdating?: boolean;
 }
 
-export function ObjectPropertyPanel({ object, onUpdate, onDelete, isUpdating }: Props) {
+export function ObjectPropertyPanel({ object, onUpdate, onDelete, onClose, isUpdating }: Props) {
   const [label, setLabel] = useState(object.label);
   const [seatCount, setSeatCount] = useState(object.seatCount ?? 8);
   const [widthFt, setWidthFt] = useState(object.widthFt);
@@ -39,8 +40,13 @@ export function ObjectPropertyPanel({ object, onUpdate, onDelete, isUpdating }: 
   };
 
   return (
-    <div className="w-60 border-l bg-white p-3 overflow-y-auto space-y-4">
+    <div className="w-60 h-full border-l bg-white p-3 overflow-y-auto space-y-4 shadow-lg">
       <div className="flex items-center justify-between">
+        {onClose && (
+          <button onClick={onClose} className="text-xs text-primary hover:underline">
+            Hide
+          </button>
+        )}
         <h3 className="text-sm font-semibold">Properties</h3>
         <span className="text-xs text-muted-foreground capitalize">{object.objectType}</span>
       </div>

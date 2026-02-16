@@ -1,13 +1,16 @@
 import { Button } from '@/components/ui/button';
+import { Maximize, Minimize } from 'lucide-react';
 import { useStore } from '@nanostores/react';
 import { $zoom, $panOffset, $gridVisible } from '@/stores/seating';
 
 interface Props {
   planName?: string;
   isSaving?: boolean;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
-export function FloorPlanToolbar({ planName, isSaving }: Props) {
+export function FloorPlanToolbar({ planName, isSaving, isFullscreen, onToggleFullscreen }: Props) {
   const zoom = useStore($zoom);
   const gridVisible = useStore($gridVisible);
 
@@ -55,6 +58,17 @@ export function FloorPlanToolbar({ planName, isSaving }: Props) {
         >
           Reset
         </Button>
+        {onToggleFullscreen && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleFullscreen}
+            className="h-7 w-7 p-0"
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          >
+            {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+          </Button>
+        )}
       </div>
     </div>
   );

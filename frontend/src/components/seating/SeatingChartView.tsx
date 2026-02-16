@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +59,25 @@ function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
   const [selectedObjectUuid, setSelectedObjectUuid] = useState<string | null>(null);
   const [newPlanName, setNewPlanName] = useState('');
   const [showNewPlanInput, setShowNewPlanInput] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // Fullscreen toggle
+  const handleToggleFullscreen = useCallback(() => {
+    if (!canvasContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      canvasContainerRef.current.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+
+  // Sync isFullscreen state with fullscreenchange event
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
 
   // Data fetching
   const { data: plans = [], isLoading: plansLoading } = useFloorPlans(eventUuid);
@@ -240,55 +259,63 @@ function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
 
       {/* Main layout: palette + canvas + property/assignment panel */}
       {activePlanUuid && planWithLocalPositions ? (
-        <div className="border rounded-lg overflow-hidden flex" style={{ height: '60vh', minHeight: 400 }}>
+        <div ref={canvasContainerRef} className="border rounded-lg overflow-hidden flex bg-white" style={{ height: isFullscreen ? '100vh' : '60vh', minHeight: 400 }}>
           {/* Left: Object Palette */}
           <ObjectPalette
             onAddObject={handleAddObject}
             isAdding={createObject.isPending}
           />
 
-          {/* Center: Canvas */}
+          {/* Center: Canvas + overlaid right panel */}
           <div className="flex-1 flex flex-col">
-            <FloorPlanToolbar planName={planWithLocalPositions.name} isSaving={isSaving} />
-            <FloorPlanCanvas
-              plan={planWithLocalPositions}
-              onObjectDragged={handleObjectDragged}
-              onSelectObject={handleSelectObject}
-            />
-          </div>
+            <FloorPlanToolbar planName={planWithLocalPositions.name} isSaving={isSaving} isFullscreen={isFullscreen} onToggleFullscreen={handleToggleFullscreen} />
+            <div className="flex-1 relative flex flex-col min-h-0">
+              <FloorPlanCanvas
+                plan={planWithLocalPositions}
+                onObjectDragged={handleObjectDragged}
+                onSelectObject={handleSelectObject}
+              />
 
-          {/* Right: Property or Assignment Panel */}
-          {selectedObject && selectedObject.objectType === 'table' ? (
-            <GuestAssignmentPanel
-              object={selectedObject}
-              unassignedGuests={unassignedGuests}
-              onAssign={(guestUuid, seatNumber) =>
-                assignGuest.mutate({
-                  objectUuid: selectedObject.uuid,
-                  assignments: [{ guestUuid, seatNumber }],
-                })
-              }
-              onUnassign={(guestUuid) =>
-                unassignGuest.mutate({
-                  objectUuid: selectedObject.uuid,
-                  guestUuid,
-                })
-              }
-              isAssigning={assignGuest.isPending}
-            />
-          ) : selectedObject ? (
-            <ObjectPropertyPanel
-              object={selectedObject}
-              onUpdate={(data) =>
-                updateObject.mutate({ objectUuid: selectedObject.uuid, data })
-              }
-              onDelete={() => {
-                deleteObject.mutate(selectedObject.uuid);
-                handleSelectObject(null);
-              }}
-              isUpdating={updateObject.isPending}
-            />
-          ) : null}
+              {/* Right: Property or Assignment Panel (absolutely positioned so it doesn't shift layout) */}
+              {selectedObject && selectedObject.objectType === 'table' ? (
+                <div className="absolute top-0 right-0 h-full z-10">
+                  <GuestAssignmentPanel
+                    object={selectedObject}
+                    unassignedGuests={unassignedGuests}
+                    onAssign={(guestUuid, seatNumber) =>
+                      assignGuest.mutate({
+                        objectUuid: selectedObject.uuid,
+                        assignments: [{ guestUuid, seatNumber }],
+                      })
+                    }
+                    onUnassign={(guestUuid) =>
+                      unassignGuest.mutate({
+                        objectUuid: selectedObject.uuid,
+                        guestUuid,
+                      })
+                    }
+                    onClose={() => handleSelectObject(null)}
+                    isAssigning={assignGuest.isPending}
+                  />
+                </div>
+              ) : selectedObject ? (
+                <div className="absolute top-0 right-0 h-full z-10">
+                  <ObjectPropertyPanel
+                    object={selectedObject}
+                    onUpdate={(data) =>
+                      updateObject.mutate({ objectUuid: selectedObject.uuid, data })
+                    }
+                    onDelete={() => {
+                      deleteObject.mutate(selectedObject.uuid);
+                      handleSelectObject(null);
+                    }}
+                    onClose={() => handleSelectObject(null)}
+                    isUpdating={updateObject.isPending}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
       ) : detailLoading ? (
         <Skeleton className="h-[400px] w-full" />
