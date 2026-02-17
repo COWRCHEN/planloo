@@ -1,29 +1,47 @@
 # Seating Chart & Floor Plan Builder
 
-**Feature:** Interactive floor plan builder with seat-level guest assignment
-**Status:** Implemented (Phase 1)
-**Last Updated:** 2026-02-15
+**Feature:** Two-tier seating — Table Planner + Floor Plan Designer
+**Status:** Implemented (Phase 2)
+**Last Updated:** 2026-02-16
 
 ---
 
 ## Overview
 
-The Seating Chart feature provides an interactive floor plan builder powered by [Konva.js](https://konvajs.org/) (via `react-konva`) where event organizers can design venue layouts, place tables and venue elements, and assign guests to specific seats. It integrates with the existing guest list and RSVP data to show real-time status on the seating canvas.
+The Seating Chart feature provides a **two-tier** approach to event seating management:
+
+1. **Table Planner** (default tab) — A card-based UI for quickly adding tables, setting capacity, and assigning guests without dealing with spatial layout. Ideal for most users who just need to organize who sits where.
+
+2. **Floor Plan Designer** — An interactive canvas powered by [Konva.js](https://konvajs.org/) (via `react-konva`) for designing precise venue layouts with drag-and-drop positioning. For users who need spatial accuracy.
+
+Both tiers share a single `QueryClient`, so data created in the planner appears instantly on the canvas and vice versa. No backend changes were needed — the planner reuses all existing floor plan and assignment endpoints.
 
 ### Key Capabilities
 
+**Table Planner:**
+- Add tables via inline form (shape, seat count, name)
+- Card-based table grid showing assigned guests with RSVP badges
+- Quick-assign guests to tables via search
+- Inline edit table name and seat count
+- Over-capacity visual warnings (red card border)
+- Auto-creates a default floor plan if none exists
+
+**Floor Plan Designer:**
 - Create multiple floor plans per event (e.g., ceremony vs reception)
 - Place different table types (round, rectangular, square, head table) on a visual canvas
 - Add venue elements (dance floor, bar, buffet, stage, DJ booth, etc.)
 - Drag-and-drop tables/elements with grid snapping (`dragBoundFunc`) and auto-save
-- Assign guests to specific numbered seats at each table
 - RSVP status color-coding on seat indicators (green=confirmed, amber=pending, red=declined)
 - Dietary restriction icons on occupied seats
+- Preset table arrangements (Round Tables, Banquet, U-Shape, Classroom, Workshop)
+- Pan/zoom canvas with zoom-to-cursor and configurable grid overlay
+
+**Shared (both tiers):**
+- Assign guests to specific numbered seats at each table
 - Auto-assign selected guests randomly to available seats
 - Guest relationship mapping (prefer together / avoid pairs)
 - Conflict detection: over-capacity tables and avoid-pair violations
-- Preset table arrangements (Round Tables, Banquet, U-Shape, Classroom, Workshop)
-- Pan/zoom canvas with zoom-to-cursor and configurable grid overlay
+- Stats bar: tables, seats, assigned, unassigned
 - Syncs `tableAssignment` text field on the guest record for guest list filtering
 
 ---
@@ -41,31 +59,42 @@ The Seating Chart feature provides an interactive floor plan builder powered by 
 ## Architecture Summary
 
 ```
-Event Detail Page                            Seating Chart Page
-┌───────────────────┐                        ┌────────────────────────────────────┐
-│ EventDetailView   │                        │  SeatingChartView                  │
-│ "Seating Chart"   │──navigate──►           │  ┌──────┬──────────┬────────────┐ │
-│  button           │                        │  │Palette│  Canvas  │ Properties │ │
-└───────────────────┘                        │  │      │  (Konva)   │ / Assign   │ │
-                                             │  └──────┴──────────┴────────────┘ │
-                                             └────────────────┬──────────────────┘
-                                                              │
-                                                   REST API (Hono)
-                                                              │
-                                    ┌─────────────────────────┼─────────────────────┐
-                                    ▼                         ▼                     ▼
-                              ┌───────────┐          ┌──────────────┐      ┌──────────────┐
-                              │floor_plans│          │floor_plan_   │      │seat_         │
-                              │           │          │objects       │      │assignments   │
-                              └───────────┘          └──────────────┘      └──────────────┘
-                                                                                  │
-                                                                           ┌──────┴──────┐
-                                                                           ▼             ▼
-                                                                     ┌─────────┐  ┌──────────┐
-                                                                     │ guests  │  │guest_    │
-                                                                     │         │  │relation- │
-                                                                     │         │  │ships     │
-                                                                     └─────────┘  └──────────┘
+Event Detail Page                    Seating Chart Page
+┌───────────────────┐                ┌──────────────────────────────────────────────┐
+│ EventDetailView   │                │  SeatingTabs (QueryClientProvider)            │
+│ "Seating Chart"   │──navigate──►   │  ┌────────────────┬─────────────────────┐    │
+│  button           │                │  │ Table Planner  │ Floor Plan Designer │    │
+└───────────────────┘                │  └───────┬────────┴──────────┬──────────┘    │
+                                     │          │                   │               │
+                                     │  ┌───────▼────────┐  ┌──────▼───────────┐   │
+                                     │  │TablePlannerView│  │SeatingChartInner │   │
+                                     │  │ ┌────────────┐ │  │ ┌────┬──────┬──┐ │   │
+                                     │  │ │ AddTable   │ │  │ │Pal.│Canvas│P.││   │
+                                     │  │ │ Form       │ │  │ │    │(Konva)│  ││   │
+                                     │  │ ├────────────┤ │  │ └────┴──────┴──┘ │   │
+                                     │  │ │ TableCard  │ │  └──────────────────┘   │
+                                     │  │ │ TableCard  │ │                         │
+                                     │  │ │ TableCard  │ │  Shared QueryClient     │
+                                     │  │ └────────────┘ │  ───────────────────    │
+                                     │  └────────────────┘                         │
+                                     └──────────────────┬──────────────────────────┘
+                                                        │
+                                             REST API (Hono)
+                                                        │
+                                  ┌─────────────────────┼─────────────────────┐
+                                  ▼                     ▼                     ▼
+                            ┌───────────┐      ┌──────────────┐      ┌──────────────┐
+                            │floor_plans│      │floor_plan_   │      │seat_         │
+                            │           │      │objects       │      │assignments   │
+                            └───────────┘      └──────────────┘      └──────────────┘
+                                                                            │
+                                                                     ┌──────┴──────┐
+                                                                     ▼             ▼
+                                                               ┌─────────┐  ┌──────────┐
+                                                               │ guests  │  │guest_    │
+                                                               │         │  │relation- │
+                                                               │         │  │ships     │
+                                                               └─────────┘  └──────────┘
 ```
 
 ---
@@ -87,9 +116,13 @@ Event Detail Page                            Seating Chart Page
 
 | File | Purpose |
 |------|---------|
-| `frontend/src/pages/dashboard/events/[uuid]/seating.astro` | SSR page (`client:only="react"` for Konva SSR bypass) |
+| `frontend/src/pages/dashboard/events/[uuid]/seating.astro` | SSR page, renders `SeatingTabs` (`client:only="react"`) |
 | `frontend/src/components/seating/index.ts` | Barrel exports |
-| `frontend/src/components/seating/SeatingChartView.tsx` | Top-level wrapper: QueryClient, plan tabs, layout orchestration |
+| `frontend/src/components/seating/SeatingTabs.tsx` | **Entry point**: Tab container with shared `QueryClientProvider`, synced to `$activeSeatingTab` nanostore |
+| `frontend/src/components/seating/TablePlannerView.tsx` | **Table Planner tab**: auto-creates default plan, renders table grid + stats + actions |
+| `frontend/src/components/seating/AddTableForm.tsx` | Inline form: shape select, seat count, name, add button |
+| `frontend/src/components/seating/TableCard.tsx` | Card per table: shape icon, capacity badge, guest list, assign/unassign, inline edit, delete |
+| `frontend/src/components/seating/SeatingChartView.tsx` | **Floor Plan Designer tab**: canvas layout orchestration (also exports `SeatingChartInner` for use inside `SeatingTabs`) |
 | `frontend/src/components/seating/FloorPlanCanvas.tsx` | Konva Stage/Layer canvas with zoom-to-cursor, pan, grid |
 | `frontend/src/components/seating/FloorPlanToolbar.tsx` | Zoom controls, grid toggle, save indicator |
 | `frontend/src/components/seating/ObjectPalette.tsx` | Left sidebar: draggable table/element presets |
@@ -106,7 +139,7 @@ Event Detail Page                            Seating Chart Page
 | `frontend/src/hooks/use-floor-plans.ts` | TanStack Query hooks for floor plan CRUD |
 | `frontend/src/hooks/use-floor-plan-objects.ts` | Hooks for objects, assignments, auto-assign, conflicts |
 | `frontend/src/hooks/use-guest-relationships.ts` | Hooks for social mapping (prefer/avoid) |
-| `frontend/src/stores/seating.ts` | Nanostores: zoom, panOffset, selectedObjects, gridVisible |
+| `frontend/src/stores/seating.ts` | Nanostores: zoom, panOffset, selectedObjects, gridVisible, **activeSeatingTab** |
 | `frontend/src/components/events/EventDetailView.tsx` | Modified: added "Seating Chart" nav button |
 
 ---

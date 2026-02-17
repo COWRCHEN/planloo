@@ -54,7 +54,7 @@ export function SeatingChartView({ eventUuid }: Props) {
   );
 }
 
-function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
+export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
   const [activePlanUuid, setActivePlanUuid] = useState<string | undefined>();
   const [selectedObjectUuid, setSelectedObjectUuid] = useState<string | null>(null);
   const [newPlanName, setNewPlanName] = useState('');

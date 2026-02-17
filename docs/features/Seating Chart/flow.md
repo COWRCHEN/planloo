@@ -8,22 +8,31 @@ User navigates to /dashboard/events/[uuid]/seating
     ▼
 seating.astro (SSR)
     ├── Fetches event title server-side (for heading)
-    └── Renders SeatingChartView island (client:only="react")
+    └── Renders SeatingTabs island (client:only="react")
             │
             ▼
-SeatingChartView mounts
-    ├── Creates own QueryClientProvider
-    └── Renders SeatingChartInner
+SeatingTabs mounts
+    ├── Creates shared QueryClientProvider
+    ├── Reads $activeSeatingTab nanostore (default: 'planner')
+    └── Renders active tab content
             │
-            ▼
-useFloorPlans(eventUuid) fires
-    ├── Loading → Skeleton placeholder
-    └── Success → Auto-select default/first plan via useEffect
+            ├── 'planner' → TablePlannerView
+            │       │
+            │       ├── useFloorPlans(eventUuid) fires
+            │       │   ├── Loading → Skeleton placeholder
+            │       │   ├── Plans exist → Auto-select default/first plan
+            │       │   └── No plans → Auto-create "Main Floor Plan"
+            │       │
+            │       └── useFloorPlan(eventUuid, activePlanUuid)
+            │           └── Renders table grid (filtered to objectType='table')
             │
-            ▼
-useFloorPlan(eventUuid, activePlanUuid) fires
-    ├── Returns plan detail with objects + assignments
-    └── Triggers full canvas render
+            └── 'designer' → SeatingChartInner
+                    │
+                    ├── useFloorPlans(eventUuid) (shared cache — instant if already fetched)
+                    │   └── Auto-select default/first plan
+                    │
+                    └── useFloorPlan(eventUuid, activePlanUuid)
+                        └── Triggers full canvas render
 ```
 
 ---
@@ -48,6 +57,140 @@ Text input appears (inline)
     │       └── Invalidates: floorPlanKeys.lists
     │
     └── Click "Cancel" → hides input
+```
+
+---
+
+## 2b. Auto-Create Default Floor Plan (Table Planner)
+
+```
+TablePlannerView mounts, useFloorPlans returns empty list
+    │
+    ▼
+useEffect detects: plans.length === 0 && !autoCreatedRef.current
+    │
+    ├── Sets autoCreatedRef.current = true (prevents double-create in StrictMode)
+    │
+    ▼
+createPlan.mutate({ name: 'Main Floor Plan', isDefault: true })
+    │
+    ├── POST /floor-plans
+    │   └── First plan auto-sets isDefault: true on backend
+    │
+    ├── onSuccess: setActivePlanUuid to new plan UUID
+    └── Invalidates: floorPlanKeys.lists
+            │
+            ▼
+Table grid is ready — AddTableForm is immediately usable
+```
+
+---
+
+## 2c. Add Table via Table Planner Form
+
+```
+User fills out AddTableForm:
+    ├── Selects shape (Round, Rectangular, Square, Head Table)
+    │   └── Changing shape auto-updates seat count to default
+    ├── Optionally adjusts seat count
+    └── Optionally enters table name (default: "Table N+1")
+            │
+            ├── Press Enter or click "Add Table"
+            │       │
+            │       ▼
+            │   createObject.mutate({
+            │       objectType: 'table',
+            │       tableShape: shape,
+            │       label: name || 'Table N+1',
+            │       seatCount,
+            │       widthFt, heightFt (shape defaults)
+            │   })
+            │       │
+            │       ├── POST /floor-plans/:planUuid/objects
+            │       └── Invalidates: floorPlanKeys.detail
+            │               │
+            │               ▼
+            │       New TableCard appears in the grid
+            │       Form resets name field (shape + seats preserved)
+```
+
+---
+
+## 2d. Assign Guest in Table Planner Card
+
+```
+In TableCard, user types in "Search guests to assign..." input
+    │
+    ▼
+Filter unassigned guests by first/last name
+    │
+    ▼
+User clicks a guest name
+    │
+    ▼
+Find next available seat number (first empty slot 1..seatCount)
+    │
+    ▼
+assignGuest.mutate({
+    objectUuid: table.uuid,
+    assignments: [{ guestUuid, seatNumber: nextAvailableSeat }]
+})
+    │
+    ├── POST /floor-plans/:planUuid/objects/:objectUuid/assign
+    └── Invalidates: detail, unassigned, conflicts
+            │
+            ▼
+Guest appears in the card's assigned guest list
+Capacity badge updates (e.g., "3/8" → "4/8")
+Search input clears
+```
+
+**Table-level assignment model:** Users assign guests to a table, not to a specific seat. The planner auto-picks the next available `seatNumber` internally. When switching to the designer, seat assignments are already there.
+
+---
+
+## 2e. Inline Edit Table in Planner
+
+```
+User clicks pencil icon on a TableCard header
+    │
+    ▼
+Card header switches to edit mode:
+    ├── Label text input (pre-filled with current label)
+    └── Seat count number input (pre-filled with current count)
+            │
+            ├── Press Enter or click "Save"
+            │       │
+            │       ▼
+            │   updateObject.mutate({ objectUuid, data: { label?, seatCount? } })
+            │       │
+            │       ├── PATCH /floor-plans/:planUuid/objects/:objectUuid
+            │       └── Invalidates: floorPlanKeys.detail
+            │
+            └── Click "Cancel" → reverts to display mode
+```
+
+---
+
+## 2f. Tab Switching (Planner ↔ Designer)
+
+```
+User clicks "Floor Plan Designer" tab (or "Table Planner" tab)
+    │
+    ▼
+$activeSeatingTab.set('designer') (or 'planner')
+    │
+    ▼
+SeatingTabs re-renders active TabsContent
+    │
+    ├── Both tabs use the SAME QueryClient
+    │   └── Data already in cache from previous tab renders instantly
+    │
+    ├── Planner → Designer: Tables created in planner appear on the canvas
+    │   with their assigned guests visible in the right panel
+    │
+    └── Designer → Planner: Tables created/modified on the canvas appear
+        as cards in the grid with updated assignments
 ```
 
 ---
@@ -401,25 +544,35 @@ setActivePlanUuid(plan.uuid)
 ## Data Flow Summary
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    SeatingChartView                          │
-│                                                             │
-│  ┌──────────┐    ┌──────────┐    ┌────────────────────┐    │
-│  │useFloor  │    │useFloor  │    │useUnassignedGuests │    │
-│  │Plans     │    │Plan      │    │                    │    │
-│  │(list)    │    │(detail)  │    │useConflicts        │    │
-│  └────┬─────┘    └────┬─────┘    └────────┬───────────┘    │
-│       │               │                   │                 │
-│       ▼               ▼                   ▼                 │
-│  Plan Tabs      planWithLocal       Stats + Alerts          │
-│                 Positions                                   │
-│                      │                                      │
-│       ┌──────────────┼──────────────┐                      │
-│       ▼              ▼              ▼                       │
-│  ObjectPalette  FloorPlanCanvas  GuestAssignment            │
-│  (createObject) (drag → bulk    Panel / Object              │
-│                  positions)     PropertyPanel                │
-│                                (assign/unassign/            │
-│                                 update/delete)              │
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                  SeatingTabs (shared QueryClient)                   │
+│                                                                    │
+│  ┌──────────┐    ┌──────────┐    ┌────────────────────┐           │
+│  │useFloor  │    │useFloor  │    │useUnassignedGuests │           │
+│  │Plans     │    │Plan      │    │useConflicts        │           │
+│  │(list)    │    │(detail)  │    │                    │           │
+│  └────┬─────┘    └────┬─────┘    └────────┬───────────┘           │
+│       │               │                   │                        │
+│  ┌────┼───────────────┼───────────────────┼───────────┐           │
+│  │    ▼               ▼                   ▼           │           │
+│  │  Table Planner Tab                                 │           │
+│  │  ┌────────────────────────────────────────────┐    │           │
+│  │  │ AddTableForm → createObject                │    │           │
+│  │  │ TableCard grid → assign/unassign/update/   │    │           │
+│  │  │                  delete per table           │    │           │
+│  │  │ Stats + Alerts + AutoAssign + Relationships│    │           │
+│  │  └────────────────────────────────────────────┘    │           │
+│  └────────────────────────────────────────────────────┘           │
+│                                                                    │
+│  ┌────────────────────────────────────────────────────┐           │
+│  │ Floor Plan Designer Tab                            │           │
+│  │  ┌──────────────┬──────────┬──────────────────┐    │           │
+│  │  │ObjectPalette │FloorPlan │GuestAssignment   │    │           │
+│  │  │(createObject)│Canvas    │Panel / Object    │    │           │
+│  │  │              │(drag →   │PropertyPanel     │    │           │
+│  │  │              │ bulk pos)│(assign/unassign/ │    │           │
+│  │  │              │          │ update/delete)   │    │           │
+│  │  └──────────────┴──────────┴──────────────────┘    │           │
+│  └────────────────────────────────────────────────────┘           │
+└────────────────────────────────────────────────────────────────────┘
 ```

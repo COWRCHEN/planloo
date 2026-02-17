@@ -6,21 +6,119 @@
 
 **File:** `frontend/src/pages/dashboard/events/[uuid]/seating.astro`
 
-SSR page (`prerender = false`). Fetches event title server-side for the page heading. Renders `SeatingChartView` as a client-only island (`client:only="react"`) to bypass SSR for Konva (which requires `window`/`document` at import time). Uses `DashboardLayout`.
+SSR page (`prerender = false`). Fetches event title server-side for the page heading. Renders `SeatingTabs` as a client-only island (`client:only="react"`) to bypass SSR for Konva (which requires `window`/`document` at import time). Uses `DashboardLayout`.
 
 **Navigation links:** "Back to Event" and "Guest List" buttons in header.
 
 ---
 
-## Top-Level Component
+## Entry Point
 
-### `SeatingChartView`
+### `SeatingTabs`
 
-**File:** `frontend/src/components/seating/SeatingChartView.tsx`
+**File:** `frontend/src/components/seating/SeatingTabs.tsx`
 
 **Props:** `{ eventUuid: string | undefined }`
 
-Main orchestrator. Creates its own `QueryClientProvider` and manages all state coordination.
+Tab container that wraps the entire seating feature. Creates a shared `QueryClientProvider` so both tabs read/write the same TanStack Query cache — tables and assignments sync instantly between views.
+
+**Responsibilities:**
+- Creates and owns the `QueryClient` instance
+- Renders shadcn `Tabs` with two tab triggers: "Table Planner" and "Floor Plan Designer"
+- Syncs active tab with `$activeSeatingTab` nanostore
+
+**Tab structure:**
+- **Table Planner** (default) → `<TablePlannerView eventUuid={eventUuid} />`
+- **Floor Plan Designer** → `<SeatingChartInner eventUuid={eventUuid} />`
+
+---
+
+## Table Planner Components
+
+### `TablePlannerView`
+
+**File:** `frontend/src/components/seating/TablePlannerView.tsx`
+
+**Props:** `{ eventUuid: string }`
+
+Main orchestrator for the card-based planner tab. Designed for users who need to plan table assignments without spatial layout.
+
+**Responsibilities:**
+- Auto-creates a default floor plan ("Main Floor Plan") on first visit if none exists
+- Auto-selects the default/first plan
+- Renders action bar, stats, conflicts, add form, and table grid
+- Wires all table operations to existing hooks
+
+**Layout:**
+- Action bar: `AutoAssignDialog` + `GuestRelationshipsDialog`
+- `SeatingChartStats` bar
+- `ConflictAlerts` banners
+- `AddTableForm`
+- Responsive grid of `TableCard` components (1-4 columns depending on viewport)
+
+**Reused components:** `SeatingChartStats`, `ConflictAlerts`, `AutoAssignDialog`, `GuestRelationshipsDialog`
+
+---
+
+### `AddTableForm`
+
+**File:** `frontend/src/components/seating/AddTableForm.tsx`
+
+**Props:** `{ onAdd, tableCount, isAdding? }`
+
+Compact inline form for adding tables.
+
+**Fields:**
+| Field | Control | Default |
+|-------|---------|---------|
+| Shape | `Select` (Round, Rectangular, Square, Head Table) | Round |
+| Seats | Number `Input` (1-50) | Auto per shape (round=8, rectangular=8, square=4, head_table=12) |
+| Name | Text `Input` | Auto-default "Table N+1" (based on `tableCount`) |
+
+Changing shape auto-updates the seat count to the shape's default. Press Enter or click "Add Table" to submit.
+
+---
+
+### `TableCard`
+
+**File:** `frontend/src/components/seating/TableCard.tsx`
+
+**Props:** `{ object, unassignedGuests, onAssign, onUnassign, onUpdate, onDelete, isAssigning? }`
+
+A shadcn `Card` representing a single table. Provides all assignment operations without leaving the card.
+
+**Header:**
+- Shape icon (SVG — round circle, rectangular/head_table rect, square rect)
+- Table label (truncated)
+- Capacity badge (e.g., "6/8") — color-coded: `destructive` when over capacity, `default` when full, `secondary` otherwise
+- Edit button (pencil icon) → toggles inline edit mode for label + seat count
+- Delete button (trash icon)
+
+**Body — Assigned guests:**
+- List of assigned guests with seat number circle, name, RSVP badge initial (C/P/I/D/M), and unassign (×) button
+- Collapsed by default to 3 guests; "+N more" / "Show less" toggle for tables with more
+
+**Body — Quick assign:**
+- Search input filters unassigned guests by name
+- Click a guest to assign to the next available seat number (same logic as `GuestAssignmentPanel`)
+- Shows only when seats are available; shows "Table full" when at capacity
+
+**Visual states:**
+- Over-capacity: `border-red-300 bg-red-50/30`
+- Normal: default Card styling
+
+---
+
+## Floor Plan Designer Components
+
+### `SeatingChartView` / `SeatingChartInner`
+
+**File:** `frontend/src/components/seating/SeatingChartView.tsx`
+
+**`SeatingChartView` Props:** `{ eventUuid: string | undefined }`
+**`SeatingChartInner` Props:** `{ eventUuid: string }`
+
+`SeatingChartView` is the backward-compatible standalone wrapper (creates its own `QueryClientProvider`). `SeatingChartInner` is the exported inner component used by `SeatingTabs` — it assumes a `QueryClientProvider` already exists in the tree.
 
 **Responsibilities:**
 - Plan tab switching and creation

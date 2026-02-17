@@ -8,6 +8,7 @@ Client-side UI state for the floor plan canvas. These stores are **not** synced 
 
 | Store | Type | Default | Description |
 |-------|------|---------|-------------|
+| `$activeSeatingTab` | `'planner' \| 'designer'` | `'planner'` | Active tab on the seating page. Synced by `SeatingTabs`. |
 | `$zoom` | `number` | `1` | Current zoom level (1 = 100%). Range: 0.25x to 3x |
 | `$panOffset` | `{ x: number; y: number }` | `{ x: 0, y: 0 }` | Stage x/y position (pan offset). Updated by Stage drag and zoom-to-cursor. Reset button sets to `{0,0}`. |
 | `$selectedObjectUuids` | `string[]` | `[]` | Currently selected object UUIDs |
@@ -15,7 +16,7 @@ Client-side UI state for the floor plan canvas. These stores are **not** synced 
 | `$gridVisible` | `boolean` | `true` | Whether to show the grid overlay |
 | `$activePanel` | `'palette' \| 'properties' \| 'guests' \| null` | `'palette'` | Which right-side panel is open |
 
-**Usage:** Stores are read by canvas components via `useStore()` from `@nanostores/react`, and written to by `FloorPlanCanvas` (zoom/pan), `FloorPlanToolbar` (zoom/pan/grid), and `SeatingChartView` (selection).
+**Usage:** Stores are read via `useStore()` from `@nanostores/react`. `$activeSeatingTab` is read/written by `SeatingTabs`. Canvas stores (`$zoom`, `$panOffset`, etc.) are read/written by `FloorPlanCanvas`, `FloorPlanToolbar`, and `SeatingChartInner`.
 
 ---
 
