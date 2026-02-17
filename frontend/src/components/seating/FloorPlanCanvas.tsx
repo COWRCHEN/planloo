@@ -30,6 +30,15 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
   const { widthFt, heightFt, gridSnap } = plan;
 
   // Measure container
+  const measureContainer = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    if (width > 0 && height > 0) {
+      setContainerSize({ width, height });
+    }
+  }, []);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -44,12 +53,25 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
       }
     });
     observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
 
-  // Calculate pixels per foot to fit the plan in the container
-  const ppf = Math.min(containerSize.width / widthFt, containerSize.height / heightFt);
-  const stageWidth = widthFt * ppf;
+    // Force remeasure on fullscreen exit — ResizeObserver may not fire reliably
+    const onFullscreenChange = () => {
+      // Small delay to let the layout settle after fullscreen transition
+      requestAnimationFrame(() => measureContainer());
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+    };
+  }, [measureContainer]);
+
+  // Calculate pixels per foot based on container width so objects maintain
+  // consistent visual size across normal and fullscreen modes.  The plan may
+  // extend below the visible area; zoom/pan handles navigation.
+  const ppf = containerSize.width / widthFt;
+  const stageWidth = widthFt * ppf;   // equals containerSize.width
   const stageHeight = heightFt * ppf;
 
   // Zoom-to-cursor on wheel
@@ -152,6 +174,7 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
       ref={containerRef}
       className="flex-1 overflow-hidden bg-gray-100 relative"
     >
+      <div className="absolute inset-0">
       <Stage
         width={containerSize.width}
         height={containerSize.height}
@@ -232,6 +255,7 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
           })}
         </Layer>
       </Stage>
+      </div>
     </div>
   );
 }

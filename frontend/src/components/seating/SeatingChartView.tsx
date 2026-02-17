@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,9 +73,14 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
     }
   }, []);
 
-  // Sync isFullscreen state with fullscreenchange event
+  // Sync isFullscreen state with fullscreenchange event (flushSync ensures
+  // the DOM height update happens in the same tick as the browser exiting
+  // fullscreen, preventing a frame where 100vh is applied in normal flow
+  // which would cause page-level scrollbars).
   useEffect(() => {
-    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const onChange = () => {
+      flushSync(() => setIsFullscreen(!!document.fullscreenElement));
+    };
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
@@ -267,9 +273,9 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
           />
 
           {/* Center: Canvas + overlaid right panel */}
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             <FloorPlanToolbar planName={planWithLocalPositions.name} isSaving={isSaving} isFullscreen={isFullscreen} onToggleFullscreen={handleToggleFullscreen} />
-            <div className="flex-1 relative flex flex-col min-h-0">
+            <div className="flex-1 relative flex flex-col min-h-0 overflow-hidden">
               <FloorPlanCanvas
                 plan={planWithLocalPositions}
                 onObjectDragged={handleObjectDragged}
