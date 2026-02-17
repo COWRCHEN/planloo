@@ -17,6 +17,8 @@ interface Props {
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
 const ZOOM_SPEED = 1.1;
+const SCROLLBAR_SIZE = 6;
+const SCROLLBAR_MIN_THUMB = 20;
 
 export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props) {
   const zoom = useStore($zoom);
@@ -54,9 +56,7 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
     });
     observer.observe(el);
 
-    // Force remeasure on fullscreen exit — ResizeObserver may not fire reliably
     const onFullscreenChange = () => {
-      // Small delay to let the layout settle after fullscreen transition
       requestAnimationFrame(() => measureContainer());
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
@@ -67,12 +67,27 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
     };
   }, [measureContainer]);
 
-  // Calculate pixels per foot based on container width so objects maintain
-  // consistent visual size across normal and fullscreen modes.  The plan may
-  // extend below the visible area; zoom/pan handles navigation.
   const ppf = containerSize.width / widthFt;
   const stageWidth = widthFt * ppf;   // equals containerSize.width
   const stageHeight = heightFt * ppf;
+
+  // Virtual content size at current zoom
+  const virtualWidth = Math.max(stageWidth * zoom, containerSize.width);
+  const virtualHeight = Math.max(stageHeight * zoom, containerSize.height);
+
+  // Clamp panOffset to valid bounds
+  const maxPanX = Math.max(0, virtualWidth - containerSize.width);
+  const maxPanY = Math.max(0, virtualHeight - containerSize.height);
+  const effectivePanX = Math.max(-maxPanX, Math.min(0, panOffset.x));
+  const effectivePanY = Math.max(-maxPanY, Math.min(0, panOffset.y));
+
+  // Keep store in sync with clamped value (e.g. after toolbar zoom changes)
+  useEffect(() => {
+    const current = $panOffset.get();
+    if (current.x !== effectivePanX || current.y !== effectivePanY) {
+      $panOffset.set({ x: effectivePanX, y: effectivePanY });
+    }
+  }, [effectivePanX, effectivePanY]);
 
   // Zoom-to-cursor on wheel
   const handleWheel = useCallback(
@@ -118,7 +133,6 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
   // Pan by dragging the stage background
   const handleStageDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      // Only handle stage drag (not child drags)
       if (e.target !== e.target.getStage()) return;
       const stage = e.target.getStage();
       if (!stage) return;
@@ -169,6 +183,20 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
     }
   }
 
+  // Custom scrollbar indicators
+  const showHBar = virtualWidth > containerSize.width + 1;
+  const showVBar = virtualHeight > containerSize.height + 1;
+
+  const hThumbRatio = containerSize.width / virtualWidth;
+  const hThumbWidth = Math.max(SCROLLBAR_MIN_THUMB, hThumbRatio * containerSize.width);
+  const hTrackRange = containerSize.width - hThumbWidth - (showVBar ? SCROLLBAR_SIZE : 0);
+  const hThumbLeft = maxPanX > 0 ? (-effectivePanX / maxPanX) * hTrackRange : 0;
+
+  const vThumbRatio = containerSize.height / virtualHeight;
+  const vThumbHeight = Math.max(SCROLLBAR_MIN_THUMB, vThumbRatio * containerSize.height);
+  const vTrackRange = containerSize.height - vThumbHeight - (showHBar ? SCROLLBAR_SIZE : 0);
+  const vThumbTop = maxPanY > 0 ? (-effectivePanY / maxPanY) * vTrackRange : 0;
+
   return (
     <div
       ref={containerRef}
@@ -180,8 +208,8 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
         height={containerSize.height}
         scaleX={zoom}
         scaleY={zoom}
-        x={panOffset.x}
-        y={panOffset.y}
+        x={effectivePanX}
+        y={effectivePanY}
         draggable
         onWheel={handleWheel}
         onClick={handleStageClick}
@@ -256,6 +284,54 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
         </Layer>
       </Stage>
       </div>
+
+      {/* Custom scrollbar indicators — thin overlays, no native scroll */}
+      {showHBar && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            bottom: 0,
+            width: containerSize.width - (showVBar ? SCROLLBAR_SIZE : 0),
+            height: SCROLLBAR_SIZE,
+          }}
+        >
+          <div
+            className="rounded-full bg-black/30 transition-opacity"
+            style={{
+              position: 'absolute',
+              top: 1,
+              left: hThumbLeft,
+              width: hThumbWidth,
+              height: SCROLLBAR_SIZE - 2,
+              minWidth: SCROLLBAR_MIN_THUMB,
+            }}
+          />
+        </div>
+      )}
+      {showVBar && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: 0,
+            right: 0,
+            height: containerSize.height - (showHBar ? SCROLLBAR_SIZE : 0),
+            width: SCROLLBAR_SIZE,
+          }}
+        >
+          <div
+            className="rounded-full bg-black/30 transition-opacity"
+            style={{
+              position: 'absolute',
+              left: 1,
+              top: vThumbTop,
+              height: vThumbHeight,
+              width: SCROLLBAR_SIZE - 2,
+              minHeight: SCROLLBAR_MIN_THUMB,
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

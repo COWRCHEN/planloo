@@ -10,6 +10,24 @@ Planloo is a full-stack event planning SaaS application with:
 - **Auth**: Better Auth with email/password and OAuth support
 - **ORM**: Drizzle ORM with type-safe schema
 
+## Workflow Rules
+
+- When asked to implement a feature, write actual code — do not stop at producing a plan document unless explicitly asked for a plan only.
+
+## Tech Stack
+
+### Frontend 
+
+- Always use shadcn/ui components with Radix primitives for UI, and TanStack Query for all API calls. Never create custom UI components from scratch.
+
+## Code Quality
+
+### React Rules
+
+- Never place React hooks after conditional returns. All hooks must be called before any early return statements.
+
+
+
 ## Commands
 
 ### Backend (`/backend`)
@@ -49,6 +67,9 @@ npm run test:e2e:ui      # Playwright with UI
 ```
 
 ## Architecture
+
+This project deploys to Cloudflare Workers (not Pages). The backend uses Hono on Workers with D1 database. All API routes use /api/v1 versioning — do not remove or change the versioned prefix.
+
 
 ### Backend Structure
 
@@ -135,3 +156,7 @@ import type { Event, NewEvent } from '@/db/types';
 - Soft deletes via `deletedAt` column
 - UUIDs for public-facing IDs, auto-increment for internal
 - Events can belong to either a user (personal) OR an organization (not both)
+
+## Documentation
+
+- Documentation files go in the docs/ directory (e.g., docs/features/), not as skill files or in other locations.
