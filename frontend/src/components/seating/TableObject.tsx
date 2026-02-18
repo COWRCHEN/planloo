@@ -50,7 +50,7 @@ export function TableObject({
 
   const isRound = tableShape === 'round' || tableShape === 'oval';
   const isSemicircle = tableShape === 'semicircle';
-  const seatRadius = 0.6;
+  const seatRadius = 6;
 
   const snapToGrid = (value: number) => {
     if (gridSnap <= 0) return value;
@@ -149,7 +149,7 @@ export function TableObject({
             y={0}
             width={widthFt * ppf}
             height={heightFt * ppf}
-            cornerRadius={0.4 * ppf}
+            cornerRadius={4 * ppf}
             fill={isSelected ? '#ede9fe' : '#f5f3ff'}
             stroke={isSelected ? '#7c3aed' : '#c4b5fd'}
             strokeWidth={isSelected ? 3 : 1.5}
@@ -159,11 +159,11 @@ export function TableObject({
         {/* Table label */}
         <Text
           x={0}
-          y={centerY - 0.3 * ppf - Math.min(1.2, widthFt / 6) * ppf * 0.5}
+          y={centerY - 3 * ppf - Math.min(12, widthFt / 6) * ppf * 0.5}
           width={widthFt * ppf}
-          height={Math.min(1.2, widthFt / 6) * ppf}
+          height={Math.min(12, widthFt / 6) * ppf}
           text={label}
-          fontSize={Math.min(1.2, widthFt / 6) * ppf}
+          fontSize={Math.min(12, widthFt / 6) * ppf}
           fill="#4c1d95"
           fontStyle="600"
           align="center"
@@ -174,11 +174,11 @@ export function TableObject({
         {/* Seat count text */}
         <Text
           x={0}
-          y={centerY + 0.4 * ppf}
+          y={centerY + 4 * ppf}
           width={widthFt * ppf}
-          height={0.8 * ppf}
+          height={8 * ppf}
           text={`${assignments.length}/${seats}`}
-          fontSize={0.8 * ppf}
+          fontSize={8 * ppf}
           fill="#7c3aed"
           opacity={0.6}
           align="center"
@@ -219,7 +219,7 @@ export function TableObject({
                 width={seatRadius * 2 * ppf}
                 height={seatRadius * 2 * ppf}
                 text={String(seatNum)}
-                fontSize={0.5 * ppf}
+                fontSize={5 * ppf}
                 fill="#fff"
                 fontStyle="bold"
                 align="center"
@@ -295,7 +295,7 @@ function getSeatPositions(
   sides: SidesConfig
 ): Array<{ x: number; y: number }> {
   const isRound = shape === 'round' || shape === 'oval';
-  const margin = 1.2;
+  const margin = 12;
 
   if (shape === 'semicircle') {
     const cx = width / 2;
@@ -367,7 +367,7 @@ function DietaryIcon({ x, y, dietary, ppf }: { x: number; y: number; dietary: st
     symbol = 'D';
   }
 
-  const r = 0.35 * ppf;
+  const r = 3.5 * ppf;
 
   return (
     <Group>
@@ -378,7 +378,7 @@ function DietaryIcon({ x, y, dietary, ppf }: { x: number; y: number; dietary: st
         width={r * 2}
         height={r * 2}
         text={symbol}
-        fontSize={0.35 * ppf}
+        fontSize={3.5 * ppf}
         fill="#fff"
         fontStyle="bold"
         align="center"

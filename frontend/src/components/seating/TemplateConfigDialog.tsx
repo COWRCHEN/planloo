@@ -25,7 +25,7 @@ import type {
 
 interface Props {
   templates: ObjectTemplate[];
-  onCreate: (data: CreateTemplateInput) => void;
+  onCreate: (data: CreateTemplateInput) => Promise<unknown>;
   onUpdate: (templateUuid: string, data: UpdateTemplateInput) => void;
   onDelete: (templateUuid: string) => void;
   isCreating?: boolean;
@@ -123,43 +123,71 @@ export function TemplateConfigDialog({ templates, onCreate, onUpdate, onDelete, 
   const [editingUuid, setEditingUuid] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [confirmDeleteUuid, setConfirmDeleteUuid] = useState<string | null>(null);
+  const [tableFormError, setTableFormError] = useState<string | null>(null);
+  const [elementFormError, setElementFormError] = useState<string | null>(null);
 
   const tableTemplates = templates.filter((t) => t.objectType === 'table');
   const elementTemplates = templates.filter((t) => t.objectType === 'element');
 
-  const handleAddTable = () => {
-    if (!tableForm.label.trim()) return;
+  const handleAddTable = async () => {
+    setTableFormError(null);
+    if (!tableForm.label.trim()) {
+      setTableFormError('Label is required.');
+      return;
+    }
     const isSided = SIDED_SHAPES.includes(tableForm.tableShape);
+    if (isSided) {
+      const top = Number(tableForm.seatTop) || 0;
+      const bottom = Number(tableForm.seatBottom) || 0;
+      if (top === 0 && bottom === 0) {
+        setTableFormError('At least one of Top or Bottom must have seats.');
+        return;
+      }
+    }
     const total = isSided ? totalFromSides(tableForm) : Number(tableForm.seatCount);
-    onCreate({
-      objectType: 'table',
-      tableShape: tableForm.tableShape,
-      label: tableForm.label,
-      widthFt: Number(tableForm.widthFt),
-      heightFt: Number(tableForm.heightFt),
-      seatCount: total,
-      ...(isSided ? {
-        seatTop: Number(tableForm.seatTop) || 0,
-        seatBottom: Number(tableForm.seatBottom) || 0,
-        seatLeft: Number(tableForm.seatLeft) || 0,
-        seatRight: Number(tableForm.seatRight) || 0,
-      } : {}),
-    });
-    setTableForm(INITIAL_TABLE_FORM);
-    setShowAddTable(false);
+    try {
+      await onCreate({
+        objectType: 'table',
+        tableShape: tableForm.tableShape,
+        label: tableForm.label,
+        widthFt: Number(tableForm.widthFt),
+        heightFt: Number(tableForm.heightFt),
+        seatCount: total,
+        ...(isSided ? {
+          seatTop: Number(tableForm.seatTop) || 0,
+          seatBottom: Number(tableForm.seatBottom) || 0,
+          seatLeft: Number(tableForm.seatLeft) || 0,
+          seatRight: Number(tableForm.seatRight) || 0,
+        } : {}),
+      });
+      setTableForm(INITIAL_TABLE_FORM);
+      setTableFormError(null);
+      setShowAddTable(false);
+    } catch (err) {
+      setTableFormError(err instanceof Error ? err.message : 'Failed to create template.');
+    }
   };
 
-  const handleAddElement = () => {
-    if (!elementForm.label.trim()) return;
-    onCreate({
-      objectType: 'element',
-      elementType: elementForm.elementType,
-      label: elementForm.label,
-      widthFt: Number(elementForm.widthFt),
-      heightFt: Number(elementForm.heightFt),
-    });
-    setElementForm(INITIAL_ELEMENT_FORM);
-    setShowAddElement(false);
+  const handleAddElement = async () => {
+    setElementFormError(null);
+    if (!elementForm.label.trim()) {
+      setElementFormError('Label is required.');
+      return;
+    }
+    try {
+      await onCreate({
+        objectType: 'element',
+        elementType: elementForm.elementType,
+        label: elementForm.label,
+        widthFt: Number(elementForm.widthFt),
+        heightFt: Number(elementForm.heightFt),
+      });
+      setElementForm(INITIAL_ELEMENT_FORM);
+      setElementFormError(null);
+      setShowAddElement(false);
+    } catch (err) {
+      setElementFormError(err instanceof Error ? err.message : 'Failed to create template.');
+    }
   };
 
   const startEditing = (t: ObjectTemplate) => {
@@ -206,7 +234,7 @@ export function TemplateConfigDialog({ templates, onCreate, onUpdate, onDelete, 
               variant="ghost"
               size="sm"
               className="h-6 text-xs"
-              onClick={() => setShowAddTable(!showAddTable)}
+              onClick={() => { setShowAddTable(!showAddTable); setTableFormError(null); }}
             >
               {showAddTable ? 'Cancel' : '+ Add Table'}
             </Button>
@@ -286,11 +314,11 @@ export function TemplateConfigDialog({ templates, onCreate, onUpdate, onDelete, 
                   <div className="grid grid-cols-4 gap-1.5 mt-1">
                     <div>
                       <Label className="text-[10px] text-muted-foreground">Top</Label>
-                      <Input type="number" value={tableForm.seatTop} onChange={(e) => setTableForm((f) => { const updated = { ...f, seatTop: e.target.value }; return { ...updated, label: defaultTableLabel(f.tableShape, String(totalFromSides(updated))) }; })} className="h-6 text-xs" min={0} />
+                      <Input type="number" value={tableForm.seatTop} onChange={(e) => { setTableFormError(null); setTableForm((f) => { const updated = { ...f, seatTop: e.target.value }; return { ...updated, label: defaultTableLabel(f.tableShape, String(totalFromSides(updated))) }; }); }} className="h-6 text-xs" min={0} />
                     </div>
                     <div>
                       <Label className="text-[10px] text-muted-foreground">Bottom</Label>
-                      <Input type="number" value={tableForm.seatBottom} onChange={(e) => setTableForm((f) => { const updated = { ...f, seatBottom: e.target.value }; return { ...updated, label: defaultTableLabel(f.tableShape, String(totalFromSides(updated))) }; })} className="h-6 text-xs" min={0} />
+                      <Input type="number" value={tableForm.seatBottom} onChange={(e) => { setTableFormError(null); setTableForm((f) => { const updated = { ...f, seatBottom: e.target.value }; return { ...updated, label: defaultTableLabel(f.tableShape, String(totalFromSides(updated))) }; }); }} className="h-6 text-xs" min={0} />
                     </div>
                     <div>
                       <Label className="text-[10px] text-muted-foreground">Left</Label>
@@ -316,6 +344,9 @@ export function TemplateConfigDialog({ templates, onCreate, onUpdate, onDelete, 
                     />
                   </div>
                 </div>
+              )}
+              {tableFormError && (
+                <p className="text-xs text-destructive">{tableFormError}</p>
               )}
               <Button size="sm" className="h-7 text-xs w-full" onClick={handleAddTable} disabled={isCreating || !tableForm.label.trim()}>
                 Add Table Template
@@ -354,7 +385,7 @@ export function TemplateConfigDialog({ templates, onCreate, onUpdate, onDelete, 
               variant="ghost"
               size="sm"
               className="h-6 text-xs"
-              onClick={() => setShowAddElement(!showAddElement)}
+              onClick={() => { setShowAddElement(!showAddElement); setElementFormError(null); }}
             >
               {showAddElement ? 'Cancel' : '+ Add Element'}
             </Button>
@@ -413,6 +444,9 @@ export function TemplateConfigDialog({ templates, onCreate, onUpdate, onDelete, 
                   />
                 </div>
               </div>
+              {elementFormError && (
+                <p className="text-xs text-destructive">{elementFormError}</p>
+              )}
               <Button size="sm" className="h-7 text-xs w-full" onClick={handleAddElement} disabled={isCreating || !elementForm.label.trim()}>
                 Add Element Template
               </Button>

@@ -117,11 +117,11 @@ export function ElementObject({
           y={0}
           width={widthFt * ppf}
           height={heightFt * ppf}
-          cornerRadius={0.5 * ppf}
+          cornerRadius={5 * ppf}
           fill={isSelected ? selectedFill : colors.fill}
           stroke={isSelected ? selectedStroke : normalStroke}
           strokeWidth={isSelected ? 3 : 1.5}
-          {...(elementType === 'dance_floor' ? { dash: [1 * ppf, 0.5 * ppf] } : {})}
+          {...(elementType === 'dance_floor' ? { dash: [10 * ppf, 5 * ppf] } : {})}
         />
 
         {/* Label */}
@@ -131,7 +131,7 @@ export function ElementObject({
           width={widthFt * ppf}
           height={heightFt * ppf}
           text={label}
-          fontSize={Math.min(1.2, widthFt / 8, heightFt / 3) * ppf}
+          fontSize={Math.min(12, widthFt / 8, heightFt / 3) * ppf}
           fill={colors.stroke}
           fontStyle="600"
           align="center"

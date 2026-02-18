@@ -132,8 +132,8 @@ export function ObjectPropertyPanel({ object, onUpdate, onDelete, onClose, isUpd
             <Input
               type="number"
               min={1}
-              max={100}
-              step={0.5}
+              max={1000}
+              step={5}
               value={widthFt}
               onChange={(e) => setWidthFt(parseFloat(e.target.value) || 1)}
               onBlur={handleSave}
@@ -145,8 +145,8 @@ export function ObjectPropertyPanel({ object, onUpdate, onDelete, onClose, isUpd
             <Input
               type="number"
               min={1}
-              max={100}
-              step={0.5}
+              max={1000}
+              step={5}
               value={heightFt}
               onChange={(e) => setHeightFt(parseFloat(e.target.value) || 1)}
               onBlur={handleSave}

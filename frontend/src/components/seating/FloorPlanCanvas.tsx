@@ -176,10 +176,15 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
     [onObjectDragged]
   );
 
-  // Grid lines
+  // Grid lines — ensure minimum pixel spacing so dense grids don't become solid fill
   const gridLines: React.ReactNode[] = [];
   if (gridVisible && gridSnap > 0) {
-    for (let x = 0; x <= widthFt; x += gridSnap) {
+    const MIN_GRID_PX = 20;
+    const effectiveSnap = gridSnap * ppf >= MIN_GRID_PX
+      ? gridSnap
+      : Math.ceil(MIN_GRID_PX / ppf);
+
+    for (let x = 0; x <= widthFt; x += effectiveSnap) {
       gridLines.push(
         <Line
           key={`v${x}`}
@@ -190,7 +195,7 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
         />
       );
     }
-    for (let y = 0; y <= heightFt; y += gridSnap) {
+    for (let y = 0; y <= heightFt; y += effectiveSnap) {
       gridLines.push(
         <Line
           key={`h${y}`}

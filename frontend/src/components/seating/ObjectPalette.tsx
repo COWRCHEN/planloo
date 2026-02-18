@@ -143,7 +143,7 @@ export function ObjectPalette({ eventUuid, planUuid, onAddObject, isAdding }: Pr
       {/* Configure Templates button at bottom */}
       <TemplateConfigDialog
         templates={templates}
-        onCreate={(data) => createTemplate.mutate(data)}
+        onCreate={(data) => createTemplate.mutateAsync(data)}
         onUpdate={(uuid, data) => updateTemplate.mutate({ templateUuid: uuid, data })}
         onDelete={(uuid) => deleteTemplate.mutate(uuid)}
         isCreating={createTemplate.isPending}

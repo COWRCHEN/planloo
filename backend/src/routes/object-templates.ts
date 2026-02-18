@@ -32,8 +32,8 @@ const createTemplateSchema = z.object({
   tableShape: z.enum(TABLE_SHAPES).optional(),
   elementType: z.enum(ELEMENT_TYPES).optional(),
   label: z.string().min(1).max(100),
-  widthFt: z.number().min(1).max(100),
-  heightFt: z.number().min(1).max(100),
+  widthFt: z.number().min(1).max(5000),
+  heightFt: z.number().min(1).max(5000),
   seatCount: z.number().min(0).max(50).optional(),
   seatTop: z.number().min(0).max(50).optional(),
   seatBottom: z.number().min(0).max(50).optional(),
@@ -51,8 +51,8 @@ const createTemplateSchema = z.object({
 
 const updateTemplateSchema = z.object({
   label: z.string().min(1).max(100).optional(),
-  widthFt: z.number().min(1).max(100).optional(),
-  heightFt: z.number().min(1).max(100).optional(),
+  widthFt: z.number().min(1).max(5000).optional(),
+  heightFt: z.number().min(1).max(5000).optional(),
   seatCount: z.number().min(0).max(50).optional(),
   seatTop: z.number().min(0).max(50).optional(),
   seatBottom: z.number().min(0).max(50).optional(),
@@ -80,20 +80,20 @@ interface DefaultTemplate {
 
 const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   // Tables
-  { objectType: 'table', tableShape: 'round', label: 'Round (8)', widthFt: 6, heightFt: 6, seatCount: 8, sortOrder: 0 },
-  { objectType: 'table', tableShape: 'round', label: 'Round (10)', widthFt: 7, heightFt: 7, seatCount: 10, sortOrder: 1 },
-  { objectType: 'table', tableShape: 'round', label: 'Round (6)', widthFt: 5, heightFt: 5, seatCount: 6, sortOrder: 2 },
-  { objectType: 'table', tableShape: 'rectangular', label: 'Rectangular (8)', widthFt: 16, heightFt: 4, seatCount: 8, seatTop: 3, seatBottom: 3, seatLeft: 1, seatRight: 1, sortOrder: 3 },
-  { objectType: 'table', tableShape: 'square', label: 'Square (4)', widthFt: 4, heightFt: 4, seatCount: 4, sortOrder: 4 },
-  { objectType: 'table', tableShape: 'head_table', label: 'Head Table (12)', widthFt: 16, heightFt: 3, seatCount: 12, seatTop: 0, seatBottom: 12, seatLeft: 0, seatRight: 0, sortOrder: 5 },
+  { objectType: 'table', tableShape: 'round', label: 'Round (8)', widthFt: 60, heightFt: 60, seatCount: 8, sortOrder: 0 },
+  { objectType: 'table', tableShape: 'round', label: 'Round (10)', widthFt: 70, heightFt: 70, seatCount: 10, sortOrder: 1 },
+  { objectType: 'table', tableShape: 'round', label: 'Round (6)', widthFt: 50, heightFt: 50, seatCount: 6, sortOrder: 2 },
+  { objectType: 'table', tableShape: 'rectangular', label: 'Rectangular (8)', widthFt: 160, heightFt: 40, seatCount: 8, seatTop: 3, seatBottom: 3, seatLeft: 1, seatRight: 1, sortOrder: 3 },
+  { objectType: 'table', tableShape: 'square', label: 'Square (4)', widthFt: 40, heightFt: 40, seatCount: 4, sortOrder: 4 },
+  { objectType: 'table', tableShape: 'head_table', label: 'Head Table (12)', widthFt: 160, heightFt: 30, seatCount: 12, seatTop: 0, seatBottom: 12, seatLeft: 0, seatRight: 0, sortOrder: 5 },
   // Elements
-  { objectType: 'element', elementType: 'dance_floor', label: 'Dance Floor', widthFt: 20, heightFt: 20, sortOrder: 100 },
-  { objectType: 'element', elementType: 'bar', label: 'Bar', widthFt: 10, heightFt: 4, sortOrder: 101 },
-  { objectType: 'element', elementType: 'buffet', label: 'Buffet', widthFt: 12, heightFt: 3, sortOrder: 102 },
-  { objectType: 'element', elementType: 'stage', label: 'Stage', widthFt: 16, heightFt: 8, sortOrder: 103 },
-  { objectType: 'element', elementType: 'dj_booth', label: 'DJ Booth', widthFt: 6, heightFt: 4, sortOrder: 104 },
-  { objectType: 'element', elementType: 'entrance', label: 'Entrance', widthFt: 4, heightFt: 4, sortOrder: 105 },
-  { objectType: 'element', elementType: 'exit', label: 'Exit', widthFt: 4, heightFt: 4, sortOrder: 106 },
+  { objectType: 'element', elementType: 'dance_floor', label: 'Dance Floor', widthFt: 200, heightFt: 200, sortOrder: 100 },
+  { objectType: 'element', elementType: 'bar', label: 'Bar', widthFt: 100, heightFt: 40, sortOrder: 101 },
+  { objectType: 'element', elementType: 'buffet', label: 'Buffet', widthFt: 120, heightFt: 30, sortOrder: 102 },
+  { objectType: 'element', elementType: 'stage', label: 'Stage', widthFt: 160, heightFt: 80, sortOrder: 103 },
+  { objectType: 'element', elementType: 'dj_booth', label: 'DJ Booth', widthFt: 60, heightFt: 40, sortOrder: 104 },
+  { objectType: 'element', elementType: 'entrance', label: 'Entrance', widthFt: 40, heightFt: 40, sortOrder: 105 },
+  { objectType: 'element', elementType: 'exit', label: 'Exit', widthFt: 40, heightFt: 40, sortOrder: 106 },
 ];
 
 // ==================== HELPERS ====================

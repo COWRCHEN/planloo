@@ -30,16 +30,16 @@ const RELATIONSHIP_TYPES = ['prefer_together', 'avoid'] as const;
 
 const createFloorPlanSchema = z.object({
   name: z.string().min(1).max(100),
-  widthFt: z.number().min(10).max(500).optional(),
-  heightFt: z.number().min(10).max(500).optional(),
+  widthFt: z.number().min(10).max(5000).optional(),
+  heightFt: z.number().min(10).max(5000).optional(),
   gridSnap: z.number().min(0).max(10).optional(),
   isDefault: z.boolean().optional(),
 });
 
 const updateFloorPlanSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  widthFt: z.number().min(10).max(500).optional(),
-  heightFt: z.number().min(10).max(500).optional(),
+  widthFt: z.number().min(10).max(5000).optional(),
+  heightFt: z.number().min(10).max(5000).optional(),
   gridSnap: z.number().min(0).max(10).optional(),
   isDefault: z.boolean().optional(),
   sortOrder: z.number().min(0).optional(),
@@ -52,8 +52,8 @@ const createObjectSchema = z.object({
   label: z.string().min(1).max(100),
   posX: z.number().min(0).optional(),
   posY: z.number().min(0).optional(),
-  widthFt: z.number().min(1).max(100).optional(),
-  heightFt: z.number().min(1).max(100).optional(),
+  widthFt: z.number().min(1).max(1000).optional(),
+  heightFt: z.number().min(1).max(1000).optional(),
   rotation: z.number().min(0).max(359).optional(),
   seatCount: z.number().min(1).max(50).optional(),
   seatTop: z.number().min(0).max(50).optional(),
@@ -74,8 +74,8 @@ const updateObjectSchema = z.object({
   label: z.string().min(1).max(100).optional(),
   posX: z.number().min(0).optional(),
   posY: z.number().min(0).optional(),
-  widthFt: z.number().min(1).max(100).optional(),
-  heightFt: z.number().min(1).max(100).optional(),
+  widthFt: z.number().min(1).max(1000).optional(),
+  heightFt: z.number().min(1).max(1000).optional(),
   rotation: z.number().min(0).max(359).optional(),
   seatCount: z.number().min(1).max(50).optional(),
   seatTop: z.number().min(0).max(50).optional(),
@@ -185,9 +185,9 @@ floorPlans.post('/', requireAuth, zValidator('json', createFloorPlanSchema), asy
       uuid,
       eventId: access.event.id,
       name: body.name,
-      widthFt: body.widthFt ?? 100,
-      heightFt: body.heightFt ?? 80,
-      gridSnap: body.gridSnap ?? 1,
+      widthFt: body.widthFt ?? 1000,
+      heightFt: body.heightFt ?? 800,
+      gridSnap: body.gridSnap ?? 10,
       isDefault,
       sortOrder: existingPlans.length,
     })
@@ -437,20 +437,20 @@ floorPlans.post('/:planUuid/objects', requireAuth, zValidator('json', createObje
   }
 
   // Set default dimensions based on shape/type
-  let widthFt = body.widthFt ?? 6;
-  let heightFt = body.heightFt ?? 6;
+  let widthFt = body.widthFt ?? 60;
+  let heightFt = body.heightFt ?? 60;
   if (body.objectType === 'table') {
     if (body.tableShape === 'rectangular' || body.tableShape === 'head_table') {
-      widthFt = body.widthFt ?? 10;
-      heightFt = body.heightFt ?? 4;
+      widthFt = body.widthFt ?? 100;
+      heightFt = body.heightFt ?? 40;
     }
   } else if (body.objectType === 'element') {
     if (body.elementType === 'dance_floor') {
-      widthFt = body.widthFt ?? 20;
-      heightFt = body.heightFt ?? 20;
+      widthFt = body.widthFt ?? 200;
+      heightFt = body.heightFt ?? 200;
     } else if (body.elementType === 'stage') {
-      widthFt = body.widthFt ?? 16;
-      heightFt = body.heightFt ?? 8;
+      widthFt = body.widthFt ?? 160;
+      heightFt = body.heightFt ?? 80;
     }
   }
 
@@ -464,8 +464,8 @@ floorPlans.post('/:planUuid/objects', requireAuth, zValidator('json', createObje
       tableShape: body.objectType === 'table' ? body.tableShape! : null,
       elementType: body.objectType === 'element' ? body.elementType! : null,
       label: body.label,
-      posX: body.posX ?? 10,
-      posY: body.posY ?? 10,
+      posX: body.posX ?? 100,
+      posY: body.posY ?? 100,
       widthFt,
       heightFt,
       rotation: body.rotation ?? 0,

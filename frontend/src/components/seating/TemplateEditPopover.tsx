@@ -103,7 +103,7 @@ export function TemplateEditPopover({ template, onUpdate, onDelete, isUpdating, 
                 onChange={(e) => setWidthFt(e.target.value)}
                 className="h-7 text-xs mt-1"
                 min={1}
-                max={100}
+                max={1000}
               />
             </div>
             <div className="flex-1">
@@ -115,7 +115,7 @@ export function TemplateEditPopover({ template, onUpdate, onDelete, isUpdating, 
                 onChange={(e) => setHeightFt(e.target.value)}
                 className="h-7 text-xs mt-1"
                 min={1}
-                max={100}
+                max={1000}
               />
             </div>
           </div>
