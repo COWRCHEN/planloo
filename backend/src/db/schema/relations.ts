@@ -13,7 +13,7 @@ import { serviceProviders, venues, eventServiceProviders, eventVenues, reviews }
 import { auditLog, impersonationSession } from './admin';
 import { guestAudit } from './guestAudit';
 import { emailLog } from './notifications';
-import { floorPlans, floorPlanObjects, seatAssignments, guestRelationships } from './floorPlan';
+import { floorPlans, floorPlanObjects, seatAssignments, guestRelationships, objectTemplates } from './floorPlan';
 
 /**
  * User Relations
@@ -141,6 +141,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   emailLogs: many(emailLog),
   floorPlans: many(floorPlans),
   guestRelationships: many(guestRelationships),
+  objectTemplates: many(objectTemplates),
 }));
 
 /**
@@ -484,5 +485,15 @@ export const guestRelationshipsRelations = relations(guestRelationships, ({ one 
     fields: [guestRelationships.guestId2],
     references: [guests.id],
     relationName: 'guestRelationship2'
+  }),
+}));
+
+/**
+ * Object Template Relations
+ */
+export const objectTemplatesRelations = relations(objectTemplates, ({ one }) => ({
+  event: one(events, {
+    fields: [objectTemplates.eventId],
+    references: [events.id]
   }),
 }));

@@ -115,6 +115,9 @@ export type NewSeatAssignment = InferInsertModel<typeof schema.seatAssignments>;
 export type GuestRelationship = InferSelectModel<typeof schema.guestRelationships>;
 export type NewGuestRelationship = InferInsertModel<typeof schema.guestRelationships>;
 
+export type ObjectTemplate = InferSelectModel<typeof schema.objectTemplates>;
+export type NewObjectTemplate = InferInsertModel<typeof schema.objectTemplates>;
+
 // ==================== ADMIN TYPES ====================
 
 export type AuditLog = InferSelectModel<typeof schema.auditLog>;

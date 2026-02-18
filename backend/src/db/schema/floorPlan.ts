@@ -2,6 +2,36 @@ import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-or
 import { sql } from 'drizzle-orm';
 import { events, guests } from './events';
 
+const TABLE_SHAPES = ['round', 'rectangular', 'square', 'oval', 'semicircle', 'head_table'] as const;
+const ELEMENT_TYPES = [
+  'dance_floor', 'bar', 'buffet', 'stage', 'dj_booth', 'photo_booth',
+  'entrance', 'exit', 'restroom', 'dessert_station', 'gift_table', 'custom',
+] as const;
+
+/**
+ * Object Templates Table
+ * Reusable presets for tables/elements, scoped per event.
+ * Shared across all floor plans within the same event.
+ */
+export const objectTemplates = sqliteTable('object_templates', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  uuid: text('uuid').notNull().unique(),
+  eventId: integer('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  objectType: text('object_type', { enum: ['table', 'element'] }).notNull(),
+  tableShape: text('table_shape', { enum: TABLE_SHAPES }),
+  elementType: text('element_type', { enum: ELEMENT_TYPES }),
+  label: text('label').notNull(),
+  widthFt: real('width_ft').notNull(),
+  heightFt: real('height_ft').notNull(),
+  seatCount: integer('seat_count'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  eventIdIdx: index('idx_object_templates_event_id').on(table.eventId),
+  uuidIdx: index('idx_object_templates_uuid').on(table.uuid),
+}));
+
 /**
  * Floor Plans Table
  * One event can have multiple floor plans (e.g., ceremony vs reception).

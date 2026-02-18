@@ -9,6 +9,7 @@ import {
   useFloorPlans,
   useFloorPlan,
   useCreateFloorPlan,
+  useDeleteFloorPlan,
   type FloorPlanDetailResponse,
 } from '@/hooks/use-floor-plans';
 import {
@@ -34,6 +35,14 @@ import { ConflictAlerts } from './ConflictAlerts';
 import { GuestRelationshipsDialog } from './GuestRelationshipsDialog';
 import { AutoAssignDialog } from './AutoAssignDialog';
 import { ArrangementPresetPicker } from './ArrangementPresetPicker';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,6 +70,7 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
   const [newPlanName, setNewPlanName] = useState('');
   const [showNewPlanInput, setShowNewPlanInput] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [confirmDeletePlanUuid, setConfirmDeletePlanUuid] = useState<string | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   // Fullscreen toggle
@@ -93,6 +103,7 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
 
   // Mutations
   const createPlan = useCreateFloorPlan(eventUuid);
+  const deletePlan = useDeleteFloorPlan(eventUuid);
   const createObject = useCreateObject(eventUuid, activePlanUuid ?? '');
   const updateObject = useUpdateObject(eventUuid, activePlanUuid ?? '');
   const deleteObject = useDeleteObject(eventUuid, activePlanUuid ?? '');
@@ -149,6 +160,20 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
     );
   };
 
+  const handleDeletePlan = () => {
+    if (!confirmDeletePlanUuid) return;
+    const planUuid = confirmDeletePlanUuid;
+    deletePlan.mutate(planUuid, {
+      onSuccess: () => {
+        setConfirmDeletePlanUuid(null);
+        if (activePlanUuid === planUuid) {
+          const remaining = plans.filter((p) => p.uuid !== planUuid);
+          setActivePlanUuid(remaining[0]?.uuid);
+        }
+      },
+    });
+  };
+
   const handleAddObject = (input: CreateObjectInput) => {
     createObject.mutate(input);
   };
@@ -199,15 +224,26 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-1">
           {plans.map((p) => (
-            <Button
-              key={p.uuid}
-              variant={p.uuid === activePlanUuid ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActivePlanUuid(p.uuid)}
-              className="text-xs"
-            >
-              {p.name}
-            </Button>
+            <div key={p.uuid} className="flex items-center">
+              <Button
+                variant={p.uuid === activePlanUuid ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActivePlanUuid(p.uuid)}
+                className="text-xs rounded-r-none"
+              >
+                {p.name}
+              </Button>
+              <Button
+                variant={p.uuid === activePlanUuid ? 'default' : 'outline'}
+                size="sm"
+                className="text-xs px-1 rounded-l-none border-l-0"
+                onClick={() => setConfirmDeletePlanUuid(p.uuid)}
+              >
+                <svg className="w-3 h-3 text-destructive" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4l8 8M12 4l-8 8" />
+                </svg>
+              </Button>
+            </div>
           ))}
           {showNewPlanInput ? (
             <div className="flex items-center gap-1">
@@ -268,6 +304,7 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
         <div ref={canvasContainerRef} className="border rounded-lg overflow-hidden flex bg-white" style={{ height: isFullscreen ? '100vh' : '60vh', minHeight: 400 }}>
           {/* Left: Object Palette */}
           <ObjectPalette
+            eventUuid={eventUuid}
             onAddObject={handleAddObject}
             isAdding={createObject.isPending}
           />
@@ -337,6 +374,26 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
           </Button>
         </div>
       ) : null}
+
+      {/* Delete plan confirmation dialog */}
+      <Dialog open={!!confirmDeletePlanUuid} onOpenChange={(open) => { if (!open) setConfirmDeletePlanUuid(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &ldquo;{plans.find((p) => p.uuid === confirmDeletePlanUuid)?.name}&rdquo;? All objects and seat assignments in this plan will be removed. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setConfirmDeletePlanUuid(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleDeletePlan} disabled={deletePlan.isPending}>
+              {deletePlan.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

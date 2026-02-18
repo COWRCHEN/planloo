@@ -27,7 +27,9 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
   const gridVisible = useStore($gridVisible);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<Konva.Stage>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
+  const [isDraggingStage, setIsDraggingStage] = useState(false);
 
   const { widthFt, heightFt, gridSnap } = plan;
 
@@ -81,6 +83,14 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
   const effectivePanX = Math.max(-maxPanX, Math.min(0, panOffset.x));
   const effectivePanY = Math.max(-maxPanY, Math.min(0, panOffset.y));
 
+  // Update cursor on Konva's internal container element
+  useEffect(() => {
+    const container = stageRef.current?.container();
+    if (container) {
+      container.style.cursor = isDraggingStage ? 'grabbing' : 'grab';
+    }
+  }, [isDraggingStage]);
+
   // Keep store in sync with clamped value (e.g. after toolbar zoom changes)
   useEffect(() => {
     const current = $panOffset.get();
@@ -131,9 +141,19 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
   );
 
   // Pan by dragging the stage background
+  const handleStageDragStart = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      if (e.target === e.target.getStage()) {
+        setIsDraggingStage(true);
+      }
+    },
+    []
+  );
+
   const handleStageDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
       if (e.target !== e.target.getStage()) return;
+      setIsDraggingStage(false);
       const stage = e.target.getStage();
       if (!stage) return;
       $panOffset.set({ x: stage.x(), y: stage.y() });
@@ -204,6 +224,7 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
     >
       <div className="absolute inset-0">
       <Stage
+        ref={stageRef}
         width={containerSize.width}
         height={containerSize.height}
         scaleX={zoom}
@@ -214,6 +235,7 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
         onWheel={handleWheel}
         onClick={handleStageClick}
         onTap={handleStageClick}
+        onDragStart={handleStageDragStart}
         onDragEnd={handleStageDragEnd}
       >
         {/* Background + grid layer */}
