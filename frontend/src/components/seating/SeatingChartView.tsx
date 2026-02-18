@@ -340,6 +340,9 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
                         guestUuid,
                       })
                     }
+                    onRename={(newLabel) =>
+                      updateObject.mutate({ objectUuid: selectedObject.uuid, data: { label: newLabel } })
+                    }
                     onClose={() => handleSelectObject(null)}
                     isAssigning={assignGuest.isPending}
                   />

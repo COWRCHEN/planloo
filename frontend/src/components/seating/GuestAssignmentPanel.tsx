@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import type { FloorPlanObjectResponse, SeatAssignmentResponse } from '@/hooks/use-floor-plans';
 import type { UnassignedGuestResponse } from '@/hooks/use-floor-plan-objects';
@@ -8,6 +8,7 @@ interface Props {
   unassignedGuests: UnassignedGuestResponse[];
   onAssign: (guestUuid: string, seatNumber: number) => void;
   onUnassign: (guestUuid: string) => void;
+  onRename?: (newLabel: string) => void;
   onClose?: () => void;
   isAssigning?: boolean;
 }
@@ -20,9 +21,35 @@ const RSVP_BADGE: Record<string, { label: string; className: string }> = {
   maybe: { label: 'Maybe', className: 'bg-purple-100 text-purple-700' },
 };
 
-export function GuestAssignmentPanel({ object, unassignedGuests, onAssign, onUnassign, onClose, isAssigning }: Props) {
+export function GuestAssignmentPanel({ object, unassignedGuests, onAssign, onUnassign, onRename, onClose, isAssigning }: Props) {
   const [search, setSearch] = useState('');
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const [editLabel, setEditLabel] = useState(object.label);
+  const labelInputRef = useRef<HTMLInputElement>(null);
   const seats = object.seatCount ?? 8;
+
+  useEffect(() => {
+    setEditLabel(object.label);
+  }, [object.label]);
+
+  useEffect(() => {
+    if (isEditingLabel) {
+      labelInputRef.current?.focus();
+      labelInputRef.current?.select();
+    }
+  }, [isEditingLabel]);
+
+  const commitRename = () => {
+    setIsEditingLabel(false);
+    const trimmed = editLabel.trim();
+    if (!trimmed) {
+      setEditLabel(object.label);
+      return;
+    }
+    if (trimmed !== object.label) {
+      onRename?.(trimmed);
+    }
+  };
 
   // Build seat map
   const seatMap = new Map<number, SeatAssignmentResponse>();
@@ -49,13 +76,39 @@ export function GuestAssignmentPanel({ object, unassignedGuests, onAssign, onUna
   return (
     <div className="w-64 h-full border-l bg-white p-3 overflow-y-auto space-y-3 shadow-lg">
       <div>
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">{object.label} — Seats</h3>
-          {onClose && (
-            <button onClick={onClose} className="text-xs text-primary hover:underline">
-              Hide
-            </button>
+        <div className="flex items-center justify-between gap-1">
+          {isEditingLabel ? (
+            <input
+              ref={labelInputRef}
+              value={editLabel}
+              onChange={(e) => setEditLabel(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename();
+                if (e.key === 'Escape') {
+                  setEditLabel(object.label);
+                  setIsEditingLabel(false);
+                }
+              }}
+              className="text-sm font-semibold border-b border-primary bg-transparent outline-none min-w-0 flex-1 py-0"
+            />
+          ) : (
+            <h3
+              className="text-sm font-semibold truncate cursor-pointer hover:text-primary transition-colors"
+              onClick={() => onRename && setIsEditingLabel(true)}
+              title="Click to rename"
+            >
+              {object.label}
+            </h3>
           )}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <span className="text-xs text-muted-foreground">Seats</span>
+            {onClose && (
+              <button onClick={onClose} className="text-xs text-primary hover:underline">
+                Hide
+              </button>
+            )}
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
           {object.assignments.length}/{seats} seats filled
