@@ -23,6 +23,3 @@ export const $gridVisible = atom<boolean>(true);
 
 /** Which panel is open: 'palette' | 'properties' | 'guests' | null */
 export const $activePanel = atom<'palette' | 'properties' | 'guests' | null>('palette');
-
-/** Active tab on the seating page: 'planner' (card-based) or 'designer' (canvas) */
-export const $activeSeatingTab = atom<'planner' | 'designer'>('planner');

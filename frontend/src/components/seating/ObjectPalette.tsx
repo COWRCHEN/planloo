@@ -36,6 +36,10 @@ export function ObjectPalette({ eventUuid, onAddObject, isAdding }: Props) {
     if (template.objectType === 'table') {
       input.tableShape = template.tableShape ?? undefined;
       input.seatCount = template.seatCount ?? undefined;
+      input.seatTop = template.seatTop ?? undefined;
+      input.seatBottom = template.seatBottom ?? undefined;
+      input.seatLeft = template.seatLeft ?? undefined;
+      input.seatRight = template.seatRight ?? undefined;
     } else {
       input.elementType = template.elementType ?? undefined;
     }

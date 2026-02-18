@@ -24,6 +24,10 @@ export interface CreateObjectInput {
   heightFt?: number | undefined;
   rotation?: number | undefined;
   seatCount?: number | undefined;
+  seatTop?: number | undefined;
+  seatBottom?: number | undefined;
+  seatLeft?: number | undefined;
+  seatRight?: number | undefined;
   style?: string | undefined;
 }
 
@@ -35,6 +39,10 @@ export interface UpdateObjectInput {
   heightFt?: number;
   rotation?: number;
   seatCount?: number;
+  seatTop?: number;
+  seatBottom?: number;
+  seatLeft?: number;
+  seatRight?: number;
   tableShape?: string;
   elementType?: string;
   style?: string;

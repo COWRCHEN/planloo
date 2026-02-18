@@ -33,10 +33,15 @@ export function TableObject({
   planWidthFt,
   planHeightFt,
 }: Props) {
-  const { posX, posY, widthFt, heightFt, rotation, seatCount, tableShape, label, assignments } = object;
+  const { posX, posY, widthFt, heightFt, rotation, seatCount, seatTop, seatBottom, seatLeft, seatRight, tableShape, label, assignments } = object;
   const seats = seatCount ?? 8;
 
-  const seatPositions = getSeatPositions(tableShape, widthFt, heightFt, seats);
+  const seatPositions = getSeatPositions(tableShape, widthFt, heightFt, seats, {
+    top: seatTop ?? null,
+    bottom: seatBottom ?? null,
+    left: seatLeft ?? null,
+    right: seatRight ?? null,
+  });
 
   const assignmentMap = new Map<number, SeatAssignmentResponse>();
   for (const a of assignments) {
@@ -210,21 +215,75 @@ export function TableObject({
   );
 }
 
+interface SidesConfig {
+  top: number | null;
+  bottom: number | null;
+  left: number | null;
+  right: number | null;
+}
+
+function distributeSeatsEvenly(width: number, height: number, count: number, margin: number): Array<{ x: number; y: number }> {
+  const positions: Array<{ x: number; y: number }> = [];
+  const perimeter = 2 * (width + height);
+  const spacing = perimeter / count;
+
+  for (let i = 0; i < count; i++) {
+    const dist = i * spacing;
+    let x: number, y: number;
+
+    if (dist < width) {
+      x = dist;
+      y = -margin;
+    } else if (dist < width + height) {
+      x = width + margin;
+      y = dist - width;
+    } else if (dist < 2 * width + height) {
+      x = width - (dist - width - height);
+      y = height + margin;
+    } else {
+      x = -margin;
+      y = height - (dist - 2 * width - height);
+    }
+    positions.push({ x, y });
+  }
+
+  return positions;
+}
+
+function distributeAlongEdge(
+  count: number,
+  start: { x: number; y: number },
+  end: { x: number; y: number }
+): Array<{ x: number; y: number }> {
+  const positions: Array<{ x: number; y: number }> = [];
+  if (count <= 0) return positions;
+
+  for (let i = 0; i < count; i++) {
+    const t = (i + 0.5) / count;
+    positions.push({
+      x: start.x + (end.x - start.x) * t,
+      y: start.y + (end.y - start.y) * t,
+    });
+  }
+  return positions;
+}
+
 function getSeatPositions(
   shape: string | null,
   width: number,
   height: number,
-  count: number
+  count: number,
+  sides: SidesConfig
 ): Array<{ x: number; y: number }> {
   const isRound = shape === 'round' || shape === 'oval';
   const margin = 1.2;
-  const positions: Array<{ x: number; y: number }> = [];
 
   if (isRound) {
     const cx = width / 2;
     const cy = height / 2;
     const rx = width / 2 + margin;
     const ry = height / 2 + margin;
+    const positions: Array<{ x: number; y: number }> = [];
     for (let i = 0; i < count; i++) {
       const angle = (2 * Math.PI * i) / count - Math.PI / 2;
       positions.push({
@@ -232,30 +291,21 @@ function getSeatPositions(
         y: cy + ry * Math.sin(angle),
       });
     }
-  } else {
-    const perimeter = 2 * (width + height);
-    const spacing = perimeter / count;
-
-    for (let i = 0; i < count; i++) {
-      const dist = i * spacing;
-      let x: number, y: number;
-
-      if (dist < width) {
-        x = dist;
-        y = -margin;
-      } else if (dist < width + height) {
-        x = width + margin;
-        y = dist - width;
-      } else if (dist < 2 * width + height) {
-        x = width - (dist - width - height);
-        y = height + margin;
-      } else {
-        x = -margin;
-        y = height - (dist - 2 * width - height);
-      }
-      positions.push({ x, y });
-    }
+    return positions;
   }
+
+  const hasSides = sides.top !== null || sides.bottom !== null || sides.left !== null || sides.right !== null;
+  if (!hasSides) {
+    return distributeSeatsEvenly(width, height, count, margin);
+  }
+
+  // Place exact number of seats per side: top → right → bottom (reversed) → left (reversed)
+  const positions: Array<{ x: number; y: number }> = [];
+
+  positions.push(...distributeAlongEdge(sides.top ?? 0, { x: 0, y: -margin }, { x: width, y: -margin }));
+  positions.push(...distributeAlongEdge(sides.right ?? 0, { x: width + margin, y: 0 }, { x: width + margin, y: height }));
+  positions.push(...distributeAlongEdge(sides.bottom ?? 0, { x: width, y: height + margin }, { x: 0, y: height + margin }));
+  positions.push(...distributeAlongEdge(sides.left ?? 0, { x: -margin, y: height }, { x: -margin, y: 0 }));
 
   return positions;
 }

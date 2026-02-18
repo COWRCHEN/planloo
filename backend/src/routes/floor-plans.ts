@@ -56,6 +56,10 @@ const createObjectSchema = z.object({
   heightFt: z.number().min(1).max(100).optional(),
   rotation: z.number().min(0).max(359).optional(),
   seatCount: z.number().min(1).max(50).optional(),
+  seatTop: z.number().min(0).max(50).optional(),
+  seatBottom: z.number().min(0).max(50).optional(),
+  seatLeft: z.number().min(0).max(50).optional(),
+  seatRight: z.number().min(0).max(50).optional(),
   style: z.string().optional(),
 }).refine(
   (data) => {
@@ -74,6 +78,10 @@ const updateObjectSchema = z.object({
   heightFt: z.number().min(1).max(100).optional(),
   rotation: z.number().min(0).max(359).optional(),
   seatCount: z.number().min(1).max(50).optional(),
+  seatTop: z.number().min(0).max(50).optional(),
+  seatBottom: z.number().min(0).max(50).optional(),
+  seatLeft: z.number().min(0).max(50).optional(),
+  seatRight: z.number().min(0).max(50).optional(),
   tableShape: z.enum(TABLE_SHAPES).optional(),
   elementType: z.enum(ELEMENT_TYPES).optional(),
   style: z.string().optional(),
@@ -462,6 +470,10 @@ floorPlans.post('/:planUuid/objects', requireAuth, zValidator('json', createObje
       heightFt,
       rotation: body.rotation ?? 0,
       seatCount: body.objectType === 'table' ? (body.seatCount ?? 8) : null,
+      seatTop: body.objectType === 'table' ? (body.seatTop ?? null) : null,
+      seatBottom: body.objectType === 'table' ? (body.seatBottom ?? null) : null,
+      seatLeft: body.objectType === 'table' ? (body.seatLeft ?? null) : null,
+      seatRight: body.objectType === 'table' ? (body.seatRight ?? null) : null,
       tableNumber: tableNumber ?? null,
       style: body.style ?? null,
     })

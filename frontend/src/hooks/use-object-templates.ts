@@ -22,6 +22,10 @@ export interface ObjectTemplate {
   widthFt: number;
   heightFt: number;
   seatCount: number | null;
+  seatTop: number | null;
+  seatBottom: number | null;
+  seatLeft: number | null;
+  seatRight: number | null;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -35,6 +39,10 @@ export interface CreateTemplateInput {
   widthFt: number;
   heightFt: number;
   seatCount?: number;
+  seatTop?: number;
+  seatBottom?: number;
+  seatLeft?: number;
+  seatRight?: number;
   sortOrder?: number;
 }
 
@@ -43,6 +51,10 @@ export interface UpdateTemplateInput {
   widthFt?: number;
   heightFt?: number;
   seatCount?: number;
+  seatTop?: number;
+  seatBottom?: number;
+  seatLeft?: number;
+  seatRight?: number;
   sortOrder?: number;
 }
 

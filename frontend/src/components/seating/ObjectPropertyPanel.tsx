@@ -14,12 +14,21 @@ interface Props {
   isUpdating?: boolean;
 }
 
+const SIDED_SHAPES = ['rectangular', 'head_table', 'square'];
+
 export function ObjectPropertyPanel({ object, onUpdate, onDelete, onClose, isUpdating }: Props) {
   const [label, setLabel] = useState(object.label);
   const [seatCount, setSeatCount] = useState(object.seatCount ?? 8);
   const [widthFt, setWidthFt] = useState(object.widthFt);
   const [heightFt, setHeightFt] = useState(object.heightFt);
   const [rotation, setRotation] = useState(object.rotation);
+  const [seatTop, setSeatTop] = useState(object.seatTop ?? 0);
+  const [seatBottom, setSeatBottom] = useState(object.seatBottom ?? 0);
+  const [seatLeft, setSeatLeft] = useState(object.seatLeft ?? 0);
+  const [seatRight, setSeatRight] = useState(object.seatRight ?? 0);
+
+  const isSided = object.objectType === 'table' && SIDED_SHAPES.includes(object.tableShape ?? '');
+  const hasSideValues = object.seatTop !== null;
 
   useEffect(() => {
     setLabel(object.label);
@@ -27,15 +36,32 @@ export function ObjectPropertyPanel({ object, onUpdate, onDelete, onClose, isUpd
     setWidthFt(object.widthFt);
     setHeightFt(object.heightFt);
     setRotation(object.rotation);
+    setSeatTop(object.seatTop ?? 0);
+    setSeatBottom(object.seatBottom ?? 0);
+    setSeatLeft(object.seatLeft ?? 0);
+    setSeatRight(object.seatRight ?? 0);
   }, [object.uuid]);
 
   const handleSave = () => {
     const updates: UpdateObjectInput = {};
     if (label !== object.label) updates.label = label;
-    if (object.objectType === 'table' && seatCount !== object.seatCount) updates.seatCount = seatCount;
     if (widthFt !== object.widthFt) updates.widthFt = widthFt;
     if (heightFt !== object.heightFt) updates.heightFt = heightFt;
     if (rotation !== object.rotation) updates.rotation = rotation;
+
+    if (object.objectType === 'table') {
+      if (isSided && hasSideValues) {
+        const totalSeats = seatTop + seatBottom + seatLeft + seatRight;
+        if (totalSeats !== object.seatCount) updates.seatCount = totalSeats;
+        if (seatTop !== (object.seatTop ?? 0)) updates.seatTop = seatTop;
+        if (seatBottom !== (object.seatBottom ?? 0)) updates.seatBottom = seatBottom;
+        if (seatLeft !== (object.seatLeft ?? 0)) updates.seatLeft = seatLeft;
+        if (seatRight !== (object.seatRight ?? 0)) updates.seatRight = seatRight;
+      } else if (seatCount !== object.seatCount) {
+        updates.seatCount = seatCount;
+      }
+    }
+
     if (Object.keys(updates).length > 0) onUpdate(updates);
   };
 
@@ -62,7 +88,30 @@ export function ObjectPropertyPanel({ object, onUpdate, onDelete, onClose, isUpd
           />
         </div>
 
-        {object.objectType === 'table' && (
+        {object.objectType === 'table' && isSided && hasSideValues ? (
+          <div className="space-y-1.5">
+            <Label className="text-xs">Seats per side</Label>
+            <div className="grid grid-cols-2 gap-1.5">
+              <div>
+                <Label className="text-[10px] text-muted-foreground">Top</Label>
+                <Input type="number" min={0} max={50} value={seatTop} onChange={(e) => setSeatTop(parseInt(e.target.value) || 0)} onBlur={handleSave} className="h-7 text-xs" />
+              </div>
+              <div>
+                <Label className="text-[10px] text-muted-foreground">Bottom</Label>
+                <Input type="number" min={0} max={50} value={seatBottom} onChange={(e) => setSeatBottom(parseInt(e.target.value) || 0)} onBlur={handleSave} className="h-7 text-xs" />
+              </div>
+              <div>
+                <Label className="text-[10px] text-muted-foreground">Left</Label>
+                <Input type="number" min={0} max={50} value={seatLeft} onChange={(e) => setSeatLeft(parseInt(e.target.value) || 0)} onBlur={handleSave} className="h-7 text-xs" />
+              </div>
+              <div>
+                <Label className="text-[10px] text-muted-foreground">Right</Label>
+                <Input type="number" min={0} max={50} value={seatRight} onChange={(e) => setSeatRight(parseInt(e.target.value) || 0)} onBlur={handleSave} className="h-7 text-xs" />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Total: {seatTop + seatBottom + seatLeft + seatRight} seats</p>
+          </div>
+        ) : object.objectType === 'table' ? (
           <div>
             <Label className="text-xs">Seats</Label>
             <Input
@@ -75,7 +124,7 @@ export function ObjectPropertyPanel({ object, onUpdate, onDelete, onClose, isUpd
               className="h-8 text-sm"
             />
           </div>
-        )}
+        ) : null}
 
         <div className="grid grid-cols-2 gap-2">
           <div>

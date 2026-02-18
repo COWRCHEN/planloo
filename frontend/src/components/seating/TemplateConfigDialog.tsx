@@ -55,6 +55,8 @@ const ELEMENT_TYPE_OPTIONS = [
   { value: 'custom', label: 'Custom' },
 ];
 
+const SIDED_SHAPES = ['rectangular', 'head_table', 'square'];
+
 interface AddFormState {
   objectType: 'table' | 'element';
   tableShape: string;
@@ -63,6 +65,10 @@ interface AddFormState {
   widthFt: string;
   heightFt: string;
   seatCount: string;
+  seatTop: string;
+  seatBottom: string;
+  seatLeft: string;
+  seatRight: string;
 }
 
 function getShapeLabel(shape: string): string {
@@ -77,6 +83,10 @@ function defaultTableLabel(shape: string, seats: string): string {
   return `${getShapeLabel(shape)} (${seats})`;
 }
 
+function totalFromSides(form: AddFormState): number {
+  return (Number(form.seatTop) || 0) + (Number(form.seatBottom) || 0) + (Number(form.seatLeft) || 0) + (Number(form.seatRight) || 0);
+}
+
 const INITIAL_TABLE_FORM: AddFormState = {
   objectType: 'table',
   tableShape: 'round',
@@ -85,6 +95,10 @@ const INITIAL_TABLE_FORM: AddFormState = {
   widthFt: '6',
   heightFt: '6',
   seatCount: '8',
+  seatTop: '0',
+  seatBottom: '0',
+  seatLeft: '0',
+  seatRight: '0',
 };
 
 const INITIAL_ELEMENT_FORM: AddFormState = {
@@ -95,6 +109,10 @@ const INITIAL_ELEMENT_FORM: AddFormState = {
   widthFt: '10',
   heightFt: '10',
   seatCount: '',
+  seatTop: '0',
+  seatBottom: '0',
+  seatLeft: '0',
+  seatRight: '0',
 };
 
 export function TemplateConfigDialog({ templates, onCreate, onUpdate, onDelete, isCreating }: Props) {
@@ -111,13 +129,21 @@ export function TemplateConfigDialog({ templates, onCreate, onUpdate, onDelete, 
 
   const handleAddTable = () => {
     if (!tableForm.label.trim()) return;
+    const isSided = SIDED_SHAPES.includes(tableForm.tableShape);
+    const total = isSided ? totalFromSides(tableForm) : Number(tableForm.seatCount);
     onCreate({
       objectType: 'table',
       tableShape: tableForm.tableShape,
       label: tableForm.label,
       widthFt: Number(tableForm.widthFt),
       heightFt: Number(tableForm.heightFt),
-      seatCount: Number(tableForm.seatCount),
+      seatCount: total,
+      ...(isSided ? {
+        seatTop: Number(tableForm.seatTop) || 0,
+        seatBottom: Number(tableForm.seatBottom) || 0,
+        seatLeft: Number(tableForm.seatLeft) || 0,
+        seatRight: Number(tableForm.seatRight) || 0,
+      } : {}),
     });
     setTableForm(INITIAL_TABLE_FORM);
     setShowAddTable(false);
@@ -193,7 +219,15 @@ export function TemplateConfigDialog({ templates, onCreate, onUpdate, onDelete, 
                   <Label className="text-xs">Shape</Label>
                   <Select
                     value={tableForm.tableShape}
-                    onValueChange={(v) => setTableForm((f) => ({ ...f, tableShape: v, label: defaultTableLabel(v, f.seatCount) }))}
+                    onValueChange={(v) => {
+                      const isSided = SIDED_SHAPES.includes(v);
+                      const defaultW = (v === 'rectangular' || v === 'head_table') ? '16' : v === 'square' ? '4' : '6';
+                      const defaultH = (v === 'rectangular' || v === 'head_table') ? '4' : v === 'square' ? '4' : '6';
+                      setTableForm((f) => {
+                        const seats = isSided ? String(totalFromSides(f) || Number(f.seatCount)) : f.seatCount;
+                        return { ...f, tableShape: v, widthFt: defaultW, heightFt: defaultH, label: defaultTableLabel(v, seats) };
+                      });
+                    }}
                   >
                     <SelectTrigger className="h-7 text-xs mt-1">
                       <SelectValue />
@@ -238,17 +272,44 @@ export function TemplateConfigDialog({ templates, onCreate, onUpdate, onDelete, 
                     min={1}
                   />
                 </div>
-                <div className="flex-1">
-                  <Label className="text-xs">Seats</Label>
-                  <Input
-                    type="number"
-                    value={tableForm.seatCount}
-                    onChange={(e) => setTableForm((f) => ({ ...f, seatCount: e.target.value, label: defaultTableLabel(f.tableShape, e.target.value) }))}
-                    className="h-7 text-xs mt-1"
-                    min={1}
-                  />
-                </div>
               </div>
+              {SIDED_SHAPES.includes(tableForm.tableShape) ? (
+                <div>
+                  <Label className="text-xs">Seats per side</Label>
+                  <div className="grid grid-cols-4 gap-1.5 mt-1">
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Top</Label>
+                      <Input type="number" value={tableForm.seatTop} onChange={(e) => setTableForm((f) => { const updated = { ...f, seatTop: e.target.value }; return { ...updated, label: defaultTableLabel(f.tableShape, String(totalFromSides(updated))) }; })} className="h-6 text-xs" min={0} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Bottom</Label>
+                      <Input type="number" value={tableForm.seatBottom} onChange={(e) => setTableForm((f) => { const updated = { ...f, seatBottom: e.target.value }; return { ...updated, label: defaultTableLabel(f.tableShape, String(totalFromSides(updated))) }; })} className="h-6 text-xs" min={0} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Left</Label>
+                      <Input type="number" value={tableForm.seatLeft} onChange={(e) => setTableForm((f) => { const updated = { ...f, seatLeft: e.target.value }; return { ...updated, label: defaultTableLabel(f.tableShape, String(totalFromSides(updated))) }; })} className="h-6 text-xs" min={0} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Right</Label>
+                      <Input type="number" value={tableForm.seatRight} onChange={(e) => setTableForm((f) => { const updated = { ...f, seatRight: e.target.value }; return { ...updated, label: defaultTableLabel(f.tableShape, String(totalFromSides(updated))) }; })} className="h-6 text-xs" min={0} />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">Total: {totalFromSides(tableForm)} seats</p>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Label className="text-xs">Seats</Label>
+                    <Input
+                      type="number"
+                      value={tableForm.seatCount}
+                      onChange={(e) => setTableForm((f) => ({ ...f, seatCount: e.target.value, label: defaultTableLabel(f.tableShape, e.target.value) }))}
+                      className="h-7 text-xs mt-1"
+                      min={1}
+                    />
+                  </div>
+                </div>
+              )}
               <Button size="sm" className="h-7 text-xs w-full" onClick={handleAddTable} disabled={isCreating || !tableForm.label.trim()}>
                 Add Table Template
               </Button>
@@ -398,7 +459,12 @@ function TemplateRow({
   isConfirmingDelete: boolean;
 }) {
   const dims = `${template.widthFt}x${template.heightFt}ft`;
-  const seats = template.seatCount ? ` / ${template.seatCount} seats` : '';
+  const hasSideInfo = template.seatTop != null && SIDED_SHAPES.includes(template.tableShape ?? '');
+  const seats = template.seatCount
+    ? hasSideInfo
+      ? ` / ${template.seatCount} seats (T${template.seatTop} B${template.seatBottom} L${template.seatLeft} R${template.seatRight})`
+      : ` / ${template.seatCount} seats`
+    : '';
 
   return (
     <div className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/50 group">

@@ -34,7 +34,11 @@ const createTemplateSchema = z.object({
   label: z.string().min(1).max(100),
   widthFt: z.number().min(1).max(100),
   heightFt: z.number().min(1).max(100),
-  seatCount: z.number().min(1).max(50).optional(),
+  seatCount: z.number().min(0).max(50).optional(),
+  seatTop: z.number().min(0).max(50).optional(),
+  seatBottom: z.number().min(0).max(50).optional(),
+  seatLeft: z.number().min(0).max(50).optional(),
+  seatRight: z.number().min(0).max(50).optional(),
   sortOrder: z.number().min(0).optional(),
 }).refine(
   (data) => {
@@ -49,7 +53,11 @@ const updateTemplateSchema = z.object({
   label: z.string().min(1).max(100).optional(),
   widthFt: z.number().min(1).max(100).optional(),
   heightFt: z.number().min(1).max(100).optional(),
-  seatCount: z.number().min(1).max(50).optional(),
+  seatCount: z.number().min(0).max(50).optional(),
+  seatTop: z.number().min(0).max(50).optional(),
+  seatBottom: z.number().min(0).max(50).optional(),
+  seatLeft: z.number().min(0).max(50).optional(),
+  seatRight: z.number().min(0).max(50).optional(),
   sortOrder: z.number().min(0).optional(),
 });
 
@@ -63,6 +71,10 @@ interface DefaultTemplate {
   widthFt: number;
   heightFt: number;
   seatCount?: number;
+  seatTop?: number;
+  seatBottom?: number;
+  seatLeft?: number;
+  seatRight?: number;
   sortOrder: number;
 }
 
@@ -71,9 +83,9 @@ const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   { objectType: 'table', tableShape: 'round', label: 'Round (8)', widthFt: 6, heightFt: 6, seatCount: 8, sortOrder: 0 },
   { objectType: 'table', tableShape: 'round', label: 'Round (10)', widthFt: 7, heightFt: 7, seatCount: 10, sortOrder: 1 },
   { objectType: 'table', tableShape: 'round', label: 'Round (6)', widthFt: 5, heightFt: 5, seatCount: 6, sortOrder: 2 },
-  { objectType: 'table', tableShape: 'rectangular', label: 'Rectangular', widthFt: 10, heightFt: 4, seatCount: 8, sortOrder: 3 },
+  { objectType: 'table', tableShape: 'rectangular', label: 'Rectangular (8)', widthFt: 16, heightFt: 4, seatCount: 8, seatTop: 3, seatBottom: 3, seatLeft: 1, seatRight: 1, sortOrder: 3 },
   { objectType: 'table', tableShape: 'square', label: 'Square (4)', widthFt: 4, heightFt: 4, seatCount: 4, sortOrder: 4 },
-  { objectType: 'table', tableShape: 'head_table', label: 'Head Table', widthFt: 16, heightFt: 3, seatCount: 12, sortOrder: 5 },
+  { objectType: 'table', tableShape: 'head_table', label: 'Head Table (12)', widthFt: 16, heightFt: 3, seatCount: 12, seatTop: 0, seatBottom: 12, seatLeft: 0, seatRight: 0, sortOrder: 5 },
   // Elements
   { objectType: 'element', elementType: 'dance_floor', label: 'Dance Floor', widthFt: 20, heightFt: 20, sortOrder: 100 },
   { objectType: 'element', elementType: 'bar', label: 'Bar', widthFt: 10, heightFt: 4, sortOrder: 101 },
@@ -117,6 +129,10 @@ objectTemplates.get('/', requireAuth, async (c) => {
       widthFt: t.widthFt,
       heightFt: t.heightFt,
       seatCount: t.seatCount ?? null,
+      seatTop: t.seatTop ?? null,
+      seatBottom: t.seatBottom ?? null,
+      seatLeft: t.seatLeft ?? null,
+      seatRight: t.seatRight ?? null,
       sortOrder: t.sortOrder,
     }));
 
@@ -162,6 +178,10 @@ objectTemplates.post('/', requireAuth, zValidator('json', createTemplateSchema),
       widthFt: body.widthFt,
       heightFt: body.heightFt,
       seatCount: body.objectType === 'table' ? (body.seatCount ?? null) : null,
+      seatTop: body.objectType === 'table' ? (body.seatTop ?? null) : null,
+      seatBottom: body.objectType === 'table' ? (body.seatBottom ?? null) : null,
+      seatLeft: body.objectType === 'table' ? (body.seatLeft ?? null) : null,
+      seatRight: body.objectType === 'table' ? (body.seatRight ?? null) : null,
       sortOrder: body.sortOrder ?? 0,
     })
     .returning();

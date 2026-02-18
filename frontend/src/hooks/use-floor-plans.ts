@@ -49,6 +49,10 @@ export interface FloorPlanObjectResponse {
   heightFt: number;
   rotation: number;
   seatCount: number | null;
+  seatTop: number | null;
+  seatBottom: number | null;
+  seatLeft: number | null;
+  seatRight: number | null;
   tableNumber: number | null;
   style: string | null;
   isLocked: boolean;
