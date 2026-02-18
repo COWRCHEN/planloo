@@ -141,7 +141,6 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   emailLogs: many(emailLog),
   floorPlans: many(floorPlans),
   guestRelationships: many(guestRelationships),
-  objectTemplates: many(objectTemplates),
 }));
 
 /**
@@ -441,6 +440,7 @@ export const floorPlansRelations = relations(floorPlans, ({ one, many }) => ({
     references: [events.id]
   }),
   objects: many(floorPlanObjects),
+  objectTemplates: many(objectTemplates),
 }));
 
 /**
@@ -492,8 +492,8 @@ export const guestRelationshipsRelations = relations(guestRelationships, ({ one 
  * Object Template Relations
  */
 export const objectTemplatesRelations = relations(objectTemplates, ({ one }) => ({
-  event: one(events, {
-    fields: [objectTemplates.eventId],
-    references: [events.id]
+  floorPlan: one(floorPlans, {
+    fields: [objectTemplates.floorPlanId],
+    references: [floorPlans.id]
   }),
 }));

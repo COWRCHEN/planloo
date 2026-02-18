@@ -2,7 +2,7 @@
  * Object Templates Hooks using TanStack Query
  *
  * Provides React hooks for CRUD operations on reusable
- * table/element templates scoped per event.
+ * table/element templates scoped per floor plan.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -14,7 +14,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1'
 export interface ObjectTemplate {
   id: number;
   uuid: string;
-  eventId: number;
+  floorPlanId: number;
   objectType: 'table' | 'element';
   tableShape: string | null;
   elementType: string | null;
@@ -61,7 +61,7 @@ export interface UpdateTemplateInput {
 // ==================== QUERY KEYS ====================
 
 export const objectTemplateKeys = {
-  all: (eventUuid: string) => ['object-templates', eventUuid] as const,
+  all: (eventUuid: string, planUuid: string) => ['object-templates', eventUuid, planUuid] as const,
 };
 
 // ==================== HELPERS ====================
@@ -83,20 +83,20 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
 // ==================== HOOKS ====================
 
 /**
- * List all object templates for an event (auto-seeds defaults on first call)
+ * List all object templates for a floor plan (auto-seeds defaults on first call)
  */
-export function useObjectTemplates(eventUuid: string | undefined) {
+export function useObjectTemplates(eventUuid: string | undefined, planUuid: string | undefined) {
   return useQuery({
-    queryKey: objectTemplateKeys.all(eventUuid ?? ''),
+    queryKey: objectTemplateKeys.all(eventUuid ?? '', planUuid ?? ''),
     queryFn: async () => {
       const response = await fetch(
-        `${API_URL}/events/${eventUuid}/object-templates`,
+        `${API_URL}/events/${eventUuid}/floor-plans/${planUuid}/object-templates`,
         { credentials: 'include' }
       );
       const result = await handleResponse<ObjectTemplate[]>(response);
       return result.data ?? [];
     },
-    enabled: !!eventUuid,
+    enabled: !!eventUuid && !!planUuid,
     staleTime: 1000 * 60 * 5,
   });
 }
@@ -104,13 +104,13 @@ export function useObjectTemplates(eventUuid: string | undefined) {
 /**
  * Create a new object template
  */
-export function useCreateTemplate(eventUuid: string) {
+export function useCreateTemplate(eventUuid: string, planUuid: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (data: CreateTemplateInput) => {
       const response = await fetch(
-        `${API_URL}/events/${eventUuid}/object-templates`,
+        `${API_URL}/events/${eventUuid}/floor-plans/${planUuid}/object-templates`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -122,7 +122,7 @@ export function useCreateTemplate(eventUuid: string) {
       return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: objectTemplateKeys.all(eventUuid) });
+      queryClient.invalidateQueries({ queryKey: objectTemplateKeys.all(eventUuid, planUuid) });
     },
   });
 }
@@ -130,13 +130,13 @@ export function useCreateTemplate(eventUuid: string) {
 /**
  * Update an existing object template
  */
-export function useUpdateTemplate(eventUuid: string) {
+export function useUpdateTemplate(eventUuid: string, planUuid: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ templateUuid, data }: { templateUuid: string; data: UpdateTemplateInput }) => {
       const response = await fetch(
-        `${API_URL}/events/${eventUuid}/object-templates/${templateUuid}`,
+        `${API_URL}/events/${eventUuid}/floor-plans/${planUuid}/object-templates/${templateUuid}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -148,7 +148,7 @@ export function useUpdateTemplate(eventUuid: string) {
       return result.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: objectTemplateKeys.all(eventUuid) });
+      queryClient.invalidateQueries({ queryKey: objectTemplateKeys.all(eventUuid, planUuid) });
     },
   });
 }
@@ -156,13 +156,13 @@ export function useUpdateTemplate(eventUuid: string) {
 /**
  * Delete an object template
  */
-export function useDeleteTemplate(eventUuid: string) {
+export function useDeleteTemplate(eventUuid: string, planUuid: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (templateUuid: string) => {
       const response = await fetch(
-        `${API_URL}/events/${eventUuid}/object-templates/${templateUuid}`,
+        `${API_URL}/events/${eventUuid}/floor-plans/${planUuid}/object-templates/${templateUuid}`,
         {
           method: 'DELETE',
           credentials: 'include',
@@ -172,7 +172,7 @@ export function useDeleteTemplate(eventUuid: string) {
       return templateUuid;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: objectTemplateKeys.all(eventUuid) });
+      queryClient.invalidateQueries({ queryKey: objectTemplateKeys.all(eventUuid, planUuid) });
     },
   });
 }

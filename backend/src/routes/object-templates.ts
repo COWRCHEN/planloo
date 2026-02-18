@@ -1,10 +1,10 @@
 /**
  * Object Templates Routes
  *
- * CRUD endpoints for reusable table/element templates, scoped per event.
+ * CRUD endpoints for reusable table/element templates, scoped per floor plan.
  * Auto-seeds default templates on first GET if none exist.
  *
- * Routes are scoped to /events/:eventUuid/object-templates
+ * Routes are scoped to /events/:eventUuid/floor-plans/:planUuid/object-templates
  */
 
 import { Hono } from 'hono';
@@ -13,7 +13,7 @@ import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { requireAuth } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
 
@@ -96,13 +96,31 @@ const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   { objectType: 'element', elementType: 'exit', label: 'Exit', widthFt: 4, heightFt: 4, sortOrder: 106 },
 ];
 
+// ==================== HELPERS ====================
+
+async function resolveFloorPlan(db: ReturnType<typeof createDbClient>, planUuid: string, eventId: number) {
+  const [plan] = await db
+    .select()
+    .from(schema.floorPlans)
+    .where(
+      and(
+        eq(schema.floorPlans.uuid, planUuid),
+        eq(schema.floorPlans.eventId, eventId),
+        isNull(schema.floorPlans.deletedAt)
+      )
+    )
+    .limit(1);
+  return plan;
+}
+
 // ==================== ROUTES ====================
 
 /**
- * GET / - List templates for event; auto-seed defaults if empty
+ * GET / - List templates for a floor plan; auto-seed defaults if empty
  */
 objectTemplates.get('/', requireAuth, async (c) => {
   const eventUuid = c.req.param('eventUuid')!;
+  const planUuid = c.req.param('planUuid')!;
   const user = c.get('user')!;
   const db = createDbClient(c.env.DB);
 
@@ -111,17 +129,21 @@ objectTemplates.get('/', requireAuth, async (c) => {
     return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
   }
 
+  const plan = await resolveFloorPlan(db, planUuid, access.event.id);
+  if (!plan) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Floor plan not found' } }, 404);
+  }
+
   let templates = await db
     .select()
     .from(schema.objectTemplates)
-    .where(eq(schema.objectTemplates.eventId, access.event.id))
+    .where(eq(schema.objectTemplates.floorPlanId, plan.id))
     .orderBy(schema.objectTemplates.sortOrder);
 
-  // Auto-seed defaults if none exist
   if (templates.length === 0 && access.canEdit) {
     const values = DEFAULT_TEMPLATES.map((t) => ({
       uuid: crypto.randomUUID(),
-      eventId: access.event.id,
+      floorPlanId: plan.id,
       objectType: t.objectType,
       tableShape: t.tableShape ?? null,
       elementType: t.elementType ?? null,
@@ -141,7 +163,7 @@ objectTemplates.get('/', requireAuth, async (c) => {
     templates = await db
       .select()
       .from(schema.objectTemplates)
-      .where(eq(schema.objectTemplates.eventId, access.event.id))
+      .where(eq(schema.objectTemplates.floorPlanId, plan.id))
       .orderBy(schema.objectTemplates.sortOrder);
   }
 
@@ -153,6 +175,7 @@ objectTemplates.get('/', requireAuth, async (c) => {
  */
 objectTemplates.post('/', requireAuth, zValidator('json', createTemplateSchema), async (c) => {
   const eventUuid = c.req.param('eventUuid')!;
+  const planUuid = c.req.param('planUuid')!;
   const user = c.get('user')!;
   const db = createDbClient(c.env.DB);
   const body = c.req.valid('json');
@@ -165,12 +188,17 @@ objectTemplates.post('/', requireAuth, zValidator('json', createTemplateSchema),
     return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'No edit permission' } }, 403);
   }
 
+  const plan = await resolveFloorPlan(db, planUuid, access.event.id);
+  if (!plan) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Floor plan not found' } }, 404);
+  }
+
   const uuid = crypto.randomUUID();
   const [template] = await db
     .insert(schema.objectTemplates)
     .values({
       uuid,
-      eventId: access.event.id,
+      floorPlanId: plan.id,
       objectType: body.objectType,
       tableShape: body.objectType === 'table' ? body.tableShape! : null,
       elementType: body.objectType === 'element' ? body.elementType! : null,
@@ -194,6 +222,7 @@ objectTemplates.post('/', requireAuth, zValidator('json', createTemplateSchema),
  */
 objectTemplates.patch('/:templateUuid', requireAuth, zValidator('json', updateTemplateSchema), async (c) => {
   const eventUuid = c.req.param('eventUuid')!;
+  const planUuid = c.req.param('planUuid')!;
   const templateUuid = c.req.param('templateUuid')!;
   const user = c.get('user')!;
   const db = createDbClient(c.env.DB);
@@ -204,13 +233,18 @@ objectTemplates.patch('/:templateUuid', requireAuth, zValidator('json', updateTe
     return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'No edit permission' } }, 403);
   }
 
+  const plan = await resolveFloorPlan(db, planUuid, access.event.id);
+  if (!plan) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Floor plan not found' } }, 404);
+  }
+
   const [template] = await db
     .select()
     .from(schema.objectTemplates)
     .where(
       and(
         eq(schema.objectTemplates.uuid, templateUuid),
-        eq(schema.objectTemplates.eventId, access.event.id)
+        eq(schema.objectTemplates.floorPlanId, plan.id)
       )
     )
     .limit(1);
@@ -233,6 +267,7 @@ objectTemplates.patch('/:templateUuid', requireAuth, zValidator('json', updateTe
  */
 objectTemplates.delete('/:templateUuid', requireAuth, async (c) => {
   const eventUuid = c.req.param('eventUuid')!;
+  const planUuid = c.req.param('planUuid')!;
   const templateUuid = c.req.param('templateUuid')!;
   const user = c.get('user')!;
   const db = createDbClient(c.env.DB);
@@ -242,13 +277,18 @@ objectTemplates.delete('/:templateUuid', requireAuth, async (c) => {
     return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'No edit permission' } }, 403);
   }
 
+  const plan = await resolveFloorPlan(db, planUuid, access.event.id);
+  if (!plan) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Floor plan not found' } }, 404);
+  }
+
   const [template] = await db
     .select({ id: schema.objectTemplates.id })
     .from(schema.objectTemplates)
     .where(
       and(
         eq(schema.objectTemplates.uuid, templateUuid),
-        eq(schema.objectTemplates.eventId, access.event.id)
+        eq(schema.objectTemplates.floorPlanId, plan.id)
       )
     )
     .limit(1);

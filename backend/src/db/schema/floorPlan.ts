@@ -10,13 +10,13 @@ const ELEMENT_TYPES = [
 
 /**
  * Object Templates Table
- * Reusable presets for tables/elements, scoped per event.
- * Shared across all floor plans within the same event.
+ * Reusable presets for tables/elements, scoped per floor plan.
+ * Each plan has its own set of templates; deleting a plan cascades.
  */
 export const objectTemplates = sqliteTable('object_templates', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   uuid: text('uuid').notNull().unique(),
-  eventId: integer('event_id').notNull().references(() => events.id, { onDelete: 'cascade' }),
+  floorPlanId: integer('floor_plan_id').notNull().references(() => floorPlans.id, { onDelete: 'cascade' }),
   objectType: text('object_type', { enum: ['table', 'element'] }).notNull(),
   tableShape: text('table_shape', { enum: TABLE_SHAPES }),
   elementType: text('element_type', { enum: ELEMENT_TYPES }),
@@ -32,7 +32,7 @@ export const objectTemplates = sqliteTable('object_templates', {
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  eventIdIdx: index('idx_object_templates_event_id').on(table.eventId),
+  floorPlanIdIdx: index('idx_object_templates_floor_plan_id').on(table.floorPlanId),
   uuidIdx: index('idx_object_templates_uuid').on(table.uuid),
 }));
 

@@ -167,6 +167,8 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
       onSuccess: () => {
         setConfirmDeletePlanUuid(null);
         if (activePlanUuid === planUuid) {
+          handleSelectObject(null);
+          setLocalPositions({});
           const remaining = plans.filter((p) => p.uuid !== planUuid);
           setActivePlanUuid(remaining[0]?.uuid);
         }
@@ -305,6 +307,7 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
           {/* Left: Object Palette */}
           <ObjectPalette
             eventUuid={eventUuid}
+            planUuid={activePlanUuid}
             onAddObject={handleAddObject}
             isAdding={createObject.isPending}
           />

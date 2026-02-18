@@ -13,15 +13,16 @@ import { TemplateConfigDialog } from './TemplateConfigDialog';
 
 interface Props {
   eventUuid: string;
+  planUuid: string;
   onAddObject: (input: CreateObjectInput) => void;
   isAdding?: boolean;
 }
 
-export function ObjectPalette({ eventUuid, onAddObject, isAdding }: Props) {
-  const { data: templates = [], isLoading } = useObjectTemplates(eventUuid);
-  const updateTemplate = useUpdateTemplate(eventUuid);
-  const deleteTemplate = useDeleteTemplate(eventUuid);
-  const createTemplate = useCreateTemplate(eventUuid);
+export function ObjectPalette({ eventUuid, planUuid, onAddObject, isAdding }: Props) {
+  const { data: templates = [], isLoading } = useObjectTemplates(eventUuid, planUuid);
+  const updateTemplate = useUpdateTemplate(eventUuid, planUuid);
+  const deleteTemplate = useDeleteTemplate(eventUuid, planUuid);
+  const createTemplate = useCreateTemplate(eventUuid, planUuid);
 
   const tableTemplates = templates.filter((t) => t.objectType === 'table');
   const elementTemplates = templates.filter((t) => t.objectType === 'element');

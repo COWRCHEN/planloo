@@ -5,6 +5,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { objectTemplateKeys } from './use-object-templates';
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
 
@@ -207,8 +208,12 @@ export function useDeleteFloorPlan(eventUuid: string) {
       await handleResponse<{ deleted: boolean }>(response);
       return planUuid;
     },
-    onSuccess: () => {
+    onSuccess: (deletedPlanUuid) => {
       queryClient.invalidateQueries({ queryKey: floorPlanKeys.lists(eventUuid) });
+      queryClient.removeQueries({ queryKey: floorPlanKeys.detail(eventUuid, deletedPlanUuid) });
+      queryClient.removeQueries({ queryKey: floorPlanKeys.unassigned(eventUuid, deletedPlanUuid) });
+      queryClient.removeQueries({ queryKey: floorPlanKeys.conflicts(eventUuid, deletedPlanUuid) });
+      queryClient.removeQueries({ queryKey: objectTemplateKeys.all(eventUuid, deletedPlanUuid) });
     },
   });
 }

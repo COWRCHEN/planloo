@@ -1,4 +1,4 @@
-import { Group, Ellipse, Rect, Circle, Text } from 'react-konva';
+import { Group, Ellipse, Rect, Circle, Text, Shape } from 'react-konva';
 import type Konva from 'konva';
 import type { FloorPlanObjectResponse, SeatAssignmentResponse } from '@/hooks/use-floor-plans';
 
@@ -49,6 +49,7 @@ export function TableObject({
   }
 
   const isRound = tableShape === 'round' || tableShape === 'oval';
+  const isSemicircle = tableShape === 'semicircle';
   const seatRadius = 0.6;
 
   const snapToGrid = (value: number) => {
@@ -120,6 +121,24 @@ export function TableObject({
             y={centerY}
             radiusX={(widthFt / 2) * ppf}
             radiusY={(heightFt / 2) * ppf}
+            fill={isSelected ? '#ede9fe' : '#f5f3ff'}
+            stroke={isSelected ? '#7c3aed' : '#c4b5fd'}
+            strokeWidth={isSelected ? 3 : 1.5}
+          />
+        ) : isSemicircle ? (
+          <Shape
+            sceneFunc={(ctx, shape) => {
+              const w = widthFt * ppf;
+              const h = heightFt * ppf;
+              const k = 0.5522847498;
+              ctx.beginPath();
+              ctx.moveTo(0, h);
+              ctx.lineTo(w, h);
+              ctx.bezierCurveTo(w, h * (1 - k), w * (1 + k) / 2, 0, w / 2, 0);
+              ctx.bezierCurveTo(w * (1 - k) / 2, 0, 0, h * (1 - k), 0, h);
+              ctx.closePath();
+              ctx.fillStrokeShape(shape);
+            }}
             fill={isSelected ? '#ede9fe' : '#f5f3ff'}
             stroke={isSelected ? '#7c3aed' : '#c4b5fd'}
             strokeWidth={isSelected ? 3 : 1.5}
@@ -277,6 +296,23 @@ function getSeatPositions(
 ): Array<{ x: number; y: number }> {
   const isRound = shape === 'round' || shape === 'oval';
   const margin = 1.2;
+
+  if (shape === 'semicircle') {
+    const cx = width / 2;
+    const cy = height;
+    const rx = width / 2 + margin;
+    const ry = height + margin;
+    const positions: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i < count; i++) {
+      const t = (i + 0.5) / count;
+      const angle = Math.PI * (1 - t);
+      positions.push({
+        x: cx + rx * Math.cos(angle),
+        y: cy - ry * Math.sin(angle),
+      });
+    }
+    return positions;
+  }
 
   if (isRound) {
     const cx = width / 2;

@@ -92,8 +92,8 @@ const INITIAL_TABLE_FORM: AddFormState = {
   tableShape: 'round',
   elementType: '',
   label: defaultTableLabel('round', '8'),
-  widthFt: '6',
-  heightFt: '6',
+  widthFt: '60',
+  heightFt: '60',
   seatCount: '8',
   seatTop: '0',
   seatBottom: '0',
@@ -106,8 +106,8 @@ const INITIAL_ELEMENT_FORM: AddFormState = {
   tableShape: '',
   elementType: 'dance_floor',
   label: getElementLabel('dance_floor'),
-  widthFt: '10',
-  heightFt: '10',
+  widthFt: '100',
+  heightFt: '100',
   seatCount: '',
   seatTop: '0',
   seatBottom: '0',
@@ -221,8 +221,15 @@ export function TemplateConfigDialog({ templates, onCreate, onUpdate, onDelete, 
                     value={tableForm.tableShape}
                     onValueChange={(v) => {
                       const isSided = SIDED_SHAPES.includes(v);
-                      const defaultW = (v === 'rectangular' || v === 'head_table') ? '16' : v === 'square' ? '4' : '6';
-                      const defaultH = (v === 'rectangular' || v === 'head_table') ? '4' : v === 'square' ? '4' : '6';
+                      const shapeDefaults: Record<string, [string, string]> = {
+                        rectangular: ['160', '40'],
+                        head_table: ['160', '40'],
+                        square: ['40', '40'],
+                        round: ['60', '60'],
+                        oval: ['80', '50'],
+                        semicircle: ['60', '30'],
+                      };
+                      const [defaultW, defaultH] = shapeDefaults[v] ?? ['60', '60'];
                       setTableForm((f) => {
                         const seats = isSided ? String(totalFromSides(f) || Number(f.seatCount)) : f.seatCount;
                         return { ...f, tableShape: v, widthFt: defaultW, heightFt: defaultH, label: defaultTableLabel(v, seats) };
@@ -540,6 +547,21 @@ function TemplateIcon({ template }: { template: ObjectTemplate }) {
       return (
         <svg className={className} viewBox="0 0 16 16">
           <rect x="1" y="4" width="14" height="8" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
+    }
+    if (template.tableShape === 'oval') {
+      return (
+        <svg className={className} viewBox="0 0 16 16">
+          <ellipse cx="8" cy="8" rx="7" ry="5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
+    }
+    if (template.tableShape === 'semicircle') {
+      return (
+        <svg className={className} viewBox="0 0 16 16">
+          <path d="M2 10 A6 6 0 0 1 14 10" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <line x1="2" y1="10" x2="14" y2="10" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       );
     }
