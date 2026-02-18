@@ -27,7 +27,7 @@ export function ObjectPalette({ eventUuid, planUuid, onAddObject, isAdding }: Pr
   const tableTemplates = templates.filter((t) => t.objectType === 'table');
   const elementTemplates = templates.filter((t) => t.objectType === 'element');
 
-  const handleAddFromTemplate = (template: ObjectTemplate) => {
+  const buildInputFromTemplate = (template: ObjectTemplate): CreateObjectInput => {
     const input: CreateObjectInput = {
       objectType: template.objectType,
       label: template.label.replace(/\s*\(\d+\)\s*$/, ''),
@@ -44,7 +44,17 @@ export function ObjectPalette({ eventUuid, planUuid, onAddObject, isAdding }: Pr
     } else {
       input.elementType = template.elementType ?? undefined;
     }
-    onAddObject(input);
+    return input;
+  };
+
+  const handleAddFromTemplate = (template: ObjectTemplate) => {
+    onAddObject(buildInputFromTemplate(template));
+  };
+
+  const handleDragStart = (e: React.DragEvent, template: ObjectTemplate) => {
+    const input = buildInputFromTemplate(template);
+    e.dataTransfer.setData('application/x-seating-template', JSON.stringify(input));
+    e.dataTransfer.effectAllowed = 'copy';
   };
 
   if (isLoading) {
@@ -80,7 +90,9 @@ export function ObjectPalette({ eventUuid, planUuid, onAddObject, isAdding }: Pr
                 size="sm"
                 disabled={isAdding}
                 onClick={() => handleAddFromTemplate(template)}
-                className="w-full justify-start text-xs h-8 pr-7"
+                draggable
+                onDragStart={(e) => handleDragStart(e, template)}
+                className="w-full justify-start text-xs h-8 pr-7 cursor-grab active:cursor-grabbing"
               >
                 <TableIcon shape={template.tableShape} />
                 <span className="ml-2 truncate">{template.label}</span>
@@ -115,7 +127,9 @@ export function ObjectPalette({ eventUuid, planUuid, onAddObject, isAdding }: Pr
                 size="sm"
                 disabled={isAdding}
                 onClick={() => handleAddFromTemplate(template)}
-                className="w-full justify-start text-xs h-8 pr-7"
+                draggable
+                onDragStart={(e) => handleDragStart(e, template)}
+                className="w-full justify-start text-xs h-8 pr-7 cursor-grab active:cursor-grabbing"
               >
                 <ElementIcon type={template.elementType} />
                 <span className="ml-2 truncate">{template.label}</span>

@@ -4,7 +4,7 @@ import type Konva from 'konva';
 import { useStore } from '@nanostores/react';
 import { $zoom, $panOffset, $selectedObjectUuids, $gridVisible } from '@/stores/seating';
 import type { FloorPlanDetailResponse } from '@/hooks/use-floor-plans';
-import type { BulkPositionUpdate } from '@/hooks/use-floor-plan-objects';
+import type { BulkPositionUpdate, CreateObjectInput } from '@/hooks/use-floor-plan-objects';
 import { TableObject } from './TableObject';
 import { ElementObject } from './ElementObject';
 
@@ -12,6 +12,7 @@ interface Props {
   plan: FloorPlanDetailResponse;
   onObjectDragged: (update: BulkPositionUpdate) => void;
   onSelectObject: (uuid: string | null) => void;
+  onDropTemplate?: (input: CreateObjectInput) => void;
 }
 
 const MIN_ZOOM = 0.25;
@@ -20,7 +21,7 @@ const ZOOM_SPEED = 1.1;
 const SCROLLBAR_SIZE = 6;
 const SCROLLBAR_MIN_THUMB = 20;
 
-export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props) {
+export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject, onDropTemplate }: Props) {
   const zoom = useStore($zoom);
   const panOffset = useStore($panOffset);
   const selectedUuids = useStore($selectedObjectUuids);
@@ -176,6 +177,62 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
     [onObjectDragged]
   );
 
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('application/x-seating-template')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (e.currentTarget === e.target || !e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      const raw = e.dataTransfer.getData('application/x-seating-template');
+      if (!raw || !onDropTemplate) return;
+
+      try {
+        const input: CreateObjectInput = JSON.parse(raw);
+
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) { onDropTemplate(input); return; }
+
+        const relX = e.clientX - rect.left;
+        const relY = e.clientY - rect.top;
+
+        let posXFt = (relX - effectivePanX) / zoom / ppf;
+        let posYFt = (relY - effectivePanY) / zoom / ppf;
+
+        const objW = input.widthFt ?? 0;
+        const objH = input.heightFt ?? 0;
+        posXFt -= objW / 2;
+        posYFt -= objH / 2;
+
+        if (gridSnap > 0) {
+          posXFt = Math.round(posXFt / gridSnap) * gridSnap;
+          posYFt = Math.round(posYFt / gridSnap) * gridSnap;
+        }
+
+        posXFt = Math.max(0, Math.min(widthFt - objW, posXFt));
+        posYFt = Math.max(0, Math.min(heightFt - objH, posYFt));
+
+        onDropTemplate({ ...input, posX: posXFt, posY: posYFt });
+      } catch {
+        // invalid data, ignore
+      }
+    },
+    [onDropTemplate, zoom, effectivePanX, effectivePanY, ppf, gridSnap, widthFt, heightFt]
+  );
+
   // Grid lines — ensure minimum pixel spacing so dense grids don't become solid fill
   const gridLines: React.ReactNode[] = [];
   if (gridVisible && gridSnap > 0) {
@@ -225,7 +282,10 @@ export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject }: Props
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-hidden bg-gray-100 relative"
+      className={`flex-1 overflow-hidden bg-gray-100 relative transition-colors ${isDragOver ? 'bg-blue-50 ring-2 ring-inset ring-blue-300' : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       <div className="absolute inset-0">
       <Stage

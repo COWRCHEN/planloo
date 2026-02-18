@@ -320,6 +320,7 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
                 plan={planWithLocalPositions}
                 onObjectDragged={handleObjectDragged}
                 onSelectObject={handleSelectObject}
+                onDropTemplate={handleAddObject}
               />
 
               {/* Right: Property or Assignment Panel (absolutely positioned so it doesn't shift layout) */}
