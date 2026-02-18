@@ -71,6 +71,7 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
   const [showNewPlanInput, setShowNewPlanInput] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [confirmDeletePlanUuid, setConfirmDeletePlanUuid] = useState<string | null>(null);
+  const [confirmDeleteObjectUuid, setConfirmDeleteObjectUuid] = useState<string | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   // Fullscreen toggle
@@ -145,6 +146,34 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
     setSelectedObjectUuid(uuid);
     $selectedObjectUuids.set(uuid ? [uuid] : []);
   }, []);
+
+  const handleRequestDeleteObject = useCallback((uuid: string) => {
+    setConfirmDeleteObjectUuid(uuid);
+  }, []);
+
+  const handleConfirmDeleteObject = useCallback(() => {
+    if (!confirmDeleteObjectUuid) return;
+    deleteObject.mutate(confirmDeleteObjectUuid);
+    if (selectedObjectUuid === confirmDeleteObjectUuid) {
+      handleSelectObject(null);
+    }
+    setConfirmDeleteObjectUuid(null);
+  }, [confirmDeleteObjectUuid, deleteObject, selectedObjectUuid, handleSelectObject]);
+
+  // Delete selected object on Delete / Backspace key
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if ((e.target as HTMLElement)?.isContentEditable) return;
+      if (!selectedObjectUuid) return;
+      e.preventDefault();
+      handleRequestDeleteObject(selectedObjectUuid);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedObjectUuid, handleRequestDeleteObject]);
 
   const handleCreatePlan = () => {
     if (!newPlanName.trim()) return;
@@ -344,8 +373,10 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
                     onRename={(newLabel) =>
                       updateObject.mutate({ objectUuid: selectedObject.uuid, data: { label: newLabel } })
                     }
+                    onDelete={() => handleRequestDeleteObject(selectedObject.uuid)}
                     onClose={() => handleSelectObject(null)}
                     isAssigning={assignGuest.isPending}
+                    isDeleting={deleteObject.isPending}
                   />
                 </div>
               ) : selectedObject ? (
@@ -355,10 +386,7 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
                     onUpdate={(data) =>
                       updateObject.mutate({ objectUuid: selectedObject.uuid, data })
                     }
-                    onDelete={() => {
-                      deleteObject.mutate(selectedObject.uuid);
-                      handleSelectObject(null);
-                    }}
+                    onDelete={() => handleRequestDeleteObject(selectedObject.uuid)}
                     onClose={() => handleSelectObject(null)}
                     isUpdating={updateObject.isPending}
                   />
@@ -397,6 +425,37 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
             </Button>
             <Button variant="destructive" size="sm" onClick={handleDeletePlan} disabled={deletePlan.isPending}>
               {deletePlan.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete object confirmation dialog */}
+      <Dialog open={!!confirmDeleteObjectUuid} onOpenChange={(open) => { if (!open) setConfirmDeleteObjectUuid(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete {(() => {
+              const obj = planWithLocalPositions?.objects.find((o) => o.uuid === confirmDeleteObjectUuid);
+              return obj?.objectType === 'table' ? 'Table' : 'Element';
+            })()}</DialogTitle>
+            <DialogDescription>
+              {(() => {
+                const obj = planWithLocalPositions?.objects.find((o) => o.uuid === confirmDeleteObjectUuid);
+                if (!obj) return 'Are you sure?';
+                const assignedCount = obj.assignments?.length ?? 0;
+                if (assignedCount > 0) {
+                  return `"${obj.label}" has ${assignedCount} guest${assignedCount > 1 ? 's' : ''} assigned. Deleting it will unassign them. This cannot be undone.`;
+                }
+                return `Are you sure you want to delete "${obj.label}"? This cannot be undone.`;
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setConfirmDeleteObjectUuid(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleConfirmDeleteObject} disabled={deleteObject.isPending}>
+              {deleteObject.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
         </DialogContent>

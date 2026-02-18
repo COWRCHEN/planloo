@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { FloorPlanObjectResponse, SeatAssignmentResponse } from '@/hooks/use-floor-plans';
 import type { UnassignedGuestResponse } from '@/hooks/use-floor-plan-objects';
@@ -9,8 +10,10 @@ interface Props {
   onAssign: (guestUuid: string, seatNumber: number) => void;
   onUnassign: (guestUuid: string) => void;
   onRename?: (newLabel: string) => void;
+  onDelete?: () => void;
   onClose?: () => void;
   isAssigning?: boolean;
+  isDeleting?: boolean;
 }
 
 const RSVP_BADGE: Record<string, { label: string; className: string }> = {
@@ -21,7 +24,7 @@ const RSVP_BADGE: Record<string, { label: string; className: string }> = {
   maybe: { label: 'Maybe', className: 'bg-purple-100 text-purple-700' },
 };
 
-export function GuestAssignmentPanel({ object, unassignedGuests, onAssign, onUnassign, onRename, onClose, isAssigning }: Props) {
+export function GuestAssignmentPanel({ object, unassignedGuests, onAssign, onUnassign, onRename, onDelete, onClose, isAssigning, isDeleting }: Props) {
   const [search, setSearch] = useState('');
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [editLabel, setEditLabel] = useState(object.label);
@@ -190,6 +193,20 @@ export function GuestAssignmentPanel({ object, unassignedGuests, onAssign, onUna
               </p>
             )}
           </div>
+        </div>
+      )}
+
+      {onDelete && (
+        <div className="border-t pt-2">
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onDelete}
+            disabled={isDeleting}
+            className="w-full"
+          >
+            Delete Table
+          </Button>
         </div>
       )}
     </div>
