@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EventStatusBadge } from './EventStatusBadge';
 import { DeleteEventDialog } from './DeleteEventDialog';
+import { EventRecentActivity } from './EventRecentActivity';
+import { EventUpcomingTasks } from './EventUpcomingTasks';
 import { useEvent } from '@/hooks/use-events';
 import { useSession } from '@/hooks/use-auth';
 
@@ -389,6 +391,12 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Activity & Upcoming Tasks */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <EventRecentActivity eventUuid={uuid} />
+        <EventUpcomingTasks eventUuid={uuid} />
+      </div>
 
       {/* Metadata */}
       <Card>

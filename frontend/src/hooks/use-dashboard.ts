@@ -4,6 +4,8 @@
  * Cross-event aggregation hooks for the dashboard:
  * - Recent activity feed
  * - Upcoming tasks/deadlines
+ *
+ * Also exports event-scoped variants used on the event detail page.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -46,6 +48,8 @@ export const dashboardKeys = {
   all: ['dashboard'] as const,
   activity: (limit: number) => [...dashboardKeys.all, 'activity', limit] as const,
   upcomingTasks: (limit: number) => [...dashboardKeys.all, 'upcoming-tasks', limit] as const,
+  eventActivity: (eventUuid: string, limit: number) => [...dashboardKeys.all, 'event-activity', eventUuid, limit] as const,
+  eventUpcomingTasks: (eventUuid: string, limit: number) => [...dashboardKeys.all, 'event-upcoming-tasks', eventUuid, limit] as const,
 };
 
 // ==================== HELPERS ====================
@@ -90,6 +94,38 @@ export function useDashboardUpcomingTasks(limit = 10) {
       const result = await handleResponse<UpcomingTask[]>(response);
       return result.data ?? [];
     },
+    staleTime: 1000 * 60,
+  });
+}
+
+export function useEventActivity(eventUuid: string, limit = 8) {
+  return useQuery<ActivityItem[]>({
+    queryKey: dashboardKeys.eventActivity(eventUuid, limit),
+    queryFn: async (): Promise<ActivityItem[]> => {
+      const response = await fetch(
+        `${API_URL}/dashboard/activity?limit=${limit}&eventUuid=${encodeURIComponent(eventUuid)}`,
+        { credentials: 'include' }
+      );
+      const result = await handleResponse<ActivityItem[]>(response);
+      return result.data ?? [];
+    },
+    enabled: Boolean(eventUuid),
+    staleTime: 1000 * 60,
+  });
+}
+
+export function useEventUpcomingTasks(eventUuid: string, limit = 8) {
+  return useQuery<UpcomingTask[]>({
+    queryKey: dashboardKeys.eventUpcomingTasks(eventUuid, limit),
+    queryFn: async (): Promise<UpcomingTask[]> => {
+      const response = await fetch(
+        `${API_URL}/dashboard/upcoming-tasks?limit=${limit}&eventUuid=${encodeURIComponent(eventUuid)}`,
+        { credentials: 'include' }
+      );
+      const result = await handleResponse<UpcomingTask[]>(response);
+      return result.data ?? [];
+    },
+    enabled: Boolean(eventUuid),
     staleTime: 1000 * 60,
   });
 }

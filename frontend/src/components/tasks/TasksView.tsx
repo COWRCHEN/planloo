@@ -70,14 +70,16 @@ function TaskSummaryBar({ eventUuid }: { eventUuid: string }) {
 }
 
 function TasksViewContent({ eventUuid }: TasksViewProps) {
-  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all' | 'overdue'>('all');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'all'>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskResponse | undefined>();
 
+  const apiStatusFilter = statusFilter === 'overdue' ? undefined : statusFilter !== 'all' ? statusFilter as TaskStatus : undefined;
+
   const filters = {
-    ...(statusFilter !== 'all' ? { status: statusFilter as TaskStatus } : {}),
+    ...(apiStatusFilter ? { status: apiStatusFilter } : {}),
     ...(priorityFilter !== 'all' ? { priority: priorityFilter as TaskPriority } : {}),
     limit: 200,
   };
@@ -126,7 +128,13 @@ function TasksViewContent({ eventUuid }: TasksViewProps) {
     setDialogOpen(true);
   };
 
-  const tasks = tasksData?.items ?? [];
+  const now = new Date();
+  const allTasks = tasksData?.items ?? [];
+  const tasks = statusFilter === 'overdue'
+    ? allTasks.filter(
+        (t) => t.dueDate && t.status !== 'completed' && new Date(t.dueDate) < now
+      )
+    : allTasks;
 
   return (
     <div className="space-y-6">
@@ -151,13 +159,14 @@ function TasksViewContent({ eventUuid }: TasksViewProps) {
         <div className="ml-auto flex items-center gap-2">
           <Select
             value={statusFilter}
-            onValueChange={(val) => setStatusFilter(val as TaskStatus | 'all')}
+            onValueChange={(val) => setStatusFilter(val as TaskStatus | 'all' | 'overdue')}
           >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="overdue">Overdue</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>

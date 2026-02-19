@@ -22,3 +22,5 @@ export { NotificationsView } from './NotificationsView';
 export { CollaboratorsList } from './CollaboratorsList';
 export { InviteCollaboratorDialog } from './InviteCollaboratorDialog';
 export { CollaboratorRoleBadge } from './CollaboratorRoleBadge';
+export { EventRecentActivity } from './EventRecentActivity';
+export { EventUpcomingTasks } from './EventUpcomingTasks';

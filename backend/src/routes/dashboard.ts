@@ -4,6 +4,9 @@
  * Cross-event aggregation endpoints for the dashboard:
  * - Recent activity feed (aggregated from events, tasks, guests)
  * - Upcoming tasks/deadlines across all accessible events
+ *
+ * Both endpoints accept an optional `eventUuid` query parameter to scope
+ * results to a single event (used by the event detail page).
  */
 
 import { Hono } from 'hono';
@@ -22,6 +25,7 @@ dashboard.use('*', requireAuth);
 
 const limitSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
+  eventUuid: z.string().uuid().optional(),
 });
 
 /**
@@ -61,20 +65,53 @@ interface ActivityItem {
 }
 
 /**
- * GET /api/v1/dashboard/activity?limit=10
+ * GET /api/v1/dashboard/activity?limit=10[&eventUuid=<uuid>]
  *
  * Aggregates recent records across the user's events into a unified feed.
+ * When eventUuid is provided, results are scoped to that single event.
  */
 dashboard.get(
   '/activity',
   zValidator('query', limitSchema),
   async (c) => {
     const user = c.get('user')!;
-    const { limit } = c.req.valid('query');
+    const { limit, eventUuid } = c.req.valid('query');
     const db = createDbClient(c.env.DB);
     const evtFilter = accessibleEventIds(user.id);
 
+    // When scoping to a single event, resolve and verify access first.
+    let resolvedEventId: number | undefined;
+    if (eventUuid) {
+      const [found] = await db
+        .select({ id: schema.events.id })
+        .from(schema.events)
+        .where(
+          and(
+            eq(schema.events.uuid, eventUuid),
+            sql`${schema.events.id} IN ${evtFilter}`,
+            isNull(schema.events.deletedAt)
+          )
+        )
+        .limit(1);
+      if (!found) {
+        return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
+      }
+      resolvedEventId = found.id;
+    }
+
     const fetchLimit = limit * 2;
+
+    const eventFilter = resolvedEventId !== undefined
+      ? eq(schema.events.id, resolvedEventId)
+      : sql`${schema.events.id} IN ${evtFilter}`;
+
+    const taskEventFilter = resolvedEventId !== undefined
+      ? eq(schema.tasks.eventId, resolvedEventId)
+      : sql`${schema.tasks.eventId} IN ${evtFilter}`;
+
+    const guestEventFilter = resolvedEventId !== undefined
+      ? eq(schema.guests.eventId, resolvedEventId)
+      : sql`${schema.guests.eventId} IN ${evtFilter}`;
 
     const [recentEvents, recentTasks, recentGuests] = await Promise.all([
       db
@@ -87,7 +124,7 @@ dashboard.get(
         .from(schema.events)
         .where(
           and(
-            sql`${schema.events.id} IN ${evtFilter}`,
+            eventFilter,
             isNull(schema.events.deletedAt)
           )
         )
@@ -109,7 +146,7 @@ dashboard.get(
         .innerJoin(schema.events, eq(schema.tasks.eventId, schema.events.id))
         .where(
           and(
-            sql`${schema.tasks.eventId} IN ${evtFilter}`,
+            taskEventFilter,
             isNull(schema.tasks.deletedAt)
           )
         )
@@ -129,7 +166,7 @@ dashboard.get(
         .innerJoin(schema.events, eq(schema.guests.eventId, schema.events.id))
         .where(
           and(
-            sql`${schema.guests.eventId} IN ${evtFilter}`,
+            guestEventFilter,
             isNull(schema.guests.deletedAt)
           )
         )
@@ -239,19 +276,44 @@ dashboard.get(
 // ==================== UPCOMING TASKS ====================
 
 /**
- * GET /api/v1/dashboard/upcoming-tasks?limit=10
+ * GET /api/v1/dashboard/upcoming-tasks?limit=10[&eventUuid=<uuid>]
  *
  * Returns incomplete tasks with due dates across all accessible events,
  * sorted by dueDate ASC. Includes overdue tasks.
+ * When eventUuid is provided, results are scoped to that single event.
  */
 dashboard.get(
   '/upcoming-tasks',
   zValidator('query', limitSchema),
   async (c) => {
     const user = c.get('user')!;
-    const { limit } = c.req.valid('query');
+    const { limit, eventUuid } = c.req.valid('query');
     const db = createDbClient(c.env.DB);
     const evtFilter = accessibleEventIds(user.id);
+
+    // When scoping to a single event, resolve and verify access first.
+    let resolvedEventId: number | undefined;
+    if (eventUuid) {
+      const [found] = await db
+        .select({ id: schema.events.id })
+        .from(schema.events)
+        .where(
+          and(
+            eq(schema.events.uuid, eventUuid),
+            sql`${schema.events.id} IN ${evtFilter}`,
+            isNull(schema.events.deletedAt)
+          )
+        )
+        .limit(1);
+      if (!found) {
+        return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
+      }
+      resolvedEventId = found.id;
+    }
+
+    const taskEventFilter = resolvedEventId !== undefined
+      ? eq(schema.tasks.eventId, resolvedEventId)
+      : sql`${schema.tasks.eventId} IN ${evtFilter}`;
 
     const rows = await db
       .select({
@@ -267,7 +329,7 @@ dashboard.get(
       .innerJoin(schema.events, eq(schema.tasks.eventId, schema.events.id))
       .where(
         and(
-          sql`${schema.tasks.eventId} IN ${evtFilter}`,
+          taskEventFilter,
           isNull(schema.tasks.deletedAt),
           ne(schema.tasks.status, 'completed'),
           isNotNull(schema.tasks.dueDate)

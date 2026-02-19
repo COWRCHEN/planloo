@@ -57,16 +57,23 @@ function isOverdue(dueDate: string | null, completed: boolean): boolean {
   return new Date(dueDate) < new Date();
 }
 
-function getStatusBadge(status: TaskResponse['status']) {
-  if (status === 'in_progress') {
-    return (
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-        In Progress
-      </span>
-    );
-  }
-  return null;
+function getStatusBadge(status: TaskResponse['status'], overdue: boolean) {
+  return (
+    <>
+      {overdue && (
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
+          Overdue
+        </span>
+      )}
+      {status === 'in_progress' && (
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+          <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+          In Progress
+        </span>
+      )}
+    </>
+  );
 }
 
 export function TaskItem({ task, onToggleComplete, onChangeStatus, onEdit, onDelete }: TaskItemProps) {
@@ -118,7 +125,7 @@ export function TaskItem({ task, onToggleComplete, onChangeStatus, onEdit, onDel
             {task.assignedToName}
           </span>
         )}
-        {getStatusBadge(task.status)}
+        {getStatusBadge(task.status, overdue)}
         {hasDependencies && (
           <span
             className="shrink-0 text-muted-foreground"
