@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 interface TaskItemProps {
   task: TaskResponse;
   onToggleComplete: (task: TaskResponse) => void;
+  onChangeStatus: (task: TaskResponse, status: TaskResponse['status']) => void;
   onEdit: (task: TaskResponse) => void;
   onDelete: (task: TaskResponse) => void;
 }
@@ -56,7 +57,19 @@ function isOverdue(dueDate: string | null, completed: boolean): boolean {
   return new Date(dueDate) < new Date();
 }
 
-export function TaskItem({ task, onToggleComplete, onEdit, onDelete }: TaskItemProps) {
+function getStatusBadge(status: TaskResponse['status']) {
+  if (status === 'in_progress') {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+        In Progress
+      </span>
+    );
+  }
+  return null;
+}
+
+export function TaskItem({ task, onToggleComplete, onChangeStatus, onEdit, onDelete }: TaskItemProps) {
   const completed = task.status === 'completed';
   const dueDateFormatted = formatDueDate(task.dueDate);
   const overdue = isOverdue(task.dueDate, completed);
@@ -73,6 +86,7 @@ export function TaskItem({ task, onToggleComplete, onEdit, onDelete }: TaskItemP
         checked={completed}
         onCheckedChange={() => onToggleComplete(task)}
         aria-label={completed ? 'Mark incomplete' : 'Mark complete'}
+        className={cn(completed && 'data-[state=checked]:!text-emerald-500')}
       />
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
         <span
@@ -104,6 +118,7 @@ export function TaskItem({ task, onToggleComplete, onEdit, onDelete }: TaskItemP
             {task.assignedToName}
           </span>
         )}
+        {getStatusBadge(task.status)}
         {hasDependencies && (
           <span
             className="shrink-0 text-muted-foreground"
@@ -149,6 +164,46 @@ export function TaskItem({ task, onToggleComplete, onEdit, onDelete }: TaskItemP
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {task.status !== 'in_progress' && (
+            <DropdownMenuItem onClick={() => onChangeStatus(task, 'in_progress')}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2 text-blue-600"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M10 15V9l5 3-5 3z" />
+              </svg>
+              Mark as In Progress
+            </DropdownMenuItem>
+          )}
+          {task.status === 'in_progress' && (
+            <DropdownMenuItem onClick={() => onChangeStatus(task, 'pending')}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9 9h6v6H9z" />
+              </svg>
+              Mark as Pending
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => onEdit(task)}>
             <svg
               xmlns="http://www.w3.org/2000/svg"

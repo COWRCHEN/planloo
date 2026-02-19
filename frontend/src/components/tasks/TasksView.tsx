@@ -95,6 +95,13 @@ function TasksViewContent({ eventUuid }: TasksViewProps) {
     [updateTask]
   );
 
+  const handleChangeStatus = useCallback(
+    (task: TaskResponse, status: TaskStatus) => {
+      updateTask.mutate({ taskUuid: task.uuid, data: { status } });
+    },
+    [updateTask]
+  );
+
   const handleEdit = useCallback((task: TaskResponse) => {
     setEditingTask(task);
     setDialogOpen(true);
@@ -184,6 +191,7 @@ function TasksViewContent({ eventUuid }: TasksViewProps) {
             tasks={tasks}
             isLoading={isLoading}
             onToggleComplete={handleToggleComplete}
+            onChangeStatus={handleChangeStatus}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onDeleteCategory={handleDeleteCategory}

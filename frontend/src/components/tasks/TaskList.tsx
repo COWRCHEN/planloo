@@ -20,6 +20,7 @@ interface TaskListProps {
   tasks: TaskResponse[];
   isLoading: boolean;
   onToggleComplete: (task: TaskResponse) => void;
+  onChangeStatus: (task: TaskResponse, status: TaskResponse['status']) => void;
   onEdit: (task: TaskResponse) => void;
   onDelete: (task: TaskResponse) => void;
   onDeleteCategory?: (category: string) => void;
@@ -30,6 +31,7 @@ export function TaskList({
   tasks,
   isLoading,
   onToggleComplete,
+  onChangeStatus,
   onEdit,
   onDelete,
   onDeleteCategory,
@@ -174,6 +176,7 @@ export function TaskList({
                       key={task.uuid}
                       task={task}
                       onToggleComplete={onToggleComplete}
+                      onChangeStatus={onChangeStatus}
                       onEdit={onEdit}
                       onDelete={onDelete}
                     />
