@@ -17,7 +17,8 @@ export type ActivityType =
   | 'event_updated'
   | 'task_created'
   | 'task_completed'
-  | 'guest_added';
+  | 'guest_added'
+  | 'template_applied';
 
 export interface ActivityItem {
   type: ActivityType;

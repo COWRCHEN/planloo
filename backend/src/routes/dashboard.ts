@@ -14,6 +14,7 @@ import { requireAuth } from '@/middleware/auth';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
 import { eq, and, isNull, sql, ne, isNotNull, desc, asc } from 'drizzle-orm';
+import { TASK_TEMPLATES } from '@/lib/task-templates';
 
 const dashboard = new Hono<HonoEnv>();
 
@@ -100,6 +101,7 @@ dashboard.get(
           status: schema.tasks.status,
           createdAt: schema.tasks.createdAt,
           completedAt: schema.tasks.completedAt,
+          sourceTemplateId: schema.tasks.sourceTemplateId,
           eventUuid: schema.events.uuid,
           eventTitle: schema.events.title,
         })
@@ -161,8 +163,23 @@ dashboard.get(
       }
     }
 
+    const templateGroups = new Map<string, { templateId: string; eventUuid: string; eventTitle: string; timestamp: Date }>();
+
     for (const task of recentTasks) {
       const created = task.createdAt instanceof Date ? task.createdAt : new Date(task.createdAt as unknown as number * 1000);
+
+      if (task.sourceTemplateId) {
+        const groupKey = `${task.sourceTemplateId}:${task.eventUuid}:${created.getTime()}`;
+        if (!templateGroups.has(groupKey)) {
+          templateGroups.set(groupKey, {
+            templateId: task.sourceTemplateId,
+            eventUuid: task.eventUuid,
+            eventTitle: task.eventTitle,
+            timestamp: created,
+          });
+        }
+        continue;
+      }
 
       if (task.status === 'completed' && task.completedAt) {
         const completedAt = task.completedAt instanceof Date ? task.completedAt : new Date(task.completedAt as unknown as number * 1000);
@@ -183,6 +200,17 @@ dashboard.get(
         eventUuid: task.eventUuid,
         eventTitle: task.eventTitle,
         entityUuid: task.uuid,
+      });
+    }
+
+    for (const group of templateGroups.values()) {
+      const templateName = TASK_TEMPLATES.find((t) => t.id === group.templateId)?.name ?? group.templateId;
+      activities.push({
+        type: 'template_applied',
+        description: `Applied '${templateName}' template`,
+        timestamp: group.timestamp.toISOString(),
+        eventUuid: group.eventUuid,
+        eventTitle: group.eventTitle,
       });
     }
 

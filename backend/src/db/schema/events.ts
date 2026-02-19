@@ -170,6 +170,7 @@ export const tasks = sqliteTable('tasks', {
   status: text('status', { enum: ['pending', 'in_progress', 'completed'] }).default('pending').notNull(),
   completedAt: integer('completed_at', { mode: 'timestamp' }),
   sortOrder: integer('sort_order').default(0).notNull(),
+  sourceTemplateId: text('source_template_id'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   deletedAt: integer('deleted_at', { mode: 'timestamp' })

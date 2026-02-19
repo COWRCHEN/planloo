@@ -10,7 +10,7 @@
 
 The dashboard home page displays two new cross-event widgets:
 
-1. **Recent Activity** -- a unified feed of recent actions across all the user's events (event creation/updates, tasks added/completed, guests added).
+1. **Recent Activity** -- a unified feed of recent actions across all the user's events (event creation/updates, tasks added/completed, guests added, template applications).
 2. **Upcoming Tasks** -- a list of incomplete tasks with due dates across all events, sorted by urgency, with overdue highlighting.
 
 Both widgets aggregate data from all events the user has access to: personal events, events belonging to organizations they are a member of, and events where they are an accepted collaborator.
@@ -23,7 +23,8 @@ Both widgets aggregate data from all events the user has access to: personal eve
 - **Recent Activity card:**
   - Each item shows a color-coded icon (by activity type), a description, a relative timestamp ("2h ago"), and the parent event name.
   - Clicking an item navigates to the relevant page (event detail, tasks list, or guest list).
-  - Activity types: event created, event updated, task added, task completed, guest added.
+  - Activity types: event created, event updated, task added, task completed, guest added, template applied.
+  - Tasks created from a template are grouped into a single "Applied 'X' template" entry instead of showing individual tasks.
 - **Upcoming Tasks card:**
   - Each item shows the task title, a human-readable due date, the parent event name, and a color-coded priority badge.
   - Overdue tasks are highlighted with red text (e.g. "2 days overdue").
@@ -96,7 +97,7 @@ Soft-deleted events (`deletedAt IS NOT NULL`) are excluded.
 Three parallel queries fetch recent records from `events`, `tasks`, and `guests` (each limited to `limit * 2`). Results are mapped to activity items:
 
 - **Events:** If `createdAt` and `updatedAt` are within 5 seconds, the event is considered newly created (`event_created`); otherwise it is treated as updated (`event_updated`).
-- **Tasks:** Each task produces a `task_created` entry. Completed tasks additionally produce a `task_completed` entry timestamped at `completedAt`.
+- **Tasks:** Tasks with a `sourceTemplateId` are grouped by (templateId, eventUuid, createdAt) into a single `template_applied` entry (e.g., "Applied 'Wedding' template"). Non-template tasks produce individual `task_created` entries. Completed non-template tasks additionally produce a `task_completed` entry timestamped at `completedAt`.
 - **Guests:** Each guest produces a `guest_added` entry with the guest's full name.
 
 All items are combined, sorted by timestamp descending, and sliced to `limit`.
@@ -107,6 +108,13 @@ All items are combined, sorted by timestamp descending, and sliced to `limit`.
 {
   "success": true,
   "data": [
+    {
+      "type": "template_applied",
+      "description": "Applied 'Wedding' template",
+      "timestamp": "2026-02-18T15:00:00.000Z",
+      "eventUuid": "abc-123",
+      "eventTitle": "Wedding Reception"
+    },
     {
       "type": "task_completed",
       "description": "Completed task 'Book venue'",
@@ -202,8 +210,9 @@ Both hooks follow the project's standard pattern: direct `fetch` with `credentia
   - `task_created` -- clipboard icon, amber
   - `task_completed` -- check-circle icon, green
   - `guest_added` -- user-plus icon, purple
+  - `template_applied` -- layout icon, indigo
 - Timestamps displayed as relative time ("just now", "3h ago", "2d ago", or "Feb 18").
-- Links: task activities navigate to `/dashboard/events/:uuid/tasks`, guest activities to `/dashboard/events/:uuid/guests`, event activities to `/dashboard/events/:uuid`.
+- Links: task and template activities navigate to `/dashboard/events/:uuid/tasks`, guest activities to `/dashboard/events/:uuid/guests`, event activities to `/dashboard/events/:uuid`.
 
 **UpcomingTasks** (`frontend/src/components/dashboard/UpcomingTasks.tsx`):
 
@@ -224,16 +233,40 @@ Both hooks follow the project's standard pattern: direct `fetch` with `credentia
 
 | Area       | Path |
 |------------|------|
+| Schema     | `backend/src/db/schema/events.ts` (`tasks.sourceTemplateId` column) |
+| Migration  | `backend/drizzle/0022_add_tasks_source_template_id.sql` |
 | Route      | `backend/src/routes/dashboard.ts` |
 | Route mount | `backend/src/routes/index.ts` (import + `api.route('/dashboard', dashboard)`) |
+| Bulk endpoint | `backend/src/routes/tasks.ts` (sets `sourceTemplateId` on template tasks) |
+| Templates  | `backend/src/lib/task-templates.ts` (template name lookup) |
 | Hook       | `frontend/src/hooks/use-dashboard.ts` |
 | Activity   | `frontend/src/components/dashboard/RecentActivity.tsx` |
 | Tasks      | `frontend/src/components/dashboard/UpcomingTasks.tsx` |
-| Dashboard  | `frontend/src/components/dashboard/DashboardView.tsx` (updated) |
-| Barrel     | `frontend/src/components/dashboard/index.ts` (updated) |
+| Dashboard  | `frontend/src/components/dashboard/DashboardView.tsx` |
+| Barrel     | `frontend/src/components/dashboard/index.ts` |
 
 ---
 
-## No schema changes
+## Schema changes
 
-This feature aggregates from existing tables (`events`, `tasks`, `guests`) using read-only queries. No new database tables or migrations are required.
+### `tasks` table
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| `source_template_id` | text | Yes | Stores the template ID (e.g. `"wedding"`, `"birthday"`) when tasks are created via `POST /events/:uuid/tasks/bulk`. `NULL` for manually created tasks. |
+
+**Migration:** `0022_add_tasks_source_template_id.sql`
+
+```sql
+ALTER TABLE `tasks` ADD `source_template_id` text;
+```
+
+### Template grouping logic
+
+When the activity feed encounters tasks with `sourceTemplateId`:
+
+1. Individual `task_created` / `task_completed` entries are **suppressed**.
+2. Tasks are grouped by `(sourceTemplateId, eventUuid, createdAt)`.
+3. Each group produces a single `template_applied` activity item with the template's display name looked up from `TASK_TEMPLATES`.
+
+Tasks created before this change (without `sourceTemplateId`) continue to appear as individual entries.

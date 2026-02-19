@@ -412,6 +412,7 @@ tasks.post(
       dueDate: task.dueDate,
       status: 'pending' as const,
       sortOrder: baseSort + index,
+      sourceTemplateId: templateId,
     }));
 
     const chunks = [];

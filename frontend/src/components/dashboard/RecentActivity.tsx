@@ -70,6 +70,14 @@ const activityConfig: Record<ActivityType, { icon: React.ReactNode; color: strin
     ),
     color: 'bg-purple-500/10 text-purple-500',
   },
+  template_applied: {
+    icon: (
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+      </svg>
+    ),
+    color: 'bg-indigo-500/10 text-indigo-500',
+  },
 };
 
 function ActivityItemSkeleton() {
@@ -107,7 +115,7 @@ export function RecentActivity() {
             {activities.map((activity, i) => {
               const config = activityConfig[activity.type];
               const href =
-                activity.type === 'task_created' || activity.type === 'task_completed'
+                activity.type === 'task_created' || activity.type === 'task_completed' || activity.type === 'template_applied'
                   ? `/dashboard/events/${activity.eventUuid}/tasks`
                   : activity.type === 'guest_added'
                     ? `/dashboard/events/${activity.eventUuid}/guests`
