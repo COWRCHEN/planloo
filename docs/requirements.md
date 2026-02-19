@@ -216,7 +216,7 @@
 
 **Acceptance Criteria:**
 - Email/password registration
-- Social login options (Google, GitHub)
+- Social login options (Google)
 - Email verification
 - Password reset functionality
 - Profile management

@@ -47,6 +47,9 @@ export type NewEventCollaborator = InferInsertModel<typeof schema.eventCollabora
 export type Task = InferSelectModel<typeof schema.tasks>;
 export type NewTask = InferInsertModel<typeof schema.tasks>;
 
+export type TaskDependency = InferSelectModel<typeof schema.taskDependencies>;
+export type NewTaskDependency = InferInsertModel<typeof schema.taskDependencies>;
+
 export type EventGuestSettings = InferSelectModel<typeof schema.eventGuestSettings>;
 export type NewEventGuestSettings = InferInsertModel<typeof schema.eventGuestSettings>;
 

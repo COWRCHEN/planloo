@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DashboardStats } from './DashboardStats';
 import { RecentEvents } from './RecentEvents';
+import { RecentActivity } from './RecentActivity';
+import { UpcomingTasks } from './UpcomingTasks';
 import { PendingInvitationsBanner } from './PendingInvitationsBanner';
 import { useSession } from '@/hooks/use-auth';
 
@@ -57,6 +59,12 @@ function DashboardContent() {
             Create Event
           </a>
         </Button>
+      </div>
+
+      {/* Activity & Upcoming Tasks */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <RecentActivity />
+        <UpcomingTasks />
       </div>
 
       {/* Recent Events */}

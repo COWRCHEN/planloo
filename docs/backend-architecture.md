@@ -104,7 +104,7 @@ app.use('*', prettyJSON());
 app.use('*', cors({
   origin: (origin) => {
     // Allow configured origins
-    const allowedOrigins = ['https://planloo.com', 'http://localhost:4321'];
+    const allowedOrigins = ['https://planloo.com', 'https://www.planloo.com', 'http://localhost:4321'];
     return allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
   },
   credentials: true,

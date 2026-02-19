@@ -1,7 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { user, session, account } from './auth';
 import { organization, organizationMember, organizationInvitation } from './organization';
-import { events, guests, eventCollaborators, tasks, eventGuestSettings, eventRsvpSettings, eventPrivacySettings } from './events';
+import { events, guests, eventCollaborators, tasks, taskDependencies, eventGuestSettings, eventRsvpSettings, eventPrivacySettings } from './events';
 import {
   weddingGuestDetails,
   corporateGuestDetails,
@@ -196,7 +196,7 @@ export const eventCollaboratorsRelations = relations(eventCollaborators, ({ one 
 /**
  * Tasks Relations
  */
-export const tasksRelations = relations(tasks, ({ one }) => ({
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
   event: one(events, {
     fields: [tasks.eventId],
     references: [events.id]
@@ -204,7 +204,25 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
   assignedTo: one(user, {
     fields: [tasks.assignedToUserId],
     references: [user.id]
-  })
+  }),
+  dependencies: many(taskDependencies, { relationName: 'taskDependency' }),
+  dependents: many(taskDependencies, { relationName: 'taskDependent' }),
+}));
+
+/**
+ * Task Dependencies Relations
+ */
+export const taskDependenciesRelations = relations(taskDependencies, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskDependencies.taskId],
+    references: [tasks.id],
+    relationName: 'taskDependency',
+  }),
+  dependsOn: one(tasks, {
+    fields: [taskDependencies.dependsOnTaskId],
+    references: [tasks.id],
+    relationName: 'taskDependent',
+  }),
 }));
 
 /**

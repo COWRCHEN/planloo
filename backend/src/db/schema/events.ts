@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 import { user } from './auth';
 import { organization } from './organization';
@@ -178,6 +178,21 @@ export const tasks = sqliteTable('tasks', {
   uuidIdx: index('idx_tasks_uuid').on(table.uuid),
   statusIdx: index('idx_tasks_status').on(table.status),
   assignedToIdx: index('idx_tasks_assigned_to').on(table.assignedToUserId)
+}));
+
+/**
+ * Task Dependencies Table
+ * Tracks which tasks depend on (are blocked by) other tasks
+ */
+export const taskDependencies = sqliteTable('task_dependencies', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  taskId: integer('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  dependsOnTaskId: integer('depends_on_task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  taskIdx: index('idx_task_deps_task_id').on(table.taskId),
+  dependsOnIdx: index('idx_task_deps_depends_on').on(table.dependsOnTaskId),
+  uniqueDep: uniqueIndex('idx_task_deps_unique').on(table.taskId, table.dependsOnTaskId),
 }));
 
 /**

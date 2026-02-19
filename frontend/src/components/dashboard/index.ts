@@ -9,5 +9,7 @@ export { UserMenu } from './UserMenu';
 export { DashboardView } from './DashboardView';
 export { DashboardStats } from './DashboardStats';
 export { RecentEvents } from './RecentEvents';
+export { RecentActivity } from './RecentActivity';
+export { UpcomingTasks } from './UpcomingTasks';
 export { AdminLink } from './AdminLink';
 export { PendingInvitationsBanner } from './PendingInvitationsBanner';

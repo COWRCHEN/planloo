@@ -1,0 +1,56 @@
+---
+/**
+ * Event Tasks Page
+ *
+ * Displays task management (checklist & timeline) for an event.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { TasksView } from '@/components/tasks';
+
+export const prerender = false;
+
+const { uuid } = Astro.params;
+
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
+let eventName = '';
+try {
+  const cookie = Astro.request.headers.get('cookie') ?? '';
+  const res = await fetch(`${API_URL}/events/${uuid}`, {
+    headers: { cookie },
+  });
+  if (res.ok) {
+    const json = await res.json();
+    eventName = json?.data?.title ?? '';
+  }
+} catch {
+  // Silently fall back to no event name
+}
+
+const pageTitle = eventName ? `Tasks — ${eventName}` : 'Tasks';
+---
+
+<DashboardLayout title={pageTitle} description="Manage event timeline and checklist">
+  <div class="space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">
+          Tasks{eventName && <span class="font-normal text-muted-foreground"> ({eventName})</span>}
+        </h1>
+        <p class="text-muted-foreground">
+          Track your event checklist, timeline, and task assignments.
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a
+          href={`/dashboard/events/${uuid}`}
+          class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-primary-300 bg-white text-primary-700 shadow-sm hover:bg-primary-50 hover:border-primary-400 h-9 px-4 py-2"
+        >
+          Back to Event
+        </a>
+      </div>
+    </div>
+
+    <TasksView client:load eventUuid={uuid} />
+  </div>
+</DashboardLayout>

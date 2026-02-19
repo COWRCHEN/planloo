@@ -9,3 +9,4 @@ export * from './budget';
 export * from './provider';
 export * from './organization';
 export * from './collaborator';
+export * from './task';
