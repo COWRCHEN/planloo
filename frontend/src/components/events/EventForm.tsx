@@ -16,34 +16,51 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCreateEvent, useUpdateEvent, type EventResponse } from '@/hooks/use-events';
 
 // Form schema
-const eventFormSchema = z.object({
-  title: z.string().min(1, 'Title is required').max(200, 'Title must be less than 200 characters'),
-  description: z.string().max(5000).optional(),
-  eventType: z.enum(['wedding', 'birthday', 'corporate', 'conference', 'other']).optional(),
-  startDate: z.string().min(1, 'Start date is required'),
-  startTime: z.string().optional(),
-  endDate: z.string().optional(),
-  endTime: z.string().optional(),
-  timezone: z.string().default('UTC'),
-  locationName: z.string().max(200).optional(),
-  locationAddress: z.string().max(500).optional(),
-  locationCity: z.string().max(100).optional(),
-  locationState: z.string().max(100).optional(),
-  locationCountry: z.string().max(100).optional(),
-  locationPostalCode: z.string().max(20).optional(),
-  guestCountExpected: z.coerce.number().int().min(0).optional(),
-  budgetTotal: z.coerce.number().min(0).optional(),
-  budgetCurrency: z.string().length(3).default('USD'),
-  isPublic: z.boolean().default(false),
-});
+const eventFormSchema = z
+  .object({
+    title: z.string().min(1, 'Title is required').max(200, 'Title must be less than 200 characters'),
+    description: z.string().max(5000).optional(),
+    eventType: z.enum(['wedding', 'birthday', 'corporate', 'conference', 'other']).optional(),
+    startDate: z.string().min(1, 'Start date is required'),
+    startTime: z.string().optional(),
+    endDate: z.string().optional(),
+    endTime: z.string().optional(),
+    timezone: z.string().default('UTC'),
+    locationName: z.string().max(200).optional(),
+    locationAddress: z.string().max(500).optional(),
+    locationCity: z.string().max(100).optional(),
+    locationState: z.string().max(100).optional(),
+    locationCountry: z.string().max(100).optional(),
+    locationPostalCode: z.string().max(20).optional(),
+    guestCountExpected: z.coerce.number().int().min(0).optional(),
+    budgetTotal: z.coerce.number().min(0).optional(),
+    budgetCurrency: z.string().length(3).default('USD'),
+    isPublic: z.boolean().default(false),
+  })
+  .superRefine((data, ctx) => {
+    if (data.endDate && data.startDate) {
+      const start = new Date(`${data.startDate}T${data.startTime || '00:00'}`);
+      const end = new Date(`${data.endDate}T${data.endTime || '00:00'}`);
+      if (end <= start) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'End date & time must be after start date & time',
+          path: ['endDate'],
+        });
+      }
+    }
+  });
 
 type EventFormData = z.infer<typeof eventFormSchema>;
 
@@ -74,6 +91,150 @@ const CURRENCIES = [
   { value: 'GBP', label: 'GBP (\u00A3)' },
   { value: 'CAD', label: 'CAD ($)' },
   { value: 'AUD', label: 'AUD ($)' },
+];
+
+function getBrowserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return 'UTC';
+  }
+}
+
+function getTimezoneOffset(tz: string): string {
+  try {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en', {
+      timeZone: tz,
+      timeZoneName: 'shortOffset',
+    });
+    const parts = formatter.formatToParts(now);
+    const offsetPart = parts.find((p) => p.type === 'timeZoneName');
+    return offsetPart?.value ?? '';
+  } catch {
+    return '';
+  }
+}
+
+const TIMEZONE_GROUPS = [
+  {
+    label: 'Americas',
+    zones: [
+      'America/New_York',
+      'America/Chicago',
+      'America/Denver',
+      'America/Phoenix',
+      'America/Los_Angeles',
+      'America/Anchorage',
+      'Pacific/Honolulu',
+      'America/Toronto',
+      'America/Vancouver',
+      'America/Winnipeg',
+      'America/Halifax',
+      'America/St_Johns',
+      'America/Mexico_City',
+      'America/Monterrey',
+      'America/Cancun',
+      'America/Bogota',
+      'America/Lima',
+      'America/Caracas',
+      'America/Santiago',
+      'America/Buenos_Aires',
+      'America/Sao_Paulo',
+      'America/Manaus',
+      'America/Fortaleza',
+    ],
+  },
+  {
+    label: 'Europe',
+    zones: [
+      'Europe/London',
+      'Europe/Dublin',
+      'Europe/Lisbon',
+      'Europe/Paris',
+      'Europe/Berlin',
+      'Europe/Amsterdam',
+      'Europe/Brussels',
+      'Europe/Madrid',
+      'Europe/Rome',
+      'Europe/Zurich',
+      'Europe/Vienna',
+      'Europe/Prague',
+      'Europe/Warsaw',
+      'Europe/Stockholm',
+      'Europe/Copenhagen',
+      'Europe/Oslo',
+      'Europe/Helsinki',
+      'Europe/Athens',
+      'Europe/Bucharest',
+      'Europe/Budapest',
+      'Europe/Kiev',
+      'Europe/Moscow',
+      'Europe/Istanbul',
+    ],
+  },
+  {
+    label: 'Africa',
+    zones: [
+      'Africa/Cairo',
+      'Africa/Casablanca',
+      'Africa/Lagos',
+      'Africa/Nairobi',
+      'Africa/Johannesburg',
+      'Africa/Tunis',
+      'Africa/Accra',
+    ],
+  },
+  {
+    label: 'Asia',
+    zones: [
+      'Asia/Dubai',
+      'Asia/Riyadh',
+      'Asia/Baghdad',
+      'Asia/Tehran',
+      'Asia/Karachi',
+      'Asia/Kolkata',
+      'Asia/Colombo',
+      'Asia/Kathmandu',
+      'Asia/Dhaka',
+      'Asia/Rangoon',
+      'Asia/Bangkok',
+      'Asia/Ho_Chi_Minh',
+      'Asia/Jakarta',
+      'Asia/Kuala_Lumpur',
+      'Asia/Singapore',
+      'Asia/Shanghai',
+      'Asia/Hong_Kong',
+      'Asia/Taipei',
+      'Asia/Manila',
+      'Asia/Seoul',
+      'Asia/Tokyo',
+      'Asia/Calcutta',
+      'Asia/Tashkent',
+      'Asia/Almaty',
+      'Asia/Yekaterinburg',
+    ],
+  },
+  {
+    label: 'Pacific',
+    zones: [
+      'Australia/Perth',
+      'Australia/Darwin',
+      'Australia/Adelaide',
+      'Australia/Brisbane',
+      'Australia/Sydney',
+      'Australia/Melbourne',
+      'Australia/Hobart',
+      'Pacific/Auckland',
+      'Pacific/Fiji',
+      'Pacific/Guam',
+      'Pacific/Port_Moresby',
+    ],
+  },
+  {
+    label: 'Other',
+    zones: ['UTC'],
+  },
 ];
 
 function formatDateTimeForInput(date: string | null | undefined): { date: string; time: string } {
@@ -118,7 +279,7 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
       startTime: startDateTime.time,
       endDate: endDateTime.date,
       endTime: endDateTime.time,
-      timezone: event?.timezone ?? 'UTC',
+      timezone: event?.timezone ?? getBrowserTimezone(),
       locationName: event?.locationName ?? '',
       locationAddress: event?.locationAddress ?? '',
       locationCity: event?.locationCity ?? '',
@@ -183,14 +344,37 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
     setCurrentStep((s) => Math.max(s - 1, 0));
   };
 
+  const isEndDateValid = () => {
+    if (!formData.endDate || !formData.startDate) return true;
+    const start = new Date(`${formData.startDate}T${formData.startTime || '00:00'}`);
+    const end = new Date(`${formData.endDate}T${formData.endTime || '00:00'}`);
+    return end > start;
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 0:
         return !!formData.title;
       case 1:
-        return !!formData.startDate;
+        return !!formData.startDate && isEndDateValid();
       default:
         return true;
+    }
+  };
+
+  const canGoToStep = (index: number) => {
+    if (index <= currentStep) return true;
+    if (isEditing) return true;
+    // For new events, only allow jumping forward if all required steps before it pass
+    if (index >= 1 && !formData.title) return false;
+    if (index >= 2 && !formData.startDate) return false;
+    return true;
+  };
+
+  const goToStep = (e: React.MouseEvent<HTMLButtonElement>, index: number) => {
+    e.preventDefault();
+    if (canGoToStep(index)) {
+      setCurrentStep(index);
     }
   };
 
@@ -202,16 +386,22 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
           {STEPS.map((step, index) => (
             <div
               key={step.id}
-              className={`flex flex-1 items-center ${index < STEPS.length - 1 ? '' : ''}`}
+              className="flex flex-1 items-center"
             >
               <div className="flex flex-col items-center">
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium ${
+                <button
+                  type="button"
+                  onClick={(e) => goToStep(e, index)}
+                  disabled={!canGoToStep(index)}
+                  title={step.description}
+                  className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium transition-colors ${
                     index < currentStep
-                      ? 'bg-primary text-primary-foreground'
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/80 cursor-pointer'
                       : index === currentStep
-                        ? 'border-2 border-primary bg-background text-primary'
-                        : 'border-2 border-muted bg-background text-muted-foreground'
+                        ? 'border-2 border-primary bg-background text-primary cursor-default'
+                        : canGoToStep(index)
+                          ? 'border-2 border-muted bg-background text-muted-foreground hover:border-primary hover:text-primary cursor-pointer'
+                          : 'border-2 border-muted bg-background text-muted-foreground cursor-not-allowed opacity-50'
                   }`}
                 >
                   {index < currentStep ? (
@@ -226,14 +416,21 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                   ) : (
                     index + 1
                   )}
-                </div>
-                <span
-                  className={`mt-2 text-xs font-medium ${
-                    index <= currentStep ? 'text-foreground' : 'text-muted-foreground'
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => goToStep(e, index)}
+                  disabled={!canGoToStep(index)}
+                  className={`mt-2 text-xs font-medium transition-colors ${
+                    index === currentStep
+                      ? 'text-foreground cursor-default'
+                      : canGoToStep(index)
+                        ? 'text-muted-foreground hover:text-foreground cursor-pointer'
+                        : 'text-muted-foreground cursor-not-allowed opacity-50'
                   }`}
                 >
                   {step.title}
-                </span>
+                </button>
               </div>
               {index < STEPS.length - 1 && (
                 <div
@@ -331,7 +528,20 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="endDate">End Date</Label>
-                  <Input id="endDate" type="date" {...register('endDate')} />
+                  <Input
+                    id="endDate"
+                    type="date"
+                    min={formData.startDate || undefined}
+                    {...register('endDate')}
+                  />
+                  {errors.endDate && (
+                    <p className="text-sm text-destructive">{errors.endDate.message}</p>
+                  )}
+                  {!errors.endDate && !isEndDateValid() && (
+                    <p className="text-sm text-destructive">
+                      End date &amp; time must be after start date &amp; time
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="endTime">End Time</Label>
@@ -340,22 +550,70 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="timezone">Timezone</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="timezone">Timezone</Label>
+                  {formData.timezone !== getBrowserTimezone() && (
+                    <button
+                      type="button"
+                      onClick={() => setValue('timezone', getBrowserTimezone())}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Use my timezone ({getBrowserTimezone()})
+                    </button>
+                  )}
+                </div>
                 <Select value={formData.timezone} onValueChange={(value) => setValue('timezone', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select timezone" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="UTC">UTC</SelectItem>
-                    <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                    <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                    <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                    <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                    <SelectItem value="Europe/London">London (GMT)</SelectItem>
-                    <SelectItem value="Europe/Paris">Paris (CET)</SelectItem>
-                    <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                  <SelectContent className="max-h-72">
+                    {(() => {
+                      const detected = getBrowserTimezone();
+                      const allZones = TIMEZONE_GROUPS.flatMap((g) => g.zones);
+                      const detectedInList = allZones.includes(detected);
+                      return (
+                        <>
+                          <SelectGroup>
+                            <SelectLabel>Detected</SelectLabel>
+                            <SelectItem value={detected}>
+                              <span className="flex items-center gap-2">
+                                {detected.replace(/_/g, ' ')}
+                                <Badge variant="secondary" className="ml-1 text-[10px] py-0 px-1 h-4">
+                                  You
+                                </Badge>
+                                <span className="ml-auto text-xs text-muted-foreground">
+                                  {getTimezoneOffset(detected)}
+                                </span>
+                              </span>
+                            </SelectItem>
+                          </SelectGroup>
+                          {TIMEZONE_GROUPS.map((group) => (
+                            <SelectGroup key={group.label}>
+                              <SelectLabel>{group.label}</SelectLabel>
+                              {group.zones
+                                .filter((tz) => !(detectedInList && tz === detected))
+                                .map((tz) => (
+                                  <SelectItem key={tz} value={tz}>
+                                    <span className="flex items-center gap-2">
+                                      {tz.replace(/_/g, ' ')}
+                                      <span className="ml-auto text-xs text-muted-foreground">
+                                        {getTimezoneOffset(tz)}
+                                      </span>
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                            </SelectGroup>
+                          ))}
+                        </>
+                      );
+                    })()}
                   </SelectContent>
                 </Select>
+                {formData.timezone === getBrowserTimezone() && (
+                  <p className="text-xs text-muted-foreground">
+                    Automatically detected from your browser
+                  </p>
+                )}
               </div>
             </>
           )}
