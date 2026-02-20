@@ -8,3 +8,10 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare namespace App {
+  interface Locals {
+    user: Record<string, unknown> | null;
+    session: Record<string, unknown> | null;
+  }
+}

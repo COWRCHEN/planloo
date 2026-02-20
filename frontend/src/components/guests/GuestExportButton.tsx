@@ -21,7 +21,7 @@ export function GuestExportButton({ eventUuid, disabled }: GuestExportButtonProp
     try {
       await exportGuests(eventUuid);
     } catch (err) {
-      console.error('Export failed:', err);
+      if (import.meta.env.DEV) console.error('Export failed:', err);
     } finally {
       setIsExporting(false);
     }

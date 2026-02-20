@@ -103,7 +103,8 @@ export function PrivacySharingSettings({ eventUuid }: PrivacySharingSettingsProp
     enablePassword: localPrivacy.enablePassword ?? privacySettings?.enablePassword ?? false,
     pagePassword: localPrivacy.pagePassword !== undefined
       ? localPrivacy.pagePassword
-      : privacySettings?.pagePassword ?? null,
+      : null,
+    hasPassword: privacySettings?.hasPassword ?? false,
     showGuestList: localPrivacy.showGuestList ?? privacySettings?.showGuestList ?? false,
     enableSocialPreview: localPrivacy.enableSocialPreview ?? privacySettings?.enableSocialPreview ?? true,
   };
@@ -131,12 +132,16 @@ export function PrivacySharingSettings({ eventUuid }: PrivacySharingSettingsProp
   const handleSave = async () => {
     try {
       // Update privacy settings
-      await updatePrivacy.mutateAsync({
+      const privacyPayload: UpdatePrivacySettingsInput = {
         enablePassword: current.enablePassword,
-        pagePassword: current.pagePassword,
         showGuestList: current.showGuestList,
         enableSocialPreview: current.enableSocialPreview,
-      });
+      };
+      // Only send pagePassword if user typed a new one
+      if (localPrivacy.pagePassword !== undefined) {
+        privacyPayload.pagePassword = current.pagePassword;
+      }
+      await updatePrivacy.mutateAsync(privacyPayload);
 
       // Update event fields (isPublic, slug) if changed
       const eventUpdates: Record<string, unknown> = {};
@@ -248,11 +253,13 @@ export function PrivacySharingSettings({ eventUuid }: PrivacySharingSettingsProp
                 <div className="py-3 space-y-2">
                   <Label className="text-base">Page password</Label>
                   <p className="text-sm text-muted-foreground">
-                    Password visitors must enter to access the event page
+                    {current.hasPassword && localPrivacy.pagePassword === undefined
+                      ? 'A password is set. Enter a new value to change it.'
+                      : 'Password visitors must enter to access the event page'}
                   </p>
                   <Input
                     type="text"
-                    placeholder="Enter password"
+                    placeholder={current.hasPassword ? 'Enter new password to change' : 'Enter password'}
                     value={current.pagePassword ?? ''}
                     onChange={(e) =>
                       handlePrivacyChange('pagePassword', e.target.value || null)

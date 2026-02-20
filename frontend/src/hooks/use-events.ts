@@ -153,7 +153,7 @@ export interface EventPrivacySettings {
   id: number;
   eventId: number;
   enablePassword: boolean;
-  pagePassword: string | null;
+  hasPassword: boolean;
   showGuestList: boolean;
   enableSocialPreview: boolean;
   createdAt: string;

@@ -53,7 +53,7 @@ export function useSession() {
         const error = result?.error;
         
         if (error) {
-          console.error('[useSession] Auth error:', error);
+          if (import.meta.env.DEV) console.error('[useSession] Auth error:', error);
           return null;
         }
         
@@ -88,7 +88,7 @@ export function useSession() {
           },
         };
       } catch (err) {
-        console.error('[useSession] Failed to fetch session:', err);
+        if (import.meta.env.DEV) console.error('[useSession] Failed to fetch session:', err);
         return null;
       }
     },

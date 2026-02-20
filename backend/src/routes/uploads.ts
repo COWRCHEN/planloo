@@ -18,6 +18,30 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 /**
+ * Verify that file content matches declared MIME type via magic bytes.
+ */
+function verifyImageMagicBytes(buffer: ArrayBuffer, mimeType: string): boolean {
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length < 12) return false;
+
+  switch (mimeType) {
+    case 'image/jpeg':
+      return bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
+    case 'image/png':
+      return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47;
+    case 'image/gif':
+      return bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38;
+    case 'image/webp':
+      return (
+        bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+        bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+      );
+    default:
+      return false;
+  }
+}
+
+/**
  * Extract R2 key from avatar URL
  * Handles both R2_PUBLIC_URL format and API proxy format
  */
@@ -282,6 +306,21 @@ uploads.post('/avatar', requireAuth, requireVerifiedEmail, async (c) => {
 
     // Upload to R2
     const arrayBuffer = await file.arrayBuffer();
+
+    // Verify magic bytes match declared MIME type
+    if (!verifyImageMagicBytes(arrayBuffer, fileType)) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'INVALID_FILE_CONTENT',
+            message: 'File content does not match declared image type',
+          },
+        },
+        400
+      );
+    }
+
     await bucket.put(key, arrayBuffer, {
       httpMetadata: {
         contentType: file.type,

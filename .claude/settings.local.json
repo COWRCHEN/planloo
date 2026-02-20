@@ -24,7 +24,12 @@
       "Bash(python -m json.tool:*)",
       "Bash(npx astro check:*)",
       "Bash(npm info:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nMigrate seating chart canvas from raw SVG to react-konva\n\nReplace manual SVG rendering and pointer event handling with Konva.js\ncanvas library for built-in draggable nodes, zoom-to-cursor, grid\nsnapping via dragBoundFunc, and layered rendering. Key changes:\n\n- FloorPlanCanvas: Stage/Layer architecture with ResizeObserver sizing,\n  zoom-to-cursor on wheel, pan via stage drag, click-to-deselect\n- TableObject: Nested Group pattern \\(outer=position+drag, inner=rotation\\),\n  Konva Ellipse/Rect/Circle/Text, dragBoundFunc grid snapping\n- ElementObject: Same drag/rotation pattern, dash prop for dance floor\n- FloorPlanToolbar: Reset button now also resets pan offset\n- seating.astro: client:only=\"react\" to skip SSR \\(Konva needs window\\)\n- astro.config: konva/react-konva in optimizeDeps and ssr.noExternal\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nMigrate seating chart canvas from raw SVG to react-konva\n\nReplace manual SVG rendering and pointer event handling with Konva.js\ncanvas library for built-in draggable nodes, zoom-to-cursor, grid\nsnapping via dragBoundFunc, and layered rendering. Key changes:\n\n- FloorPlanCanvas: Stage/Layer architecture with ResizeObserver sizing,\n  zoom-to-cursor on wheel, pan via stage drag, click-to-deselect\n- TableObject: Nested Group pattern \\(outer=position+drag, inner=rotation\\),\n  Konva Ellipse/Rect/Circle/Text, dragBoundFunc grid snapping\n- ElementObject: Same drag/rotation pattern, dash prop for dance floor\n- FloorPlanToolbar: Reset button now also resets pan offset\n- seating.astro: client:only=\"react\" to skip SSR \\(Konva needs window\\)\n- astro.config: konva/react-konva in optimizeDeps and ssr.noExternal\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C /c/github/cowrchen/planloo status --porcelain)",
+      "Bash(npm audit:*)",
+      "Bash(git -C /c/github/cowrchen/planloo log --all --full-history --source -- \"*/.env\" \"*/.env.local\")",
+      "Bash(ls:*)",
+      "Bash(npm ls:*)"
     ]
   }
 }

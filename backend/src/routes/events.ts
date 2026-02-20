@@ -13,6 +13,7 @@ import { schema } from '@/db';
 import { eq, and, isNull, desc, asc, sql, count } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
+import { hashPagePassword } from '@/lib/page-password';
 
 const events = new Hono<HonoEnv>();
 
@@ -1261,7 +1262,11 @@ events.get('/:uuid/privacy-settings', requireAuth, async (c) => {
 
   return c.json({
     success: true,
-    data: settings,
+    data: {
+      ...settings,
+      pagePassword: undefined,
+      hasPassword: !!settings.pagePassword,
+    },
   });
 });
 
@@ -1308,7 +1313,11 @@ events.patch(
     };
 
     if (updates.enablePassword !== undefined) updateData.enablePassword = updates.enablePassword;
-    if (updates.pagePassword !== undefined) updateData.pagePassword = updates.pagePassword;
+    if (updates.pagePassword !== undefined) {
+      updateData.pagePassword = updates.pagePassword
+        ? await hashPagePassword(updates.pagePassword)
+        : null;
+    }
     if (updates.showGuestList !== undefined) updateData.showGuestList = updates.showGuestList;
     if (updates.enableSocialPreview !== undefined) updateData.enableSocialPreview = updates.enableSocialPreview;
 
@@ -1327,7 +1336,9 @@ events.patch(
         .values({
           eventId: event.id,
           enablePassword: updates.enablePassword ?? false,
-          pagePassword: updates.pagePassword ?? null,
+          pagePassword: updates.pagePassword
+            ? await hashPagePassword(updates.pagePassword)
+            : null,
           showGuestList: updates.showGuestList ?? false,
           enableSocialPreview: updates.enableSocialPreview ?? true,
         })
@@ -1337,7 +1348,11 @@ events.patch(
 
     return c.json({
       success: true,
-      data: settings,
+      data: {
+        ...settings,
+        pagePassword: undefined,
+        hasPassword: !!settings.pagePassword,
+      },
     });
   }
 );

@@ -137,3 +137,18 @@ export const authRateLimiters = {
     keyPrefix: 'rl:forgotpw',
   }),
 };
+
+/**
+ * Rate limiters for public/upload endpoints
+ */
+export const rsvpLimiter = rateLimit({
+  windowSeconds: 15 * 60, // 15 minutes
+  maxRequests: 20,
+  keyPrefix: 'rl:rsvp',
+});
+
+export const uploadLimiter = rateLimit({
+  windowSeconds: 60 * 60, // 1 hour
+  maxRequests: 10,
+  keyPrefix: 'rl:upload',
+});

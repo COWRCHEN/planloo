@@ -97,10 +97,9 @@ export async function verifyPassword(password: string, stored: string): Promise<
   if (derivedKey.length !== expectedKey.length) {
     return false;
   }
+  let diff = 0;
   for (let i = 0; i < derivedKey.length; i++) {
-    if (derivedKey[i] !== expectedKey[i]) {
-      return false;
-    }
+    diff |= derivedKey[i]! ^ expectedKey[i]!;
   }
-  return true;
+  return diff === 0;
 }
