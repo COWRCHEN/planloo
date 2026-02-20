@@ -1,5 +1,7 @@
 "use client";
 
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { TaskResponse } from '@/hooks/use-tasks';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +20,7 @@ interface TaskItemProps {
   onChangeStatus: (task: TaskResponse, status: TaskResponse['status']) => void;
   onEdit: (task: TaskResponse) => void;
   onDelete: (task: TaskResponse) => void;
+  dragDisabled?: boolean;
 }
 
 function formatDueDate(dueDate: string | null): string | null {
@@ -76,7 +79,39 @@ function getStatusBadge(status: TaskResponse['status'], overdue: boolean) {
   );
 }
 
-export function TaskItem({ task, onToggleComplete, onChangeStatus, onEdit, onDelete }: TaskItemProps) {
+function GripIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className="text-muted-foreground/50"
+    >
+      <circle cx="9" cy="5" r="1.5" />
+      <circle cx="15" cy="5" r="1.5" />
+      <circle cx="9" cy="12" r="1.5" />
+      <circle cx="15" cy="12" r="1.5" />
+      <circle cx="9" cy="19" r="1.5" />
+      <circle cx="15" cy="19" r="1.5" />
+    </svg>
+  );
+}
+
+function TaskItemContent({
+  task,
+  onToggleComplete,
+  onChangeStatus,
+  onEdit,
+  onDelete,
+  dragDisabled,
+  dragHandleProps,
+  isDragging,
+}: TaskItemProps & {
+  dragHandleProps?: Record<string, unknown> | undefined;
+  isDragging?: boolean | undefined;
+}) {
   const completed = task.status === 'completed';
   const dueDateFormatted = formatDueDate(task.dueDate);
   const overdue = isOverdue(task.dueDate, completed);
@@ -85,10 +120,21 @@ export function TaskItem({ task, onToggleComplete, onChangeStatus, onEdit, onDel
   return (
     <div
       className={cn(
-        'flex items-center gap-3 rounded-lg border px-4 py-3 transition-colors',
-        'hover:bg-muted/50'
+        'flex items-center gap-3 rounded-lg border bg-background px-4 py-3 transition-colors',
+        'hover:bg-muted/50',
+        isDragging && 'opacity-50 ring-2 ring-primary/30'
       )}
     >
+      {!dragDisabled && (
+        <button
+          type="button"
+          className="shrink-0 cursor-grab touch-none active:cursor-grabbing"
+          aria-label="Drag to reorder"
+          {...dragHandleProps}
+        >
+          <GripIcon />
+        </button>
+      )}
       <Checkbox
         checked={completed}
         onCheckedChange={() => onToggleComplete(task)}
@@ -255,6 +301,110 @@ export function TaskItem({ task, onToggleComplete, onChangeStatus, onEdit, onDel
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+    </div>
+  );
+}
+
+export function TaskItem(props: TaskItemProps) {
+  const { task, dragDisabled } = props;
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: task.uuid,
+    disabled: dragDisabled ?? false,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <TaskItemContent
+        {...props}
+        dragHandleProps={listeners}
+        isDragging={isDragging}
+      />
+    </div>
+  );
+}
+
+/** Static visual clone used inside DragOverlay */
+export function TaskItemOverlay({ task }: { task: TaskResponse }) {
+  const completed = task.status === 'completed';
+  const dueDateFormatted = formatDueDate(task.dueDate);
+  const overdue = isOverdue(task.dueDate, completed);
+  const hasDependencies = (task.dependencyCount ?? 0) > 0;
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border bg-background px-4 py-3 shadow-lg ring-2 ring-primary/20">
+      <span className="shrink-0 cursor-grabbing">
+        <GripIcon />
+      </span>
+      <Checkbox
+        checked={completed}
+        disabled
+        className={cn(completed && 'data-[state=checked]:!text-emerald-500')}
+      />
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
+        <span
+          className={cn(
+            'truncate font-medium',
+            completed && 'text-muted-foreground line-through'
+          )}
+        >
+          {task.title}
+        </span>
+        <Badge
+          variant={getPriorityBadgeVariant(task.priority)}
+          className={cn('shrink-0 capitalize', getPriorityBadgeClassName(task.priority))}
+        >
+          {task.priority}
+        </Badge>
+        {dueDateFormatted && (
+          <span
+            className={cn(
+              'shrink-0 text-sm',
+              overdue ? 'font-medium text-destructive' : 'text-muted-foreground'
+            )}
+          >
+            {dueDateFormatted}
+          </span>
+        )}
+        {task.assignedToName && (
+          <span className="shrink-0 text-sm text-muted-foreground">
+            {task.assignedToName}
+          </span>
+        )}
+        {getStatusBadge(task.status, overdue)}
+        {hasDependencies && (
+          <span className="shrink-0 text-muted-foreground">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="inline-block"
+            >
+              <path d="M9 17H7A5 5 0 0 1 7 7h2" />
+              <path d="M15 7h2a5 5 0 1 1 0 10h-2" />
+              <path d="M8 12h8" />
+            </svg>
+          </span>
+        )}
+      </div>
     </div>
   );
 }

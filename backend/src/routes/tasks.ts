@@ -510,6 +510,48 @@ tasks.get('/:uuid', requireAuth, async (c) => {
 });
 
 /**
+ * PATCH /events/:eventUuid/tasks/reorder
+ * Bulk update sortOrder
+ */
+tasks.patch(
+  '/reorder',
+  requireAuth,
+  requireVerifiedEmail,
+  zValidator('json', reorderTasksSchema),
+  async (c) => {
+    const user = c.get('user')!;
+    const eventUuid = c.req.param('eventUuid')!;
+    const { tasks: reorderItems } = c.req.valid('json');
+    const db = createDbClient(c.env.DB);
+
+    const access = await resolveEventAccess(db, eventUuid, user.id);
+    if (!access) {
+      return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
+    }
+    if (!access.canEdit) {
+      return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } }, 403);
+    }
+
+    const updateStatements = reorderItems.map((item) =>
+      db
+        .update(schema.tasks)
+        .set({ sortOrder: item.sortOrder, updatedAt: new Date() })
+        .where(and(
+          eq(schema.tasks.uuid, item.uuid),
+          eq(schema.tasks.eventId, access.event.id),
+          isNull(schema.tasks.deletedAt)
+        ))
+    );
+
+    if (updateStatements.length > 0) {
+      await db.batch(updateStatements as [typeof updateStatements[0], ...typeof updateStatements]);
+    }
+
+    return c.json({ success: true, data: { updated: reorderItems.length } });
+  }
+);
+
+/**
  * PATCH /events/:eventUuid/tasks/:uuid
  * Update a task (including mark complete)
  */
@@ -698,48 +740,6 @@ tasks.delete('/:uuid', requireAuth, requireVerifiedEmail, async (c) => {
 
   return c.json({ success: true, data: { deleted: true } });
 });
-
-/**
- * PATCH /events/:eventUuid/tasks/reorder
- * Bulk update sortOrder
- */
-tasks.patch(
-  '/reorder',
-  requireAuth,
-  requireVerifiedEmail,
-  zValidator('json', reorderTasksSchema),
-  async (c) => {
-    const user = c.get('user')!;
-    const eventUuid = c.req.param('eventUuid')!;
-    const { tasks: reorderItems } = c.req.valid('json');
-    const db = createDbClient(c.env.DB);
-
-    const access = await resolveEventAccess(db, eventUuid, user.id);
-    if (!access) {
-      return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
-    }
-    if (!access.canEdit) {
-      return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } }, 403);
-    }
-
-    const updateStatements = reorderItems.map((item) =>
-      db
-        .update(schema.tasks)
-        .set({ sortOrder: item.sortOrder, updatedAt: new Date() })
-        .where(and(
-          eq(schema.tasks.uuid, item.uuid),
-          eq(schema.tasks.eventId, access.event.id),
-          isNull(schema.tasks.deletedAt)
-        ))
-    );
-
-    if (updateStatements.length > 0) {
-      await db.batch(updateStatements as [typeof updateStatements[0], ...typeof updateStatements]);
-    }
-
-    return c.json({ success: true, data: { updated: reorderItems.length } });
-  }
-);
 
 /**
  * POST /events/:eventUuid/tasks/:uuid/dependencies

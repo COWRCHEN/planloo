@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
+import { DndContext, DragOverlay, useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,8 +15,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { TaskItem } from './TaskItem';
+import { TaskItem, TaskItemOverlay } from './TaskItem';
 import type { TaskResponse } from '@/hooks/use-tasks';
+import { useDndTaskReorder } from '@/hooks/use-dnd-task-reorder';
+
+/** Wraps each category section so @dnd-kit registers it as a droppable target. */
+function DroppableCategory({
+  category,
+  children,
+}: {
+  category: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `category:${category}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`min-h-[2rem] space-y-1.5 pl-1 rounded-lg transition-colors ${
+        isOver ? 'bg-muted/40' : ''
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
 
 interface TaskListProps {
   tasks: TaskResponse[];
@@ -25,6 +49,8 @@ interface TaskListProps {
   onDelete: (task: TaskResponse) => void;
   onDeleteCategory?: (category: string) => void;
   isDeletingCategory?: boolean;
+  eventUuid: string;
+  reorderDisabled?: boolean;
 }
 
 export function TaskList({
@@ -36,20 +62,22 @@ export function TaskList({
   onDelete,
   onDeleteCategory,
   isDeletingCategory,
+  eventUuid,
+  reorderDisabled,
 }: TaskListProps) {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [categoryToDelete, setCategoryToDelete] = useState<{ name: string; count: number } | null>(null);
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, TaskResponse[]>();
-    for (const task of tasks) {
-      const cat = task.category || 'Uncategorized';
-      const list = map.get(cat) ?? [];
-      list.push(task);
-      map.set(cat, list);
-    }
-    return map;
-  }, [tasks]);
+  const {
+    grouped,
+    activeTask,
+    sensors,
+    collisionDetection,
+    onDragStart,
+    onDragOver,
+    onDragEnd,
+    onDragCancel,
+  } = useDndTaskReorder({ tasks, eventUuid });
 
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => {
@@ -108,85 +136,110 @@ export function TaskList({
 
   return (
     <>
-      <div className="space-y-6">
-        {Array.from(grouped.entries()).map(([category, categoryTasks]) => {
-          const isCollapsed = collapsedCategories.has(category);
-          const completedCount = categoryTasks.filter((t) => t.status === 'completed').length;
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collisionDetection}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragEnd={onDragEnd}
+        onDragCancel={onDragCancel}
+      >
+        <div className="space-y-6">
+          {Array.from(grouped.entries()).map(([category, categoryTasks]) => {
+            const isCollapsed = collapsedCategories.has(category);
+            const completedCount = categoryTasks.filter((t) => t.status === 'completed').length;
 
-          return (
-            <div key={category}>
-              <div className="mb-2 flex w-full items-center gap-2">
-                <button
-                  onClick={() => toggleCategory(category)}
-                  className="flex flex-1 items-center gap-2 text-left"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={`transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
-                  >
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                  <span className="text-sm font-semibold">{category}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {completedCount}/{categoryTasks.length}
-                  </span>
-                </button>
-                {onDeleteCategory && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    disabled={isDeletingCategory}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCategoryToDelete({ name: category, count: categoryTasks.length });
-                    }}
+            return (
+              <div key={category}>
+                <div className="mb-2 flex w-full items-center gap-2">
+                  <button
+                    onClick={() => toggleCategory(category)}
+                    className="flex flex-1 items-center gap-2 text-left"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      width="14"
-                      height="14"
+                      width="16"
+                      height="16"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
+                      className={`transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
                     >
-                      <path d="M3 6h18" />
-                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                      <path d="m9 18 6-6-6-6" />
                     </svg>
-                    <span className="sr-only">Delete {category}</span>
-                  </Button>
+                    <span className="text-sm font-semibold">{category}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {completedCount}/{categoryTasks.length}
+                    </span>
+                  </button>
+                  {onDeleteCategory && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      disabled={isDeletingCategory}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCategoryToDelete({ name: category, count: categoryTasks.length });
+                      }}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                      </svg>
+                      <span className="sr-only">Delete {category}</span>
+                    </Button>
+                  )}
+                </div>
+                {!isCollapsed && (
+                  <SortableContext
+                    items={categoryTasks.map((t) => t.uuid)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <DroppableCategory category={category}>
+                      {categoryTasks.length === 0 ? (
+                        <div className="flex items-center justify-center rounded-lg border border-dashed py-4 text-sm text-muted-foreground">
+                          Drop tasks here
+                        </div>
+                      ) : (
+                        categoryTasks.map((task) => (
+                          <TaskItem
+                            key={task.uuid}
+                            task={task}
+                            onToggleComplete={onToggleComplete}
+                            onChangeStatus={onChangeStatus}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                            dragDisabled={reorderDisabled ?? false}
+                          />
+                        ))
+                      )}
+                    </DroppableCategory>
+                  </SortableContext>
                 )}
               </div>
-              {!isCollapsed && (
-                <div className="space-y-1.5 pl-1">
-                  {categoryTasks.map((task) => (
-                    <TaskItem
-                      key={task.uuid}
-                      task={task}
-                      onToggleComplete={onToggleComplete}
-                      onChangeStatus={onChangeStatus}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+
+        <DragOverlay>
+          {activeTask ? <TaskItemOverlay task={activeTask} /> : null}
+        </DragOverlay>
+      </DndContext>
 
       <AlertDialog
         open={!!categoryToDelete}

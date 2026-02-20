@@ -24,6 +24,7 @@
     "@astrojs/react": "^3.6.3",
     "@astrojs/tailwind": "^5.1.5",
     "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^3.9.1",
     "@nanostores/react": "^1.0.0",

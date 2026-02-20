@@ -150,6 +150,8 @@ function TasksViewContent({ eventUuid }: TasksViewProps) {
     tasks = tasks.filter((t) => !t.assignedToUserId);
   }
 
+  const hasActiveFilters = statusFilter !== 'all' || priorityFilter !== 'all' || assigneeFilter !== 'all';
+
   // Build assignee filter options (owner + org members + collaborators, deduplicated)
   const assigneeOptions: { id: string; label: string }[] = [];
   const seenIds = new Set<string>();
@@ -260,6 +262,8 @@ function TasksViewContent({ eventUuid }: TasksViewProps) {
             onDelete={handleDelete}
             onDeleteCategory={handleDeleteCategory}
             isDeletingCategory={deleteCategory.isPending}
+            eventUuid={eventUuid}
+            reorderDisabled={hasActiveFilters}
           />
         </TabsContent>
         <TabsContent value="timeline" className="mt-4">
