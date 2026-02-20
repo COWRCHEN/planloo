@@ -181,29 +181,29 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
             )}
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="shrink-0" asChild>
             <a href={`/dashboard/events/${event.uuid}/guests`}>Guest List</a>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" className="shrink-0" asChild>
             <a href={`/dashboard/events/${event.uuid}/seating`}>Seating Chart</a>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" className="shrink-0" asChild>
             <a href={`/dashboard/events/${event.uuid}/tasks`}>Tasks</a>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" className="shrink-0" asChild>
             <a href={`/dashboard/events/${event.uuid}/budget`}>Budget</a>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" className="shrink-0" asChild>
             <a href={`/dashboard/events/${event.uuid}/providers`}>Providers</a>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" className="shrink-0" asChild>
             <a href={`/dashboard/events/${event.uuid}/notifications`}>Notifications</a>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" className="shrink-0" asChild>
             <a href={`/dashboard/events/${event.uuid}/settings`}>Settings</a>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" className="shrink-0" asChild>
             <a href={`/dashboard/events/${event.uuid}/edit`}>Edit</a>
           </Button>
           <DeleteEventDialog

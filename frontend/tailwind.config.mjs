@@ -4,6 +4,10 @@ export default {
 
   theme: {
     extend: {
+      screens: {
+        'xs': '320px',
+        '2xl': '1440px',
+      },
       colors: {
         // Primary palette (Blue)
         primary: {

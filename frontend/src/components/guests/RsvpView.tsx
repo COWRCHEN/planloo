@@ -522,7 +522,7 @@ function RsvpContent({ token }: RsvpViewProps) {
         {selectedStatus === 'confirmed' && guest.plusOnesAllowed > 0 && (
           <div className="space-y-2">
             <Label>How many additional guests? (max {guest.plusOnesAllowed} total)</Label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label htmlFor="plusOnesAdults" className="text-sm font-normal text-muted-foreground">
                   Adults
@@ -632,7 +632,7 @@ function RsvpContent({ token }: RsvpViewProps) {
                 value={addressStreet}
                 onChange={(e) => setAddressStreet(e.target.value)}
               />
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <Input
                   placeholder="City"
                   value={addressCity}
@@ -644,7 +644,7 @@ function RsvpContent({ token }: RsvpViewProps) {
                   onChange={(e) => setAddressState(e.target.value)}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <Input
                   placeholder="ZIP / Postal code"
                   value={addressZipCode}
@@ -756,7 +756,7 @@ function RsvpContent({ token }: RsvpViewProps) {
                       ) : null;
                     })()}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">Check-in date</Label>
                       <Input

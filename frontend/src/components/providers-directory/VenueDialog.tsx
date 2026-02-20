@@ -158,7 +158,7 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
           <DialogTitle>{isEditing ? 'Edit Venue' : 'Add Venue'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Venue Name *</Label>
               <Input id="name" {...register('name')} placeholder="e.g. Grand Ballroom" />
@@ -193,7 +193,7 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="city">City *</Label>
               <Input id="city" {...register('city')} />
@@ -207,7 +207,7 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="country">Country *</Label>
               <Input id="country" {...register('country')} />
@@ -221,7 +221,7 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="capacityMin">Capacity Min</Label>
               <Input id="capacityMin" type="number" min={0} {...register('capacityMin', { valueAsNumber: true })} />
@@ -232,7 +232,7 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="pricePerHour">Price/Hour</Label>
               <Input id="pricePerHour" type="number" step="0.01" min={0} {...register('pricePerHour', { valueAsNumber: true })} />
@@ -248,7 +248,7 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
             <Input id="amenities" {...register('amenities')} placeholder="e.g. Parking, WiFi, Catering" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="contactEmail">Contact Email</Label>
               <Input id="contactEmail" type="email" {...register('contactEmail')} />

@@ -498,7 +498,7 @@ export function GuestFieldSettings({ eventUuid }: GuestFieldSettingsProps) {
 
                 {currentSettings.enableAccommodation && (
                   <>
-                    <div className="grid grid-cols-2 gap-4 ml-4 mt-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 ml-4 mt-2">
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Check-in date (same for all hotels)</Label>
                         <Input

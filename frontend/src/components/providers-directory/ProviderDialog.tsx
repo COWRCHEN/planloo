@@ -174,7 +174,7 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="email">Email *</Label>
               <Input id="email" type="email" {...register('email')} placeholder="contact@example.com" />
@@ -188,7 +188,7 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="contactName">Contact Name</Label>
               <Input id="contactName" {...register('contactName')} placeholder="John Doe" />

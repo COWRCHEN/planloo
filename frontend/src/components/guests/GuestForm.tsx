@@ -664,7 +664,7 @@ export function GuestForm({
               const reqPhone = s?.requiredPhone ?? false;
               return (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name{reqFirst ? <span className="ml-1 text-destructive">*</span> : null}</Label>
                       <Input
@@ -694,7 +694,7 @@ export function GuestForm({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="email">Email{reqEmail ? <span className="ml-1 text-destructive">*</span> : null}</Label>
                       <Input
@@ -764,7 +764,7 @@ export function GuestForm({
                     {/* Wedding Fields */}
                     {eventType === 'wedding' && (
                       <>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label>Guest Side</Label>
                             <Select
@@ -845,7 +845,7 @@ export function GuestForm({
                     {/* Corporate Fields */}
                     {eventType === 'corporate' && (
                       <>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label>Company Name</Label>
                             <Input
@@ -890,7 +890,7 @@ export function GuestForm({
                     {/* Conference Fields */}
                     {eventType === 'conference' && (
                       <>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label>Organization</Label>
                             <Input
@@ -935,7 +935,7 @@ export function GuestForm({
                     {/* Birthday Fields */}
                     {eventType === 'birthday' && (
                       <>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label>Relationship</Label>
                             <Input
@@ -1013,7 +1013,7 @@ export function GuestForm({
                                 <p className="text-sm text-destructive">{form.formState.errors.addressStreet.message}</p>
                               )}
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <Input
                                 {...form.register('addressCity')}
                                 placeholder="City"
@@ -1023,7 +1023,7 @@ export function GuestForm({
                                 placeholder="State"
                               />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <Input
                                 {...form.register('addressZipCode')}
                                 placeholder="Zip code"
@@ -1044,7 +1044,7 @@ export function GuestForm({
                         <h3 className="text-sm font-medium">Plus-Ones</h3>
                         <Card>
                         <CardContent className="space-y-4 pt-6">
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
                               <Label htmlFor="plusOnesCountAdults">How many adults?</Label>
                               <Input
@@ -1216,7 +1216,7 @@ export function GuestForm({
                                 Add hotels in Event Settings → Guest Fields → Accommodation.
                               </p>
                             )}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <div className="space-y-2">
                                 <Label className="text-xs text-muted-foreground">Check-in date</Label>
                                 <Input
