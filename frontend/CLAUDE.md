@@ -38,6 +38,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 - Page Transitions: Supports smooth transitions between pages.
 - Customizable and Flexible: Offers control over timing, easing, and variants for tailored animations.
 
+### 6. Mobile Responsiveness
+- Responsive breakpoints: 320px, 768px, 1024px, 1440px
+- Touch-friendly UI elements (44px minimum touch targets)
+- Mobile navigation pattern (hamburger menu)
+- Swipe gestures for galleries
+- Mobile-optimized forms
+- Progressive enhancement approach
+
 ### Quick Reference
 ```tsx
 // CORRECT: Using TanStack Query for API data
