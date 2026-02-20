@@ -191,7 +191,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
           guestSettings={guestSettings}
         />
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Settings Dropdown */}
           <div className="relative">
             <Button variant="outline" onClick={() => setSettingsDialogOpen(true)}>
