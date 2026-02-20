@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EventStatusBadge } from './EventStatusBadge';
+import { EventStatusSelect } from './EventStatusSelect';
 import { DeleteEventDialog } from './DeleteEventDialog';
 import { EventRecentActivity } from './EventRecentActivity';
 import { EventUpcomingTasks } from './EventUpcomingTasks';
@@ -145,6 +146,8 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
     );
   }
 
+  const canEdit = event._access?.canEdit ?? true;
+
   const locationParts = [
     event.locationAddress,
     event.locationCity,
@@ -174,7 +177,11 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold sm:text-3xl">{event.title}</h1>
-              <EventStatusBadge status={event.status} />
+              {canEdit ? (
+                <EventStatusSelect uuid={event.uuid} currentStatus={event.status} />
+              ) : (
+                <EventStatusBadge status={event.status} />
+              )}
             </div>
             {event.eventType && (
               <p className="text-muted-foreground">{eventTypeLabels[event.eventType]}</p>
