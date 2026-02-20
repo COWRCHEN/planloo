@@ -54,6 +54,8 @@ export interface EventResponse {
   isPublic: boolean;
   slug: string | null;
   coverImageUrl: string | null;
+  ownerName: string | null;
+  ownerEmail: string | null;
   createdAt: string;
   updatedAt: string;
   _access?: EventAccessInfo;

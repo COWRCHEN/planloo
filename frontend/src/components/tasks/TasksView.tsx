@@ -20,6 +20,9 @@ import {
   useDeleteTasksByCategory,
 } from '@/hooks/use-tasks';
 import type { TaskResponse, TaskStatus, TaskPriority } from '@/hooks/use-tasks';
+import { useCollaborators } from '@/hooks/use-collaborators';
+import { useEvent } from '@/hooks/use-events';
+import { useOrgMembers } from '@/hooks/use-organizations';
 import { TaskList } from './TaskList';
 import { TaskTimeline } from './TaskTimeline';
 import { TaskDialog } from './TaskDialog';
@@ -72,15 +75,21 @@ function TaskSummaryBar({ eventUuid }: { eventUuid: string }) {
 function TasksViewContent({ eventUuid }: TasksViewProps) {
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all' | 'overdue'>('all');
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | 'all'>('all');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskResponse | undefined>();
+
+  const { data: collaborators } = useCollaborators(eventUuid);
+  const { data: event } = useEvent(eventUuid);
+  const { data: orgMembers } = useOrgMembers(event?.organizationId ?? '');
 
   const apiStatusFilter = statusFilter === 'overdue' ? undefined : statusFilter !== 'all' ? statusFilter as TaskStatus : undefined;
 
   const filters = {
     ...(apiStatusFilter ? { status: apiStatusFilter } : {}),
     ...(priorityFilter !== 'all' ? { priority: priorityFilter as TaskPriority } : {}),
+    ...(assigneeFilter !== 'all' && assigneeFilter !== 'unassigned' ? { assignedToUserId: assigneeFilter } : {}),
     limit: 200,
   };
 
@@ -130,11 +139,39 @@ function TasksViewContent({ eventUuid }: TasksViewProps) {
 
   const now = new Date();
   const allTasks = tasksData?.items ?? [];
-  const tasks = statusFilter === 'overdue'
+  let tasks = statusFilter === 'overdue'
     ? allTasks.filter(
         (t) => t.dueDate && t.status !== 'completed' && new Date(t.dueDate) < now
       )
     : allTasks;
+
+  // Client-side filter for "unassigned" since API doesn't support filtering by null
+  if (assigneeFilter === 'unassigned') {
+    tasks = tasks.filter((t) => !t.assignedToUserId);
+  }
+
+  // Build assignee filter options (owner + org members + collaborators, deduplicated)
+  const assigneeOptions: { id: string; label: string }[] = [];
+  const seenIds = new Set<string>();
+  if (event) {
+    const ownerLabel = event.ownerName || event.ownerEmail || 'Owner';
+    assigneeOptions.push({ id: event.userId, label: `${ownerLabel} (Owner)` });
+    seenIds.add(event.userId);
+  }
+  if (orgMembers) {
+    for (const m of orgMembers) {
+      if (seenIds.has(m.userId)) continue;
+      seenIds.add(m.userId);
+      assigneeOptions.push({ id: m.userId, label: m.userName || m.userEmail });
+    }
+  }
+  if (collaborators) {
+    for (const c of collaborators) {
+      if (seenIds.has(c.userId)) continue;
+      seenIds.add(c.userId);
+      assigneeOptions.push({ id: c.userId, label: c.userName || c.userEmail });
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -185,6 +222,24 @@ function TasksViewContent({ eventUuid }: TasksViewProps) {
               <SelectItem value="high">High</SelectItem>
               <SelectItem value="medium">Medium</SelectItem>
               <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={assigneeFilter}
+            onValueChange={setAssigneeFilter}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Members</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {assigneeOptions.map((opt) => (
+                <SelectItem key={opt.id} value={opt.id}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

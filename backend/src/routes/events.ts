@@ -342,17 +342,24 @@ events.get('/:uuid', requireAuth, async (c) => {
     );
   }
 
-  // Fetch full event data
-  const [event] = await db
-    .select()
+  // Fetch full event data with owner info
+  const [result] = await db
+    .select({
+      event: schema.events,
+      ownerName: schema.user.name,
+      ownerEmail: schema.user.email,
+    })
     .from(schema.events)
+    .leftJoin(schema.user, eq(schema.events.userId, schema.user.id))
     .where(eq(schema.events.id, access.event.id))
     .limit(1);
 
   return c.json({
     success: true,
     data: {
-      ...event,
+      ...result!.event,
+      ownerName: result!.ownerName ?? null,
+      ownerEmail: result!.ownerEmail ?? null,
       _access: {
         type: access.accessType,
         canEdit: access.canEdit,
