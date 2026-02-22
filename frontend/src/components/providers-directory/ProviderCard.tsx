@@ -52,19 +52,27 @@ export function ProviderCard({ provider, onSelect }: ProviderCardProps) {
           )}
         </div>
         <div className="mt-2 flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            asChild
+          >
+            <a href={`/dashboard/providers/${provider.uuid}`}>View Details</a>
+          </Button>
           {provider.isOwner && (
             <ProviderDialog
               provider={provider}
               trigger={
-                <Button variant="outline" size="sm" className="flex-1">
+                <Button variant="outline" size="sm">
                   Edit
                 </Button>
               }
             />
           )}
           {onSelect && (
-            <Button variant="outline" size="sm" className="flex-1" onClick={() => onSelect(provider)}>
-              View
+            <Button variant="outline" size="sm" onClick={() => onSelect(provider)}>
+              Select
             </Button>
           )}
         </div>

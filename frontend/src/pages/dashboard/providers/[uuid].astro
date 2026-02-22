@@ -1,0 +1,18 @@
+---
+/**
+ * Provider Detail Page
+ *
+ * Displays full provider information, contact details, and services.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { ProviderDetailView } from '@/components/providers-directory';
+
+export const prerender = false;
+
+const { uuid } = Astro.params;
+---
+
+<DashboardLayout title="Provider Details" description="View provider information">
+  <ProviderDetailView client:load uuid={uuid!} />
+</DashboardLayout>
