@@ -18,3 +18,6 @@ export { LinkProviderDialog } from './LinkProviderDialog';
 export { LinkVenueDialog } from './LinkVenueDialog';
 export { BookingStatusBadge } from './BookingStatusBadge';
 export { ProviderCategoryBadge } from './ProviderCategoryBadge';
+export { VenueDetailView } from './VenueDetailView';
+export { VenueFavoriteButton } from './VenueFavoriteButton';
+export { VenueCompareView } from './VenueCompareView';

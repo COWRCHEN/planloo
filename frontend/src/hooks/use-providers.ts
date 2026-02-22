@@ -32,11 +32,14 @@ export interface ServiceProviderResponse {
   description: string | null;
   servicesOffered: string[] | null;
   priceRange: PriceRange | null;
+  locationAddress: string | null;
   locationCity: string | null;
   locationState: string | null;
   locationCountry: string | null;
+  locationPostalCode: string | null;
   ratingAverage: number;
   ratingCount: number;
+  isOwner: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,8 +65,16 @@ export interface VenueResponse {
   website: string | null;
   ratingAverage: number;
   ratingCount: number;
+  isOwner: boolean;
+  isFavorited?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AvailabilityCheckResult {
+  available: boolean;
+  conflictCount: number;
+  date: string;
 }
 
 export interface EventServiceProviderResponse {
@@ -105,9 +116,11 @@ export interface CreateProviderInput {
   description?: string | null;
   servicesOffered?: string[] | null;
   priceRange?: PriceRange | null;
-  locationCity?: string | null;
-  locationState?: string | null;
-  locationCountry?: string | null;
+  locationAddress: string;
+  locationCity: string;
+  locationState: string;
+  locationCountry: string;
+  locationPostalCode: string;
 }
 
 export interface UpdateProviderInput {
@@ -120,9 +133,11 @@ export interface UpdateProviderInput {
   description?: string | null;
   servicesOffered?: string[] | null;
   priceRange?: PriceRange | null;
-  locationCity?: string | null;
-  locationState?: string | null;
-  locationCountry?: string | null;
+  locationAddress?: string;
+  locationCity?: string;
+  locationState?: string;
+  locationCountry?: string;
+  locationPostalCode?: string;
 }
 
 export interface CreateVenueInput {
@@ -182,12 +197,24 @@ export interface ListVenuesQuery {
   venueType?: VenueType;
   city?: string;
   state?: string;
+  country?: string;
   capacityMin?: number;
   priceMax?: number;
+  amenities?: string;
+  favoritesOnly?: boolean;
   limit?: number;
   offset?: number;
   sortBy?: 'name' | 'ratingAverage' | 'capacityMax' | 'pricePerDay' | 'createdAt';
   sortOrder?: 'asc' | 'desc';
+}
+
+export interface NearbyQuery {
+  city?: string;
+  postalCode?: string;
+  country?: string;
+  category?: ProviderCategory;
+  venueType?: VenueType;
+  limit?: number;
 }
 
 export interface LinkProviderInput {
@@ -238,6 +265,7 @@ export const providerKeys = {
   list: (filters?: Partial<ListProvidersQuery>) => [...providerKeys.lists(), filters] as const,
   details: () => [...providerKeys.all, 'detail'] as const,
   detail: (uuid: string) => [...providerKeys.details(), uuid] as const,
+  nearby: (params?: Partial<NearbyQuery>) => [...providerKeys.all, 'nearby', params] as const,
 };
 
 export const venueKeys = {
@@ -246,6 +274,9 @@ export const venueKeys = {
   list: (filters?: Partial<ListVenuesQuery>) => [...venueKeys.lists(), filters] as const,
   details: () => [...venueKeys.all, 'detail'] as const,
   detail: (uuid: string) => [...venueKeys.details(), uuid] as const,
+  favorites: () => [...venueKeys.all, 'favorites'] as const,
+  availability: (uuid: string, date: string) => [...venueKeys.all, 'availability', uuid, date] as const,
+  nearby: (params?: Partial<NearbyQuery>) => [...venueKeys.all, 'nearby', params] as const,
 };
 
 export const eventProviderKeys = {
@@ -343,8 +374,11 @@ export function useVenues(filters?: Partial<ListVenuesQuery>) {
       if (filters?.venueType) params.set('venueType', filters.venueType);
       if (filters?.city) params.set('city', filters.city);
       if (filters?.state) params.set('state', filters.state);
+      if (filters?.country) params.set('country', filters.country);
       if (filters?.capacityMin !== undefined) params.set('capacityMin', filters.capacityMin.toString());
       if (filters?.priceMax !== undefined) params.set('priceMax', filters.priceMax.toString());
+      if (filters?.amenities) params.set('amenities', filters.amenities);
+      if (filters?.favoritesOnly) params.set('favoritesOnly', 'true');
       if (filters?.limit) params.set('limit', filters.limit.toString());
       if (filters?.offset) params.set('offset', filters.offset.toString());
       if (filters?.sortBy) params.set('sortBy', filters.sortBy);
@@ -369,6 +403,99 @@ export function useVenue(uuid: string | undefined) {
       return result.data;
     },
     enabled: !!uuid,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+// ==================== VENUE AVAILABILITY + FAVORITES HOOKS ====================
+
+export function useVenueAvailability(venueUuid: string | undefined, date: string | undefined) {
+  return useQuery<AvailabilityCheckResult | undefined>({
+    queryKey: venueKeys.availability(venueUuid ?? '', date ?? ''),
+    queryFn: async (): Promise<AvailabilityCheckResult | undefined> => {
+      if (!venueUuid || !date) throw new Error('Venue UUID and date are required');
+      const params = new URLSearchParams({ venueUuid, date });
+      const response = await fetch(`${API_URL}/venues/check-availability?${params}`, { credentials: 'include' });
+      const result = await handleResponse<AvailabilityCheckResult>(response);
+      return result.data;
+    },
+    enabled: !!venueUuid && !!date,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useFavoriteVenues() {
+  return useQuery<VenueResponse[]>({
+    queryKey: venueKeys.favorites(),
+    queryFn: async (): Promise<VenueResponse[]> => {
+      const response = await fetch(`${API_URL}/venues/favorites`, { credentials: 'include' });
+      const result = await handleResponse<VenueResponse[]>(response);
+      return result.data ?? [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useToggleFavorite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (venueUuid: string) => {
+      const response = await fetch(`${API_URL}/venues/favorites/${venueUuid}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const result = await handleResponse<{ favorited: boolean }>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: venueKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: venueKeys.details() });
+      queryClient.invalidateQueries({ queryKey: venueKeys.favorites() });
+    },
+  });
+}
+
+// ==================== NEARBY HOOKS ====================
+
+export function useNearbyVenues(params?: Partial<NearbyQuery>) {
+  return useQuery<VenueResponse[]>({
+    queryKey: venueKeys.nearby(params),
+    queryFn: async (): Promise<VenueResponse[]> => {
+      const searchParams = new URLSearchParams();
+      if (params?.city) searchParams.set('city', params.city);
+      if (params?.postalCode) searchParams.set('postalCode', params.postalCode);
+      if (params?.country) searchParams.set('country', params.country);
+      if (params?.venueType) searchParams.set('venueType', params.venueType);
+      if (params?.limit) searchParams.set('limit', params.limit.toString());
+
+      const url = `${API_URL}/venues/nearby${searchParams.toString() ? `?${searchParams}` : ''}`;
+      const response = await fetch(url, { credentials: 'include' });
+      const result = await handleResponse<VenueResponse[]>(response);
+      return result.data ?? [];
+    },
+    enabled: !!(params?.city || params?.postalCode),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useNearbyProviders(params?: Partial<NearbyQuery>) {
+  return useQuery<ServiceProviderResponse[]>({
+    queryKey: providerKeys.nearby(params),
+    queryFn: async (): Promise<ServiceProviderResponse[]> => {
+      const searchParams = new URLSearchParams();
+      if (params?.city) searchParams.set('city', params.city);
+      if (params?.postalCode) searchParams.set('postalCode', params.postalCode);
+      if (params?.country) searchParams.set('country', params.country);
+      if (params?.category) searchParams.set('category', params.category);
+      if (params?.limit) searchParams.set('limit', params.limit.toString());
+
+      const url = `${API_URL}/providers/nearby${searchParams.toString() ? `?${searchParams}` : ''}`;
+      const response = await fetch(url, { credentials: 'include' });
+      const result = await handleResponse<ServiceProviderResponse[]>(response);
+      return result.data ?? [];
+    },
+    enabled: !!(params?.city || params?.postalCode),
     staleTime: 1000 * 60 * 5,
   });
 }

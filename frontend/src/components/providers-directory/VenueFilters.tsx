@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -9,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { VENUE_TYPES, type ListVenuesQuery } from '@/hooks/use-providers';
+import { SUPPORTED_COUNTRIES } from '../../../../shared/schemas/provider';
 
 const venueTypeLabels: Record<string, string> = {
   banquet_hall: 'Banquet Hall',
@@ -38,6 +41,7 @@ function buildFilters(base: Partial<ListVenuesQuery>, overrides: Record<string, 
 
 export function VenueFilters({ filters, onChange }: VenueFiltersProps) {
   const [searchInput, setSearchInput] = useState(filters.search ?? '');
+  const [amenitiesInput, setAmenitiesInput] = useState(filters.amenities ?? '');
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -48,7 +52,16 @@ export function VenueFilters({ filters, onChange }: VenueFiltersProps) {
     return () => clearTimeout(timeout);
   }, [searchInput]);
 
-  const hasFilters = filters.search || filters.venueType || filters.capacityMin || filters.priceMax;
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (amenitiesInput !== (filters.amenities ?? '')) {
+        onChange(buildFilters(filters, { amenities: amenitiesInput || undefined, offset: 0 }));
+      }
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [amenitiesInput]);
+
+  const hasFilters = filters.search || filters.venueType || filters.country || filters.capacityMin || filters.priceMax || filters.amenities || filters.favoritesOnly;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -76,6 +89,24 @@ export function VenueFilters({ filters, onChange }: VenueFiltersProps) {
           ))}
         </SelectContent>
       </Select>
+      <Select
+        value={filters.country ?? 'all'}
+        onValueChange={(val) =>
+          onChange(buildFilters(filters, { country: val === 'all' ? undefined : val, offset: 0 }))
+        }
+      >
+        <SelectTrigger className="w-36">
+          <SelectValue placeholder="Country" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Countries</SelectItem>
+          {SUPPORTED_COUNTRIES.map((c) => (
+            <SelectItem key={c} value={c}>
+              {c === 'US' ? 'United States' : 'Canada'}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Input
         type="number"
         placeholder="Min capacity"
@@ -97,12 +128,31 @@ export function VenueFilters({ filters, onChange }: VenueFiltersProps) {
         min={0}
         step="0.01"
       />
+      <Input
+        placeholder="Amenities (e.g. parking, wifi)"
+        value={amenitiesInput}
+        onChange={(e) => setAmenitiesInput(e.target.value)}
+        className="w-56"
+      />
+      <div className="flex items-center gap-2">
+        <Switch
+          id="favorites-only"
+          checked={!!filters.favoritesOnly}
+          onCheckedChange={(checked) =>
+            onChange(buildFilters(filters, { favoritesOnly: checked || undefined, offset: 0 }))
+          }
+        />
+        <Label htmlFor="favorites-only" className="text-sm whitespace-nowrap">
+          Favorites only
+        </Label>
+      </div>
       {hasFilters && (
         <Button
           variant="ghost"
           size="sm"
           onClick={() => {
             setSearchInput('');
+            setAmenitiesInput('');
             const cleaned: Partial<ListVenuesQuery> = {};
             if (filters.limit !== undefined) cleaned.limit = filters.limit;
             if (filters.sortBy !== undefined) cleaned.sortBy = filters.sortBy;

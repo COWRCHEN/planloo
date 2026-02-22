@@ -16,6 +16,9 @@ database_name = "planloo-db-dev"
 database_id = "87052909-41d8-4c33-9811-8762f16dc58e" # from `wrangler d1 create planloo-db-dev`
 migrations_dir = "drizzle"
 
+[env.development.triggers]
+crons = ["0 3 * * *"]
+
 [env.development.vars]
 ENVIRONMENT = "development"
 FRONTEND_URL = "http://localhost:4321"
@@ -45,6 +48,9 @@ database_name = "planloo-db-staging"
 database_id = "" # Will be generated after creating D1 database
 migrations_dir = "drizzle"
 
+[env.staging.triggers]
+crons = ["0 3 * * *"]
+
 [env.staging.vars]
 ENVIRONMENT = "staging"
 FRONTEND_URL = "https://staging.planloo.com"
@@ -71,6 +77,9 @@ binding = "DB"
 database_name = "planloo-db"
 database_id = "" # Will be generated after creating D1 database
 migrations_dir = "drizzle"
+
+[env.production.triggers]
+crons = ["0 3 * * *"]
 
 [env.production.vars]
 ENVIRONMENT = "production"

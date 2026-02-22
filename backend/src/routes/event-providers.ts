@@ -70,7 +70,7 @@ function parseJson(raw: string | null): string[] | null {
   }
 }
 
-function formatProvider(p: typeof schema.serviceProviders.$inferSelect) {
+function formatProvider(p: typeof schema.serviceProviders.$inferSelect, currentUserId?: string) {
   return {
     uuid: p.uuid,
     businessName: p.businessName,
@@ -82,17 +82,20 @@ function formatProvider(p: typeof schema.serviceProviders.$inferSelect) {
     description: p.description,
     servicesOffered: parseJson(p.servicesOffered),
     priceRange: p.priceRange,
+    locationAddress: p.locationAddress,
     locationCity: p.locationCity,
     locationState: p.locationState,
     locationCountry: p.locationCountry,
+    locationPostalCode: p.locationPostalCode,
     ratingAverage: p.ratingAverage,
     ratingCount: p.ratingCount,
+    isOwner: currentUserId ? p.userId === currentUserId : false,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   };
 }
 
-function formatVenue(v: typeof schema.venues.$inferSelect) {
+function formatVenue(v: typeof schema.venues.$inferSelect, currentUserId?: string) {
   return {
     uuid: v.uuid,
     name: v.name,
@@ -114,6 +117,7 @@ function formatVenue(v: typeof schema.venues.$inferSelect) {
     website: v.website,
     ratingAverage: v.ratingAverage,
     ratingCount: v.ratingCount,
+    isOwner: currentUserId ? v.userId === currentUserId : false,
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   };
@@ -171,7 +175,7 @@ eventProviders.get('/', requireAuth, async (c) => {
     notes: row.link.notes,
     createdAt: row.link.createdAt,
     updatedAt: row.link.updatedAt,
-    provider: formatProvider(row.provider),
+    provider: formatProvider(row.provider, user.id),
   }));
 
   return c.json({ success: true, data });
@@ -289,7 +293,7 @@ eventProviders.post(
           notes: link!.link.notes,
           createdAt: link!.link.createdAt,
           updatedAt: link!.link.updatedAt,
-          provider: formatProvider(link!.provider),
+          provider: formatProvider(link!.provider, user.id),
         },
       },
       201
@@ -352,7 +356,7 @@ eventProviders.get('/venues', requireAuth, async (c) => {
     notes: row.link.notes,
     createdAt: row.link.createdAt,
     updatedAt: row.link.updatedAt,
-    venue: formatVenue(row.venue),
+    venue: formatVenue(row.venue, user.id),
   }));
 
   return c.json({ success: true, data });
@@ -464,7 +468,7 @@ eventProviders.post(
           notes: row.link.notes,
           createdAt: row.link.createdAt,
           updatedAt: row.link.updatedAt,
-          venue: formatVenue(row.venue),
+          venue: formatVenue(row.venue, user.id),
         },
       },
       201
@@ -577,7 +581,7 @@ eventProviders.patch(
         notes: row!.link.notes,
         createdAt: row!.link.createdAt,
         updatedAt: row!.link.updatedAt,
-        venue: formatVenue(row!.venue),
+        venue: formatVenue(row!.venue, user.id),
       },
     });
   }
@@ -726,7 +730,7 @@ eventProviders.patch(
         notes: row!.link.notes,
         createdAt: row!.link.createdAt,
         updatedAt: row!.link.updatedAt,
-        provider: formatProvider(row!.provider),
+        provider: formatProvider(row!.provider, user.id),
       },
     });
   }

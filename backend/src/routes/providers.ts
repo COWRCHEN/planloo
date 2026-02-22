@@ -5,62 +5,20 @@
  */
 
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and, isNull, desc, asc, like, or, count } from 'drizzle-orm';
+import { eq, and, isNull, desc, asc, like, or, count, sql } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
+import {
+  createProviderSchema,
+  updateProviderSchema,
+  listProvidersQuerySchema,
+  nearbyQuerySchema,
+} from '../../../shared/schemas/provider';
 
 const providers = new Hono<HonoEnv>();
-
-// ==================== SCHEMAS ====================
-
-const PROVIDER_CATEGORIES = ['catering', 'photography', 'dj', 'florist', 'venue', 'decoration', 'other'] as const;
-const PRICE_RANGES = ['$$', '$$$', '$$$$'] as const;
-
-const createProviderSchema = z.object({
-  businessName: z.string().min(1).max(200),
-  contactName: z.string().max(200).optional().nullable(),
-  email: z.string().email(),
-  phone: z.string().max(50).optional().nullable(),
-  website: z.string().url().max(500).optional().nullable(),
-  category: z.enum(PROVIDER_CATEGORIES),
-  description: z.string().max(2000).optional().nullable(),
-  servicesOffered: z.array(z.string()).optional().nullable(),
-  priceRange: z.enum(PRICE_RANGES).optional().nullable(),
-  locationCity: z.string().max(100).optional().nullable(),
-  locationState: z.string().max(100).optional().nullable(),
-  locationCountry: z.string().max(100).optional().nullable(),
-});
-
-const updateProviderSchema = z.object({
-  businessName: z.string().min(1).max(200).optional(),
-  contactName: z.string().max(200).optional().nullable(),
-  email: z.string().email().optional(),
-  phone: z.string().max(50).optional().nullable(),
-  website: z.string().url().max(500).optional().nullable(),
-  category: z.enum(PROVIDER_CATEGORIES).optional(),
-  description: z.string().max(2000).optional().nullable(),
-  servicesOffered: z.array(z.string()).optional().nullable(),
-  priceRange: z.enum(PRICE_RANGES).optional().nullable(),
-  locationCity: z.string().max(100).optional().nullable(),
-  locationState: z.string().max(100).optional().nullable(),
-  locationCountry: z.string().max(100).optional().nullable(),
-});
-
-const listProvidersQuerySchema = z.object({
-  search: z.string().max(200).optional(),
-  category: z.enum(PROVIDER_CATEGORIES).optional(),
-  priceRange: z.enum(PRICE_RANGES).optional(),
-  city: z.string().max(100).optional(),
-  state: z.string().max(100).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  offset: z.coerce.number().int().min(0).default(0),
-  sortBy: z.enum(['businessName', 'ratingAverage', 'createdAt']).default('createdAt'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc'),
-});
 
 // ==================== HELPERS ====================
 
@@ -73,7 +31,7 @@ function parseServicesOffered(raw: string | null): string[] | null {
   }
 }
 
-function formatProvider(p: typeof schema.serviceProviders.$inferSelect) {
+function formatProvider(p: typeof schema.serviceProviders.$inferSelect, currentUserId?: string) {
   return {
     uuid: p.uuid,
     businessName: p.businessName,
@@ -85,11 +43,14 @@ function formatProvider(p: typeof schema.serviceProviders.$inferSelect) {
     description: p.description,
     servicesOffered: parseServicesOffered(p.servicesOffered),
     priceRange: p.priceRange,
+    locationAddress: p.locationAddress,
     locationCity: p.locationCity,
     locationState: p.locationState,
     locationCountry: p.locationCountry,
+    locationPostalCode: p.locationPostalCode,
     ratingAverage: p.ratingAverage,
     ratingCount: p.ratingCount,
+    isOwner: currentUserId ? p.userId === currentUserId : false,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   };
@@ -106,6 +67,7 @@ providers.get(
   requireAuth,
   zValidator('query', listProvidersQuerySchema),
   async (c) => {
+    const user = c.get('user')!;
     const query = c.req.valid('query');
     const { search, category, priceRange, city, state, limit, offset, sortBy, sortOrder } = query;
 
@@ -152,7 +114,7 @@ providers.get(
 
     return c.json({
       success: true,
-      data: items.map(formatProvider),
+      data: items.map((p) => formatProvider(p, user.id)),
       meta: {
         total: countResult?.count ?? 0,
         limit,
@@ -163,10 +125,76 @@ providers.get(
 );
 
 /**
+ * GET /providers/nearby
+ * Find providers near a city or postal code prefix
+ */
+providers.get(
+  '/nearby',
+  requireAuth,
+  zValidator('query', nearbyQuerySchema),
+  async (c) => {
+    const user = c.get('user')!;
+    const { city, postalCode, country, category, limit } = c.req.valid('query');
+
+    if (!city && !postalCode) {
+      return c.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    const db = createDbClient(c.env.DB);
+
+    const baseConditions = [
+      eq(schema.serviceProviders.isActive, true),
+      isNull(schema.serviceProviders.deletedAt),
+    ];
+
+    if (country) {
+      baseConditions.push(eq(schema.serviceProviders.locationCountry, country));
+    }
+    if (category) {
+      baseConditions.push(eq(schema.serviceProviders.category, category));
+    }
+
+    // Match by city (case-insensitive) OR postal code prefix (first 3 chars)
+    const matchConditions = [];
+    if (city) {
+      matchConditions.push(
+        sql`LOWER(${schema.serviceProviders.locationCity}) = LOWER(${city})`
+      );
+    }
+    if (postalCode && postalCode.length >= 3) {
+      const prefix = postalCode.substring(0, 3);
+      matchConditions.push(
+        sql`SUBSTR(${schema.serviceProviders.locationPostalCode}, 1, 3) = ${prefix}`
+      );
+    }
+
+    if (matchConditions.length === 0) {
+      return c.json({ success: true, data: [] });
+    }
+
+    const items = await db
+      .select()
+      .from(schema.serviceProviders)
+      .where(and(...baseConditions, or(...matchConditions)))
+      .orderBy(desc(schema.serviceProviders.ratingAverage))
+      .limit(limit);
+
+    return c.json({
+      success: true,
+      data: items.map((p) => formatProvider(p, user.id)),
+    });
+  }
+);
+
+/**
  * GET /providers/:uuid
  * Get provider detail
  */
 providers.get('/:uuid', requireAuth, async (c) => {
+  const user = c.get('user')!;
   const uuid = c.req.param('uuid')!;
   const db = createDbClient(c.env.DB);
 
@@ -189,7 +217,7 @@ providers.get('/:uuid', requireAuth, async (c) => {
     );
   }
 
-  return c.json({ success: true, data: formatProvider(provider) });
+  return c.json({ success: true, data: formatProvider(provider, user.id) });
 });
 
 /**
@@ -222,13 +250,15 @@ providers.post(
         description: data.description ?? null,
         servicesOffered: data.servicesOffered ? JSON.stringify(data.servicesOffered) : null,
         priceRange: data.priceRange ?? null,
-        locationCity: data.locationCity ?? null,
-        locationState: data.locationState ?? null,
-        locationCountry: data.locationCountry ?? null,
+        locationAddress: data.locationAddress,
+        locationCity: data.locationCity,
+        locationState: data.locationState,
+        locationCountry: data.locationCountry,
+        locationPostalCode: data.locationPostalCode,
       })
       .returning();
 
-    return c.json({ success: true, data: formatProvider(newProvider!) }, 201);
+    return c.json({ success: true, data: formatProvider(newProvider!, user.id) }, 201);
   }
 );
 
@@ -285,9 +315,11 @@ providers.patch(
       updateData.servicesOffered = updates.servicesOffered ? JSON.stringify(updates.servicesOffered) : null;
     }
     if (updates.priceRange !== undefined) updateData.priceRange = updates.priceRange;
+    if (updates.locationAddress !== undefined) updateData.locationAddress = updates.locationAddress;
     if (updates.locationCity !== undefined) updateData.locationCity = updates.locationCity;
     if (updates.locationState !== undefined) updateData.locationState = updates.locationState;
     if (updates.locationCountry !== undefined) updateData.locationCountry = updates.locationCountry;
+    if (updates.locationPostalCode !== undefined) updateData.locationPostalCode = updates.locationPostalCode;
 
     await db
       .update(schema.serviceProviders)
@@ -300,7 +332,7 @@ providers.patch(
       .where(eq(schema.serviceProviders.id, existing.id))
       .limit(1);
 
-    return c.json({ success: true, data: formatProvider(fresh!) });
+    return c.json({ success: true, data: formatProvider(fresh!, user.id) });
   }
 );
 

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProviderCategoryBadge } from './ProviderCategoryBadge';
+import { ProviderDialog } from './ProviderDialog';
 import type { ServiceProviderResponse } from '@/hooks/use-providers';
 
 interface ProviderCardProps {
@@ -50,11 +51,23 @@ export function ProviderCard({ provider, onSelect }: ProviderCardProps) {
             </div>
           )}
         </div>
-        {onSelect && (
-          <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => onSelect(provider)}>
-            View
-          </Button>
-        )}
+        <div className="mt-2 flex gap-2">
+          {provider.isOwner && (
+            <ProviderDialog
+              provider={provider}
+              trigger={
+                <Button variant="outline" size="sm" className="flex-1">
+                  Edit
+                </Button>
+              }
+            />
+          )}
+          {onSelect && (
+            <Button variant="outline" size="sm" className="flex-1" onClick={() => onSelect(provider)}>
+              View
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

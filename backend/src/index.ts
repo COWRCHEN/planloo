@@ -8,7 +8,10 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { secureHeaders } from 'hono/secure-headers';
-import type { HonoEnv } from '@/types/env';
+import { lt } from 'drizzle-orm';
+import type { Env, HonoEnv } from '@/types/env';
+import { createDbClient } from '@/db/client';
+import { schema } from '@/db';
 import { createAuth } from '@/lib/auth';
 import { authRateLimiters, rsvpLimiter, uploadLimiter } from '@/middleware/rate-limit';
 import api from '@/routes';
@@ -139,4 +142,13 @@ app.onError((err, c) => {
   );
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
+    const db = createDbClient(env.DB);
+    const result = await db.delete(schema.session)
+      .where(lt(schema.session.expiresAt, new Date()))
+      .returning({ id: schema.session.id });
+    console.log(`[cron] Purged ${result.length} expired sessions`);
+  },
+};

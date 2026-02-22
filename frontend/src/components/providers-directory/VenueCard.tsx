@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { VenueFavoriteButton } from './VenueFavoriteButton';
+import { VenueDialog } from './VenueDialog';
 import type { VenueResponse } from '@/hooks/use-providers';
 
 const venueTypeLabels: Record<string, string> = {
@@ -20,19 +22,35 @@ function formatCurrency(amount: number | null, currency: string): string {
 interface VenueCardProps {
   venue: VenueResponse;
   onSelect?: (venue: VenueResponse) => void;
+  showCheckbox?: boolean;
+  isChecked?: boolean;
+  onToggleCheck?: (uuid: string) => void;
 }
 
-export function VenueCard({ venue, onSelect }: VenueCardProps) {
-  const locationParts = [venue.city, venue.state].filter(Boolean);
+export function VenueCard({ venue, onSelect, showCheckbox, isChecked, onToggleCheck }: VenueCardProps) {
+  const locationParts = [venue.city, venue.state, venue.country].filter(Boolean);
 
   return (
-    <Card className="flex flex-col">
+    <Card className="relative flex flex-col">
+      {showCheckbox && (
+        <div className="absolute left-3 top-3 z-10">
+          <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={() => onToggleCheck?.(venue.uuid)}
+            className="h-4 w-4 rounded border-gray-300"
+          />
+        </div>
+      )}
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base leading-snug">{venue.name}</CardTitle>
-          {venue.venueType && (
-            <Badge variant="outline">{venueTypeLabels[venue.venueType] ?? venue.venueType}</Badge>
-          )}
+          <div className="flex items-center gap-1">
+            <VenueFavoriteButton venueUuid={venue.uuid} isFavorited={venue.isFavorited} />
+            {venue.venueType && (
+              <Badge variant="outline">{venueTypeLabels[venue.venueType] ?? venue.venueType}</Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3 pt-0">
@@ -92,11 +110,31 @@ export function VenueCard({ venue, onSelect }: VenueCardProps) {
             </div>
           )}
         </div>
-        {onSelect && (
-          <Button variant="outline" size="sm" className="mt-2 w-full" onClick={() => onSelect(venue)}>
-            View
+        <div className="mt-2 flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            asChild
+          >
+            <a href={`/dashboard/providers/venues/${venue.uuid}`}>View Details</a>
           </Button>
-        )}
+          {venue.isOwner && (
+            <VenueDialog
+              venue={venue}
+              trigger={
+                <Button variant="outline" size="sm">
+                  Edit
+                </Button>
+              }
+            />
+          )}
+          {onSelect && (
+            <Button variant="outline" size="sm" onClick={() => onSelect(venue)}>
+              Select
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

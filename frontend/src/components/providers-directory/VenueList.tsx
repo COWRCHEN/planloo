@@ -2,9 +2,16 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { VenueCard } from './VenueCard';
 import { VenueFilters } from './VenueFilters';
 import { VenueDialog } from './VenueDialog';
+import { VenueCompareView } from './VenueCompareView';
 import { useVenues, type ListVenuesQuery, type VenueResponse } from '@/hooks/use-providers';
 
 interface VenueListProps {
@@ -16,6 +23,9 @@ export function VenueList({ onSelectVenue }: VenueListProps) {
     limit: 20,
     offset: 0,
   });
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedForCompare, setSelectedForCompare] = useState<Set<string>>(new Set());
+  const [showCompareDialog, setShowCompareDialog] = useState(false);
 
   const { data, isLoading, error } = useVenues(filters);
   const items = data?.items ?? [];
@@ -24,6 +34,29 @@ export function VenueList({ onSelectVenue }: VenueListProps) {
   const offset = filters.offset ?? 0;
   const hasMore = offset + limit < total;
   const hasPrev = offset > 0;
+
+  const toggleCompareSelect = (uuid: string) => {
+    setSelectedForCompare((prev) => {
+      const next = new Set(prev);
+      if (next.has(uuid)) {
+        next.delete(uuid);
+      } else if (next.size < 3) {
+        next.add(uuid);
+      }
+      return next;
+    });
+  };
+
+  const removeFromCompare = (uuid: string) => {
+    setSelectedForCompare((prev) => {
+      const next = new Set(prev);
+      next.delete(uuid);
+      return next;
+    });
+    if (selectedForCompare.size <= 1) {
+      setShowCompareDialog(false);
+    }
+  };
 
   if (error) {
     return (
@@ -40,7 +73,21 @@ export function VenueList({ onSelectVenue }: VenueListProps) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <VenueFilters filters={filters} onChange={setFilters} />
-        <VenueDialog />
+        <div className="flex items-center gap-2">
+          <Button
+            variant={compareMode ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setCompareMode(!compareMode);
+              if (compareMode) {
+                setSelectedForCompare(new Set());
+              }
+            }}
+          >
+            {compareMode ? 'Cancel Compare' : 'Compare'}
+          </Button>
+          <VenueDialog />
+        </div>
       </div>
 
       {isLoading ? (
@@ -72,6 +119,9 @@ export function VenueList({ onSelectVenue }: VenueListProps) {
                 key={venue.uuid}
                 venue={venue}
                 {...(onSelectVenue ? { onSelect: onSelectVenue } : {})}
+                showCheckbox={compareMode}
+                isChecked={selectedForCompare.has(venue.uuid)}
+                onToggleCheck={toggleCompareSelect}
               />
             ))}
           </div>
@@ -103,6 +153,33 @@ export function VenueList({ onSelectVenue }: VenueListProps) {
           )}
         </>
       )}
+
+      {/* Floating compare button */}
+      {compareMode && selectedForCompare.size >= 2 && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
+          <Button
+            size="lg"
+            className="shadow-lg"
+            onClick={() => setShowCompareDialog(true)}
+          >
+            Compare {selectedForCompare.size} venues
+          </Button>
+        </div>
+      )}
+
+      {/* Compare dialog */}
+      <Dialog open={showCompareDialog} onOpenChange={setShowCompareDialog}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Venue Comparison</DialogTitle>
+          </DialogHeader>
+          <VenueCompareView
+            venueUuids={Array.from(selectedForCompare)}
+            onRemove={removeFromCompare}
+            onClose={() => setShowCompareDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

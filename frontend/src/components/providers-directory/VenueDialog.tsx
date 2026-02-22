@@ -27,6 +27,14 @@ import {
   type VenueResponse,
   type CreateVenueInput,
 } from '@/hooks/use-providers';
+import {
+  SUPPORTED_COUNTRIES,
+  US_STATES,
+  CA_PROVINCES,
+  STATE_LABELS,
+  validateVenueAddress,
+  type SupportedCountry,
+} from '../../../../shared/schemas/provider';
 
 const VENUE_TYPES_ENUM = ['banquet_hall', 'outdoor', 'hotel', 'restaurant', 'conference_center', 'other'] as const;
 
@@ -35,9 +43,9 @@ const formSchema = z.object({
   venueType: z.enum(VENUE_TYPES_ENUM).optional().nullable(),
   address: z.string().min(1, 'Address is required').max(500),
   city: z.string().min(1, 'City is required').max(100),
-  state: z.string().max(100).optional().nullable(),
-  country: z.string().min(1, 'Country is required').max(100),
-  postalCode: z.string().max(20).optional().nullable(),
+  state: z.string().min(1, 'State/Province is required').max(10),
+  country: z.enum(SUPPORTED_COUNTRIES, { required_error: 'Country is required' }),
+  postalCode: z.string().min(1, 'Postal code is required').max(20),
   capacityMin: z.coerce.number().int().min(0).optional().nullable(),
   capacityMax: z.coerce.number().int().min(0).optional().nullable(),
   pricePerHour: z.coerce.number().min(0).optional().nullable(),
@@ -48,7 +56,7 @@ const formSchema = z.object({
   contactPhone: z.string().max(50).optional().nullable(),
   website: z.string().url('Must be a valid URL').max(500).optional().nullable().or(z.literal('')),
   description: z.string().max(2000).optional().nullable(),
-});
+}).superRefine((data, ctx) => validateVenueAddress(data, ctx));
 
 type FormData = z.infer<typeof formSchema>;
 
@@ -59,6 +67,11 @@ const venueTypeLabels: Record<string, string> = {
   restaurant: 'Restaurant',
   conference_center: 'Conference Center',
   other: 'Other',
+};
+
+const countryLabels: Record<string, string> = {
+  US: 'United States',
+  CA: 'Canada',
 };
 
 interface VenueDialogProps {
@@ -80,9 +93,9 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
       venueType: venue?.venueType ?? null,
       address: venue?.address ?? '',
       city: venue?.city ?? '',
-      state: venue?.state ?? null,
-      country: venue?.country ?? '',
-      postalCode: venue?.postalCode ?? null,
+      state: venue?.state ?? '',
+      country: (venue?.country as SupportedCountry) ?? 'US',
+      postalCode: venue?.postalCode ?? '',
       capacityMin: venue?.capacityMin ?? null,
       capacityMax: venue?.capacityMax ?? null,
       pricePerHour: venue?.pricePerHour ?? null,
@@ -109,21 +122,37 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
   });
 
   const selectedVenueType = watch('venueType');
+  const selectedCountry = watch('country');
+  const selectedState = watch('state');
+
+  const stateOptions = selectedCountry === 'CA' ? CA_PROVINCES : US_STATES;
 
   useEffect(() => {
     if (open) reset(getDefaults());
   }, [open, venue, reset]);
+
+  // Reset state when country changes
+  useEffect(() => {
+    if (!open) return;
+    const currentState = watch('state');
+    if (currentState) {
+      const validStates = selectedCountry === 'CA' ? CA_PROVINCES : US_STATES;
+      if (!(validStates as readonly string[]).includes(currentState)) {
+        setValue('state', '');
+      }
+    }
+  }, [selectedCountry]);
 
   const onSubmit = handleSubmit(async (data) => {
     const payload: CreateVenueInput = {
       name: data.name,
       address: data.address,
       city: data.city,
+      state: data.state,
       country: data.country,
+      postalCode: data.postalCode,
       currency: data.currency,
       venueType: data.venueType ?? null,
-      state: data.state ?? null,
-      postalCode: data.postalCode ?? null,
       capacityMin: data.capacityMin ?? null,
       capacityMax: data.capacityMax ?? null,
       pricePerHour: data.pricePerHour ?? null,
@@ -160,7 +189,7 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="name">Venue Name *</Label>
+              <Label htmlFor="name">Venue Name <span className="text-destructive">*</span></Label>
               <Input id="name" {...register('name')} placeholder="e.g. Grand Ballroom" />
               {errors.name && (
                 <p className="text-sm text-destructive">{errors.name.message}</p>
@@ -186,7 +215,7 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address">Address *</Label>
+            <Label htmlFor="address">Address <span className="text-destructive">*</span></Label>
             <Input id="address" {...register('address')} placeholder="123 Main St" />
             {errors.address && (
               <p className="text-sm text-destructive">{errors.address.message}</p>
@@ -195,29 +224,65 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="city">City *</Label>
+              <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
               <Input id="city" {...register('city')} />
               {errors.city && (
                 <p className="text-sm text-destructive">{errors.city.message}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="state">State</Label>
-              <Input id="state" {...register('state')} />
+              <Label>State/Province <span className="text-destructive">*</span></Label>
+              <Select
+                value={selectedState || 'none'}
+                onValueChange={(val) => setValue('state', val === 'none' ? '' : val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Select...</SelectItem>
+                  {stateOptions.map((st) => (
+                    <SelectItem key={st} value={st}>
+                      {STATE_LABELS[st] ?? st} ({st})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.state && (
+                <p className="text-sm text-destructive">{errors.state.message}</p>
+              )}
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="country">Country *</Label>
-              <Input id="country" {...register('country')} />
-              {errors.country && (
-                <p className="text-sm text-destructive">{errors.country.message}</p>
-              )}
+              <Label>Country <span className="text-destructive">*</span></Label>
+              <Select
+                value={selectedCountry}
+                onValueChange={(val) => setValue('country', val as SupportedCountry)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_COUNTRIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {countryLabels[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="postalCode">Postal Code</Label>
-              <Input id="postalCode" {...register('postalCode')} />
+              <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
+              <Input
+                id="postalCode"
+                {...register('postalCode')}
+                placeholder={selectedCountry === 'CA' ? 'A1A 1A1' : '90210'}
+              />
+              {errors.postalCode && (
+                <p className="text-sm text-destructive">{errors.postalCode.message}</p>
+              )}
             </div>
           </div>
 

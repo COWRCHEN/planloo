@@ -28,6 +28,14 @@ import {
   type ServiceProviderResponse,
   type CreateProviderInput,
 } from '@/hooks/use-providers';
+import {
+  SUPPORTED_COUNTRIES,
+  US_STATES,
+  CA_PROVINCES,
+  STATE_LABELS,
+  validateProviderAddress,
+  type SupportedCountry,
+} from '../../../../shared/schemas/provider';
 
 const PROVIDER_CATEGORIES_ENUM = ['catering', 'photography', 'dj', 'florist', 'venue', 'decoration', 'other'] as const;
 const PRICE_RANGES_ENUM = ['$$', '$$$', '$$$$'] as const;
@@ -42,10 +50,12 @@ const formSchema = z.object({
   description: z.string().max(2000).optional().nullable(),
   priceRange: z.enum(PRICE_RANGES_ENUM).optional().nullable(),
   servicesOffered: z.string().optional().nullable(),
-  locationCity: z.string().max(100).optional().nullable(),
-  locationState: z.string().max(100).optional().nullable(),
-  locationCountry: z.string().max(100).optional().nullable(),
-});
+  locationAddress: z.string().min(1, 'Address is required').max(500),
+  locationCity: z.string().min(1, 'City is required').max(100),
+  locationState: z.string().max(10),
+  locationCountry: z.enum(SUPPORTED_COUNTRIES, { required_error: 'Country is required' }),
+  locationPostalCode: z.string().min(1, 'Postal code is required').max(20),
+}).superRefine((data, ctx) => validateProviderAddress(data, ctx));
 
 type FormData = z.infer<typeof formSchema>;
 
@@ -57,6 +67,11 @@ const categoryLabels: Record<string, string> = {
   venue: 'Venue',
   decoration: 'Decoration',
   other: 'Other',
+};
+
+const countryLabels: Record<string, string> = {
+  US: 'United States',
+  CA: 'Canada',
 };
 
 interface ProviderDialogProps {
@@ -83,9 +98,11 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
       description: provider?.description ?? null,
       priceRange: provider?.priceRange ?? null,
       servicesOffered: provider?.servicesOffered?.join(', ') ?? null,
-      locationCity: provider?.locationCity ?? null,
-      locationState: provider?.locationState ?? null,
-      locationCountry: provider?.locationCountry ?? null,
+      locationAddress: provider?.locationAddress ?? '',
+      locationCity: provider?.locationCity ?? '',
+      locationState: provider?.locationState ?? '',
+      locationCountry: (provider?.locationCountry as SupportedCountry) ?? 'US',
+      locationPostalCode: provider?.locationPostalCode ?? '',
     };
   }
 
@@ -103,10 +120,26 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
 
   const selectedCategory = watch('category');
   const selectedPriceRange = watch('priceRange');
+  const selectedCountry = watch('locationCountry');
+  const selectedState = watch('locationState');
+
+  const stateOptions = selectedCountry === 'CA' ? CA_PROVINCES : US_STATES;
 
   useEffect(() => {
     if (open) reset(getDefaults());
   }, [open, provider, reset]);
+
+  // Reset state when country changes
+  useEffect(() => {
+    if (!open) return;
+    const currentState = watch('locationState');
+    if (currentState) {
+      const validStates = selectedCountry === 'CA' ? CA_PROVINCES : US_STATES;
+      if (!(validStates as readonly string[]).includes(currentState)) {
+        setValue('locationState', '');
+      }
+    }
+  }, [selectedCountry]);
 
   const onSubmit = handleSubmit(async (data) => {
     const payload: CreateProviderInput = {
@@ -118,9 +151,11 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
       website: data.website || null,
       description: data.description ?? null,
       priceRange: data.priceRange ?? null,
-      locationCity: data.locationCity ?? null,
-      locationState: data.locationState ?? null,
-      locationCountry: data.locationCountry ?? null,
+      locationAddress: data.locationAddress,
+      locationCity: data.locationCity,
+      locationState: data.locationState,
+      locationCountry: data.locationCountry,
+      locationPostalCode: data.locationPostalCode,
       servicesOffered: data.servicesOffered
         ? data.servicesOffered.split(',').map((s) => s.trim()).filter(Boolean)
         : null,
@@ -148,7 +183,7 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
         </DialogHeader>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="businessName">Business Name *</Label>
+            <Label htmlFor="businessName">Business Name <span className="text-destructive">*</span></Label>
             <Input id="businessName" {...register('businessName')} placeholder="e.g. Elite Catering Co." />
             {errors.businessName && (
               <p className="text-sm text-destructive">{errors.businessName.message}</p>
@@ -156,7 +191,7 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
           </div>
 
           <div className="space-y-2">
-            <Label>Category *</Label>
+            <Label>Category <span className="text-destructive">*</span></Label>
             <Select
               value={selectedCategory}
               onValueChange={(val) => setValue('category', val as FormData['category'])}
@@ -176,7 +211,7 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
               <Input id="email" type="email" {...register('email')} placeholder="contact@example.com" />
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email.message}</p>
@@ -230,18 +265,75 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
             <Input id="servicesOffered" {...register('servicesOffered')} placeholder="e.g. Wedding catering, Corporate events" />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="locationAddress">Address <span className="text-destructive">*</span></Label>
+            <Input id="locationAddress" {...register('locationAddress')} placeholder="123 Main St" />
+            {errors.locationAddress && (
+              <p className="text-sm text-destructive">{errors.locationAddress.message}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="locationCity">City</Label>
+              <Label htmlFor="locationCity">City <span className="text-destructive">*</span></Label>
               <Input id="locationCity" {...register('locationCity')} />
+              {errors.locationCity && (
+                <p className="text-sm text-destructive">{errors.locationCity.message}</p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="locationState">State</Label>
-              <Input id="locationState" {...register('locationState')} />
+              <Label>State/Province <span className="text-destructive">*</span></Label>
+              <Select
+                value={selectedState || 'none'}
+                onValueChange={(val) => setValue('locationState', val === 'none' ? '' : val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Select...</SelectItem>
+                  {stateOptions.map((st) => (
+                    <SelectItem key={st} value={st}>
+                      {STATE_LABELS[st] ?? st} ({st})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.locationState && (
+                <p className="text-sm text-destructive">{errors.locationState.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Country <span className="text-destructive">*</span></Label>
+              <Select
+                value={selectedCountry}
+                onValueChange={(val) => setValue('locationCountry', val as SupportedCountry)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SUPPORTED_COUNTRIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {countryLabels[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="locationCountry">Country</Label>
-              <Input id="locationCountry" {...register('locationCountry')} />
+              <Label htmlFor="locationPostalCode">Postal Code <span className="text-destructive">*</span></Label>
+              <Input
+                id="locationPostalCode"
+                {...register('locationPostalCode')}
+                placeholder={selectedCountry === 'CA' ? 'A1A 1A1' : '90210'}
+              />
+              {errors.locationPostalCode && (
+                <p className="text-sm text-destructive">{errors.locationPostalCode.message}</p>
+              )}
             </div>
           </div>
 

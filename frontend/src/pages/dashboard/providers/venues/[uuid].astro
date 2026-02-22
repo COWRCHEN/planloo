@@ -1,0 +1,18 @@
+---
+/**
+ * Venue Detail Page
+ *
+ * Displays full venue information, contact details, and availability check.
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { VenueDetailView } from '@/components/providers-directory';
+
+export const prerender = false;
+
+const { uuid } = Astro.params;
+---
+
+<DashboardLayout title="Venue Details" description="View venue information">
+  <VenueDetailView client:load uuid={uuid!} />
+</DashboardLayout>

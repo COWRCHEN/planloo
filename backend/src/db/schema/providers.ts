@@ -22,9 +22,11 @@ export const serviceProviders = sqliteTable('service_providers', {
   description: text('description'),
   servicesOffered: text('services_offered'), // JSON array of services
   priceRange: text('price_range', { enum: ['$$', '$$$', '$$$$'] }),
+  locationAddress: text('location_address'),
   locationCity: text('location_city'),
   locationState: text('location_state'),
   locationCountry: text('location_country'),
+  locationPostalCode: text('location_postal_code'),
   serviceAreaRadius: integer('service_area_radius'), // in miles/km
   ratingAverage: real('rating_average').default(0).notNull(),
   ratingCount: integer('rating_count').default(0).notNull(),
@@ -39,6 +41,8 @@ export const serviceProviders = sqliteTable('service_providers', {
   userIdIdx: index('idx_service_providers_user_id').on(table.userId),
   categoryIdx: index('idx_service_providers_category').on(table.category),
   locationIdx: index('idx_service_providers_location').on(table.locationCity, table.locationState),
+  cityCountryIdx: index('idx_service_providers_city_country').on(table.locationCity, table.locationCountry),
+  postalCodeIdx: index('idx_service_providers_postal_code').on(table.locationPostalCode),
   ratingIdx: index('idx_service_providers_rating').on(table.ratingAverage),
   isActiveIdx: index('idx_service_providers_is_active').on(table.isActive)
 }));
@@ -83,6 +87,8 @@ export const venues = sqliteTable('venues', {
 }, (table) => ({
   uuidIdx: index('idx_venues_uuid').on(table.uuid),
   cityIdx: index('idx_venues_city').on(table.city),
+  cityCountryIdx: index('idx_venues_city_country').on(table.city, table.country),
+  postalCodeIdx: index('idx_venues_postal_code').on(table.postalCode),
   typeIdx: index('idx_venues_type').on(table.venueType),
   capacityIdx: index('idx_venues_capacity').on(table.capacityMax),
   locationIdx: index('idx_venues_location').on(table.lat, table.lng),
@@ -191,4 +197,19 @@ export const reviews = sqliteTable('reviews', {
   userIdIdx: index('idx_reviews_user_id').on(table.userId),
   ratingIdx: index('idx_reviews_rating').on(table.rating),
   createdAtIdx: index('idx_reviews_created_at').on(table.createdAt)
+}));
+
+/**
+ * User Venue Favorites Table
+ * Tracks which venues a user has favorited
+ */
+export const userVenueFavorites = sqliteTable('user_venue_favorites', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  venueId: integer('venue_id').notNull().references(() => venues.id, { onDelete: 'cascade' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  userIdx: index('idx_uvf_user').on(table.userId),
+  venueIdx: index('idx_uvf_venue').on(table.venueId),
+  uniqueUserVenue: unique('unique_user_venue_favorite').on(table.userId, table.venueId),
 }));

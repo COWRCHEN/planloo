@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "wrangler dev src/index.ts --remote --env development",
+    "dev": "wrangler dev src/index.ts --remote --env development --test-scheduled",
     "dev:local": "wrangler dev src/index.ts --local --env development",
     "dev:bucket": "wrangler r2 bucket create planloo-uploads-dev",
     "deploy": "wrangler deploy",

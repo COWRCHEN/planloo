@@ -1,0 +1,27 @@
+{
+  "name": "planloo",
+  "version": "1.0.0",
+  "description": "A modern, performant event planning platform built with Astro, React, Hono, and Cloudflare.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/COWRCHEN/planloo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/COWRCHEN/planloo/issues"
+  },
+  "homepage": "https://github.com/COWRCHEN/planloo#readme",
+  "dependencies": {
+    "zod": "^3.25.76"
+  }
+}

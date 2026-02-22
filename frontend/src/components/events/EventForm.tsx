@@ -25,6 +25,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCreateEvent, useUpdateEvent, type EventResponse } from '@/hooks/use-events';
+import { NearbyVenueSuggestions } from './NearbyVenueSuggestions';
 
 // Form schema
 const eventFormSchema = z
@@ -668,6 +669,12 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                   />
                 </div>
               </div>
+
+              <NearbyVenueSuggestions
+                city={formData.locationCity ?? ''}
+                postalCode={formData.locationPostalCode ?? ''}
+                country={formData.locationCountry ?? ''}
+              />
             </>
           )}
 

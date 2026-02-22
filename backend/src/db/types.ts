@@ -104,6 +104,9 @@ export type NewImage = InferInsertModel<typeof schema.images>;
 export type Review = InferSelectModel<typeof schema.reviews>;
 export type NewReview = InferInsertModel<typeof schema.reviews>;
 
+export type UserVenueFavorite = InferSelectModel<typeof schema.userVenueFavorites>;
+export type NewUserVenueFavorite = InferInsertModel<typeof schema.userVenueFavorites>;
+
 // ==================== FLOOR PLAN TYPES ====================
 
 export type FloorPlan = InferSelectModel<typeof schema.floorPlans>;

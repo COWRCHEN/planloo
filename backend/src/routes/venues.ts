@@ -2,75 +2,25 @@
  * Venue Routes
  *
  * CRUD endpoints for the global venue directory.
+ * Includes amenities filtering, availability check, favorites, and nearby search.
  */
 
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and, isNull, desc, asc, like, or, count, lte, gte } from 'drizzle-orm';
+import { eq, and, isNull, desc, asc, like, or, count, lte, gte, inArray, ne, sql } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
+import {
+  createVenueSchema,
+  updateVenueSchema,
+  listVenuesQuerySchema,
+  checkAvailabilityQuerySchema,
+  nearbyQuerySchema,
+} from '../../../shared/schemas/provider';
 
 const venues = new Hono<HonoEnv>();
-
-// ==================== SCHEMAS ====================
-
-const VENUE_TYPES = ['banquet_hall', 'outdoor', 'hotel', 'restaurant', 'conference_center', 'other'] as const;
-
-const createVenueSchema = z.object({
-  name: z.string().min(1).max(200),
-  description: z.string().max(2000).optional().nullable(),
-  venueType: z.enum(VENUE_TYPES).optional().nullable(),
-  address: z.string().min(1).max(500),
-  city: z.string().min(1).max(100),
-  state: z.string().max(100).optional().nullable(),
-  country: z.string().min(1).max(100),
-  postalCode: z.string().max(20).optional().nullable(),
-  capacityMin: z.coerce.number().int().min(0).optional().nullable(),
-  capacityMax: z.coerce.number().int().min(0).optional().nullable(),
-  pricePerHour: z.coerce.number().min(0).optional().nullable(),
-  pricePerDay: z.coerce.number().min(0).optional().nullable(),
-  currency: z.string().length(3).default('USD'),
-  amenities: z.array(z.string()).optional().nullable(),
-  contactEmail: z.string().email().optional().nullable(),
-  contactPhone: z.string().max(50).optional().nullable(),
-  website: z.string().url().max(500).optional().nullable(),
-});
-
-const updateVenueSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
-  description: z.string().max(2000).optional().nullable(),
-  venueType: z.enum(VENUE_TYPES).optional().nullable(),
-  address: z.string().min(1).max(500).optional(),
-  city: z.string().min(1).max(100).optional(),
-  state: z.string().max(100).optional().nullable(),
-  country: z.string().min(1).max(100).optional(),
-  postalCode: z.string().max(20).optional().nullable(),
-  capacityMin: z.coerce.number().int().min(0).optional().nullable(),
-  capacityMax: z.coerce.number().int().min(0).optional().nullable(),
-  pricePerHour: z.coerce.number().min(0).optional().nullable(),
-  pricePerDay: z.coerce.number().min(0).optional().nullable(),
-  currency: z.string().length(3).optional(),
-  amenities: z.array(z.string()).optional().nullable(),
-  contactEmail: z.string().email().optional().nullable(),
-  contactPhone: z.string().max(50).optional().nullable(),
-  website: z.string().url().max(500).optional().nullable(),
-});
-
-const listVenuesQuerySchema = z.object({
-  search: z.string().max(200).optional(),
-  venueType: z.enum(VENUE_TYPES).optional(),
-  city: z.string().max(100).optional(),
-  state: z.string().max(100).optional(),
-  capacityMin: z.coerce.number().int().min(0).optional(),
-  priceMax: z.coerce.number().min(0).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  offset: z.coerce.number().int().min(0).default(0),
-  sortBy: z.enum(['name', 'ratingAverage', 'capacityMax', 'pricePerDay', 'createdAt']).default('createdAt'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc'),
-});
 
 // ==================== HELPERS ====================
 
@@ -83,7 +33,7 @@ function parseJson(raw: string | null): string[] | null {
   }
 }
 
-function formatVenue(v: typeof schema.venues.$inferSelect) {
+function formatVenue(v: typeof schema.venues.$inferSelect, isFavorited?: boolean, currentUserId?: string) {
   return {
     uuid: v.uuid,
     name: v.name,
@@ -105,24 +55,28 @@ function formatVenue(v: typeof schema.venues.$inferSelect) {
     website: v.website,
     ratingAverage: v.ratingAverage,
     ratingCount: v.ratingCount,
+    isOwner: currentUserId ? v.userId === currentUserId : false,
+    isFavorited: isFavorited ?? false,
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   };
 }
 
 // ==================== ROUTES ====================
+// IMPORTANT: Static routes must come before parameterized routes (/:uuid)
 
 /**
  * GET /venues
- * List/search venues
+ * List/search venues with amenities and favorites filtering
  */
 venues.get(
   '/',
   requireAuth,
   zValidator('query', listVenuesQuerySchema),
   async (c) => {
+    const user = c.get('user')!;
     const query = c.req.valid('query');
-    const { search, venueType, city, state, capacityMin, priceMax, limit, offset, sortBy, sortOrder } = query;
+    const { search, venueType, city, state, country, capacityMin, priceMax, amenities, favoritesOnly, limit, offset, sortBy, sortOrder } = query;
 
     const db = createDbClient(c.env.DB);
 
@@ -142,8 +96,34 @@ venues.get(
     if (venueType) conditions.push(eq(schema.venues.venueType, venueType));
     if (city) conditions.push(eq(schema.venues.city, city));
     if (state) conditions.push(eq(schema.venues.state, state));
+    if (country) conditions.push(eq(schema.venues.country, country));
     if (capacityMin !== undefined) conditions.push(gte(schema.venues.capacityMax, capacityMin));
     if (priceMax !== undefined) conditions.push(lte(schema.venues.pricePerDay, priceMax));
+
+    // Amenities filter: each requested amenity must be present in the JSON array
+    if (amenities) {
+      const amenityList = amenities.split(',').map((a: string) => a.trim()).filter(Boolean);
+      for (const amenity of amenityList) {
+        conditions.push(like(schema.venues.amenities, `%"${amenity}"%`));
+      }
+    }
+
+    // Favorites-only filter: restrict to venues the user has favorited
+    if (favoritesOnly === 'true') {
+      const favRows = await db
+        .select({ venueId: schema.userVenueFavorites.venueId })
+        .from(schema.userVenueFavorites)
+        .where(eq(schema.userVenueFavorites.userId, user.id));
+      const favVenueIds = favRows.map((r) => r.venueId);
+      if (favVenueIds.length === 0) {
+        return c.json({
+          success: true,
+          data: [],
+          meta: { total: 0, limit, offset },
+        });
+      }
+      conditions.push(inArray(schema.venues.id, favVenueIds));
+    }
 
     const [countResult] = await db
       .select({ count: count() })
@@ -168,9 +148,25 @@ venues.get(
       .limit(limit)
       .offset(offset);
 
+    // Batch-check favorites for the returned items
+    let favoritedIds = new Set<number>();
+    if (items.length > 0) {
+      const venueIds = items.map((v) => v.id);
+      const favRows = await db
+        .select({ venueId: schema.userVenueFavorites.venueId })
+        .from(schema.userVenueFavorites)
+        .where(
+          and(
+            eq(schema.userVenueFavorites.userId, user.id),
+            inArray(schema.userVenueFavorites.venueId, venueIds)
+          )
+        );
+      favoritedIds = new Set(favRows.map((r) => r.venueId));
+    }
+
     return c.json({
       success: true,
-      data: items.map(formatVenue),
+      data: items.map((v) => formatVenue(v, favoritedIds.has(v.id), user.id)),
       meta: {
         total: countResult?.count ?? 0,
         limit,
@@ -181,10 +177,234 @@ venues.get(
 );
 
 /**
+ * GET /venues/check-availability
+ * Check if a venue is available on a specific date
+ */
+venues.get(
+  '/check-availability',
+  requireAuth,
+  zValidator('query', checkAvailabilityQuerySchema),
+  async (c) => {
+    const { venueUuid, date } = c.req.valid('query');
+    const db = createDbClient(c.env.DB);
+
+    // Resolve venue by UUID
+    const [venue] = await db
+      .select({ id: schema.venues.id })
+      .from(schema.venues)
+      .where(
+        and(
+          eq(schema.venues.uuid, venueUuid),
+          eq(schema.venues.isActive, true),
+          isNull(schema.venues.deletedAt)
+        )
+      )
+      .limit(1);
+
+    if (!venue) {
+      return c.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Venue not found' } },
+        404
+      );
+    }
+
+    // Check for bookings on that date (not cancelled)
+    const targetDate = new Date(date + 'T00:00:00Z');
+    const targetEnd = new Date(date + 'T23:59:59Z');
+
+    const bookings = await db
+      .select({ id: schema.eventVenues.id })
+      .from(schema.eventVenues)
+      .where(
+        and(
+          eq(schema.eventVenues.venueId, venue.id),
+          ne(schema.eventVenues.status, 'cancelled'),
+          gte(schema.eventVenues.bookingDate, targetDate),
+          lte(schema.eventVenues.bookingDate, targetEnd)
+        )
+      );
+
+    return c.json({
+      success: true,
+      data: {
+        available: bookings.length === 0,
+        conflictCount: bookings.length,
+        date,
+      },
+    });
+  }
+);
+
+/**
+ * GET /venues/favorites
+ * List user's favorite venues
+ */
+venues.get('/favorites', requireAuth, async (c) => {
+  const user = c.get('user')!;
+  const db = createDbClient(c.env.DB);
+
+  const rows = await db
+    .select({ venue: schema.venues })
+    .from(schema.userVenueFavorites)
+    .innerJoin(schema.venues, eq(schema.userVenueFavorites.venueId, schema.venues.id))
+    .where(
+      and(
+        eq(schema.userVenueFavorites.userId, user.id),
+        eq(schema.venues.isActive, true),
+        isNull(schema.venues.deletedAt)
+      )
+    )
+    .orderBy(desc(schema.userVenueFavorites.createdAt));
+
+  return c.json({
+    success: true,
+    data: rows.map((r) => formatVenue(r.venue, true, user.id)),
+  });
+});
+
+/**
+ * POST /venues/favorites/:venueUuid
+ * Toggle favorite on a venue
+ */
+venues.post('/favorites/:venueUuid', requireAuth, async (c) => {
+  const user = c.get('user')!;
+  const venueUuid = c.req.param('venueUuid')!;
+  const db = createDbClient(c.env.DB);
+
+  // Resolve venue
+  const [venue] = await db
+    .select({ id: schema.venues.id })
+    .from(schema.venues)
+    .where(
+      and(
+        eq(schema.venues.uuid, venueUuid),
+        eq(schema.venues.isActive, true),
+        isNull(schema.venues.deletedAt)
+      )
+    )
+    .limit(1);
+
+  if (!venue) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'Venue not found' } },
+      404
+    );
+  }
+
+  // Check if already favorited
+  const [existing] = await db
+    .select({ id: schema.userVenueFavorites.id })
+    .from(schema.userVenueFavorites)
+    .where(
+      and(
+        eq(schema.userVenueFavorites.userId, user.id),
+        eq(schema.userVenueFavorites.venueId, venue.id)
+      )
+    )
+    .limit(1);
+
+  if (existing) {
+    // Unfavorite
+    await db
+      .delete(schema.userVenueFavorites)
+      .where(eq(schema.userVenueFavorites.id, existing.id));
+    return c.json({ success: true, data: { favorited: false } });
+  }
+
+  // Favorite
+  await db
+    .insert(schema.userVenueFavorites)
+    .values({ userId: user.id, venueId: venue.id });
+  return c.json({ success: true, data: { favorited: true } }, 201);
+});
+
+/**
+ * GET /venues/nearby
+ * Find venues near a city or postal code prefix
+ */
+venues.get(
+  '/nearby',
+  requireAuth,
+  zValidator('query', nearbyQuerySchema),
+  async (c) => {
+    const user = c.get('user')!;
+    const { city, postalCode, country, venueType, limit } = c.req.valid('query');
+
+    if (!city && !postalCode) {
+      return c.json({
+        success: true,
+        data: [],
+      });
+    }
+
+    const db = createDbClient(c.env.DB);
+
+    const baseConditions = [
+      eq(schema.venues.isActive, true),
+      isNull(schema.venues.deletedAt),
+    ];
+
+    if (country) {
+      baseConditions.push(eq(schema.venues.country, country));
+    }
+    if (venueType) {
+      baseConditions.push(eq(schema.venues.venueType, venueType));
+    }
+
+    // Match by city (case-insensitive) OR postal code prefix (first 3 chars)
+    const matchConditions = [];
+    if (city) {
+      matchConditions.push(
+        sql`LOWER(${schema.venues.city}) = LOWER(${city})`
+      );
+    }
+    if (postalCode && postalCode.length >= 3) {
+      const prefix = postalCode.substring(0, 3);
+      matchConditions.push(
+        sql`SUBSTR(${schema.venues.postalCode}, 1, 3) = ${prefix}`
+      );
+    }
+
+    if (matchConditions.length === 0) {
+      return c.json({ success: true, data: [] });
+    }
+
+    const items = await db
+      .select()
+      .from(schema.venues)
+      .where(and(...baseConditions, or(...matchConditions)))
+      .orderBy(desc(schema.venues.ratingAverage))
+      .limit(limit);
+
+    // Check favorites for the returned items
+    let favoritedIds = new Set<number>();
+    if (items.length > 0) {
+      const venueIds = items.map((v) => v.id);
+      const favRows = await db
+        .select({ venueId: schema.userVenueFavorites.venueId })
+        .from(schema.userVenueFavorites)
+        .where(
+          and(
+            eq(schema.userVenueFavorites.userId, user.id),
+            inArray(schema.userVenueFavorites.venueId, venueIds)
+          )
+        );
+      favoritedIds = new Set(favRows.map((r) => r.venueId));
+    }
+
+    return c.json({
+      success: true,
+      data: items.map((v) => formatVenue(v, favoritedIds.has(v.id), user.id)),
+    });
+  }
+);
+
+/**
  * GET /venues/:uuid
- * Get venue detail
+ * Get venue detail (with isFavorited)
  */
 venues.get('/:uuid', requireAuth, async (c) => {
+  const user = c.get('user')!;
   const uuid = c.req.param('uuid')!;
   const db = createDbClient(c.env.DB);
 
@@ -207,7 +427,19 @@ venues.get('/:uuid', requireAuth, async (c) => {
     );
   }
 
-  return c.json({ success: true, data: formatVenue(venue) });
+  // Check if favorited
+  const [fav] = await db
+    .select({ id: schema.userVenueFavorites.id })
+    .from(schema.userVenueFavorites)
+    .where(
+      and(
+        eq(schema.userVenueFavorites.userId, user.id),
+        eq(schema.userVenueFavorites.venueId, venue.id)
+      )
+    )
+    .limit(1);
+
+  return c.json({ success: true, data: formatVenue(venue, !!fav, user.id) });
 });
 
 /**
@@ -236,9 +468,9 @@ venues.post(
         venueType: data.venueType ?? null,
         address: data.address,
         city: data.city,
-        state: data.state ?? null,
+        state: data.state,
         country: data.country,
-        postalCode: data.postalCode ?? null,
+        postalCode: data.postalCode,
         capacityMin: data.capacityMin ?? null,
         capacityMax: data.capacityMax ?? null,
         pricePerHour: data.pricePerHour ?? null,
@@ -251,7 +483,7 @@ venues.post(
       })
       .returning();
 
-    return c.json({ success: true, data: formatVenue(newVenue!) }, 201);
+    return c.json({ success: true, data: formatVenue(newVenue!, false, user.id) }, 201);
   }
 );
 
@@ -328,7 +560,7 @@ venues.patch(
       .where(eq(schema.venues.id, existing.id))
       .limit(1);
 
-    return c.json({ success: true, data: formatVenue(fresh!) });
+    return c.json({ success: true, data: formatVenue(fresh!, false, user.id) });
   }
 );
 
