@@ -17,7 +17,7 @@ export const serviceProviders = sqliteTable('service_providers', {
   phone: text('phone'),
   website: text('website'),
   category: text('category', {
-    enum: ['catering', 'photography', 'dj', 'florist', 'venue', 'decoration', 'other']
+    enum: ['catering', 'photography', 'videography', 'dj', 'entertainment', 'florist', 'decoration', 'transportation', 'av_technology', 'hair_makeup', 'other']
   }).notNull(),
   description: text('description'),
   servicesOffered: text('services_offered'), // JSON array of services

@@ -4,10 +4,14 @@ import type { ProviderCategory } from '@/hooks/use-providers';
 const categoryLabels: Record<ProviderCategory, string> = {
   catering: 'Catering',
   photography: 'Photography',
+  videography: 'Videography',
   dj: 'DJ',
+  entertainment: 'Entertainment',
   florist: 'Florist',
-  venue: 'Venue',
   decoration: 'Decoration',
+  transportation: 'Transportation',
+  av_technology: 'AV & Technology',
+  hair_makeup: 'Hair & Makeup',
   other: 'Other',
 };
 

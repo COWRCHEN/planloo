@@ -37,7 +37,7 @@ import {
   type SupportedCountry,
 } from '../../../../shared/schemas/provider';
 
-const PROVIDER_CATEGORIES_ENUM = ['catering', 'photography', 'dj', 'florist', 'venue', 'decoration', 'other'] as const;
+const PROVIDER_CATEGORIES_ENUM = ['catering', 'photography', 'videography', 'dj', 'entertainment', 'florist', 'decoration', 'transportation', 'av_technology', 'hair_makeup', 'other'] as const;
 const PRICE_RANGES_ENUM = ['$$', '$$$', '$$$$'] as const;
 
 const formSchema = z.object({
@@ -62,10 +62,14 @@ type FormData = z.infer<typeof formSchema>;
 const categoryLabels: Record<string, string> = {
   catering: 'Catering',
   photography: 'Photography',
+  videography: 'Videography',
   dj: 'DJ',
+  entertainment: 'Entertainment',
   florist: 'Florist',
-  venue: 'Venue',
   decoration: 'Decoration',
+  transportation: 'Transportation',
+  av_technology: 'AV & Technology',
+  hair_makeup: 'Hair & Makeup',
   other: 'Other',
 };
 

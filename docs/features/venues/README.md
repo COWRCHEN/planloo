@@ -30,6 +30,7 @@ The Venue Management feature provides a full directory for browsing, filtering, 
 2. [API Endpoints](./api.md)
 3. [Frontend Components](./components.md)
 4. [Data Hooks](./hooks.md)
+5. [Service Providers vs Venues](./providers-vs-venues.md)
 
 ---
 
