@@ -6,13 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { VenueStarRating } from './VenueStarRating';
 import { VenueCommentForm } from './VenueCommentForm';
 import { VenueDialog } from './VenueDialog';
 import { VenueReviewsDialog, RatingBreakdownBars } from './VenueReviewsDialog';
-import { useVenue, useVenueAvailability, useDeleteVenue } from '@/hooks/use-providers';
+import { useVenue, useDeleteVenue } from '@/hooks/use-providers';
 
 const venueTypeLabels: Record<string, string> = {
   banquet_hall: 'Banquet Hall',
@@ -28,10 +27,6 @@ function formatCurrency(amount: number | null, currency: string): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 }
 
-function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0]!;
-}
-
 interface VenueDetailViewProps {
   uuid: string;
 }
@@ -39,15 +34,8 @@ interface VenueDetailViewProps {
 function VenueDetailContent({ uuid }: VenueDetailViewProps) {
   const { data: venue, isLoading, error } = useVenue(uuid);
   const deleteVenue = useDeleteVenue();
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [checkDate, setCheckDate] = useState<string | undefined>();
   const [hoverOpen, setHoverOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  const { data: availability, isLoading: availLoading } = useVenueAvailability(
-    uuid,
-    checkDate
-  );
 
   if (isLoading) {
     return (
@@ -285,52 +273,6 @@ function VenueDetailContent({ uuid }: VenueDetailViewProps) {
           </div>
         </div>
       )}
-
-      <Separator />
-
-      {/* Availability check */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium">Check Availability</h3>
-        <div className="flex flex-wrap items-center gap-3">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
-                <svg className="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                {selectedDate ? formatDate(selectedDate) : 'Pick a date'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => {
-                  setSelectedDate(date);
-                  if (date) setCheckDate(formatDate(date));
-                }}
-                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-              />
-            </PopoverContent>
-          </Popover>
-          <Button
-            size="sm"
-            disabled={!selectedDate || availLoading}
-            onClick={() => {
-              if (selectedDate) setCheckDate(formatDate(selectedDate));
-            }}
-          >
-            {availLoading ? 'Checking...' : 'Check'}
-          </Button>
-          {availability && (
-            <span className={`text-sm font-medium ${availability.available ? 'text-green-600' : 'text-destructive'}`}>
-              {availability.available
-                ? `Available on ${availability.date}`
-                : `Not available on ${availability.date} (${availability.conflictCount} booking${availability.conflictCount !== 1 ? 's' : ''})`}
-            </span>
-          )}
-        </div>
-      </div>
 
       <Separator />
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { useSession } from '@/hooks/use-auth';
+import { useEvent } from '@/hooks/use-events';
 import { ProviderCategoryBadge } from './ProviderCategoryBadge';
 import { LinkProviderDialog } from './LinkProviderDialog';
 import { LinkVenueDialog } from './LinkVenueDialog';
@@ -20,6 +24,7 @@ import {
   useUnlinkProvider,
   useUpdateEventVenue,
   useUnlinkVenue,
+  useVenueAvailability,
   BOOKING_STATUSES,
   type BookingStatus,
 } from '@/hooks/use-providers';
@@ -38,14 +43,65 @@ function formatCurrency(amount: number | null, currency: string): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 }
 
+function toDateString(date: Date): string {
+  return date.toISOString().split('T')[0]!;
+}
+
+function VenueAvailabilityCheck({ venueUuid, eventDate }: { venueUuid: string; eventDate: string | null }) {
+  const defaultDate = eventDate ? new Date(eventDate) : undefined;
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate);
+  const [checkDate, setCheckDate] = useState<string | undefined>(
+    defaultDate ? toDateString(defaultDate) : undefined
+  );
+
+  const { data: availability, isLoading } = useVenueAvailability(venueUuid, checkDate);
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <span className="text-xs text-muted-foreground">Availability:</span>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="sm" className="h-7 text-xs">
+            <svg className="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {selectedDate ? toDateString(selectedDate) : 'Pick a date'}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => {
+              setSelectedDate(date);
+              if (date) setCheckDate(toDateString(date));
+            }}
+            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+          />
+        </PopoverContent>
+      </Popover>
+      {isLoading && <span className="text-xs text-muted-foreground">Checking...</span>}
+      {!isLoading && availability && (
+        <span className={`text-xs font-medium ${availability.available ? 'text-green-600' : 'text-destructive'}`}>
+          {availability.available
+            ? 'Available'
+            : `Not available (${availability.conflictCount} booking${availability.conflictCount !== 1 ? 's' : ''})`}
+        </span>
+      )}
+    </div>
+  );
+}
+
 interface EventProvidersViewProps {
   eventUuid: string;
 }
 
 function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
   const { data: session, isLoading: sessionLoading } = useSession();
+  const { data: event } = useEvent(eventUuid);
   const { data: providers, isLoading: providersLoading } = useEventProviders(eventUuid);
   const { data: venues, isLoading: venuesLoading } = useEventVenues(eventUuid);
+  const eventDate = event?.startDate ?? null;
   const updateProviderMutation = useUpdateEventProvider(eventUuid);
   const unlinkProviderMutation = useUnlinkProvider(eventUuid);
   const updateVenueMutation = useUpdateEventVenue(eventUuid);
@@ -229,6 +285,7 @@ function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
                       {link.notes && (
                         <p className="mt-1 text-sm text-muted-foreground">{link.notes}</p>
                       )}
+                      <VenueAvailabilityCheck venueUuid={link.venue.uuid} eventDate={eventDate} />
                     </div>
                     <div className="flex items-center gap-2">
                       <Select
