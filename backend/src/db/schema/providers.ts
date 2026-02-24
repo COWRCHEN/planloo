@@ -200,6 +200,24 @@ export const reviews = sqliteTable('reviews', {
 }));
 
 /**
+ * User Provider Ratings Table
+ * Tracks user 1-5 star ratings for service providers
+ */
+export const userProviderRatings = sqliteTable('user_provider_ratings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  providerId: integer('provider_id').notNull().references(() => serviceProviders.id, { onDelete: 'cascade' }),
+  rating: integer('rating'), // 1-5, nullable
+  comment: text('comment'), // optional free-text comment
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  userIdx: index('idx_upr_user').on(table.userId),
+  providerIdx: index('idx_upr_provider').on(table.providerId),
+  uniqueUserProvider: unique('unique_user_provider_rating').on(table.userId, table.providerId),
+}));
+
+/**
  * User Venue Ratings Table
  * Tracks user 1-5 star ratings for venues
  */

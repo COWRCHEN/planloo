@@ -32,7 +32,8 @@
       "Bash(npm ls:*)",
       "Bash(cd /c/github/cowrchen/planloo/frontend && node investigate-snapback.mjs 2>&1)",
       "Bash(cd /c/github/cowrchen/planloo/frontend && npx playwright install chromium 2>&1)",
-      "Bash(cd /c/github/cowrchen/planloo/frontend && node test-star-rating.mjs 2>&1)"
+      "Bash(cd /c/github/cowrchen/planloo/frontend && node test-star-rating.mjs 2>&1)",
+      "Bash(cd /c/github/cowrchen/planloo/backend && printf \"\\\\n\" | npm run db:generate 2>&1)"
     ]
   }
 }

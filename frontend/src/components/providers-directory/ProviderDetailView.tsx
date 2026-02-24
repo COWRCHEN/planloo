@@ -1,11 +1,17 @@
+import { useState } from 'react';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ProviderCategoryBadge } from './ProviderCategoryBadge';
 import { ProviderDialog } from './ProviderDialog';
+import { ProviderStarRating } from './ProviderStarRating';
+import { ProviderCommentForm } from './ProviderCommentForm';
+import { ProviderReviewsDialog, ProviderRatingBreakdownBars } from './ProviderReviewsDialog';
 import { useProvider, useDeleteProvider } from '@/hooks/use-providers';
 
 interface ProviderDetailViewProps {
@@ -15,6 +21,8 @@ interface ProviderDetailViewProps {
 function ProviderDetailContent({ uuid }: ProviderDetailViewProps) {
   const { data: provider, isLoading, error } = useProvider(uuid);
   const deleteProvider = useDeleteProvider();
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -63,12 +71,51 @@ function ProviderDetailContent({ uuid }: ProviderDetailViewProps) {
             <ProviderCategoryBadge category={provider.category} />
           </div>
           {provider.ratingCount > 0 && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-              {provider.ratingAverage.toFixed(1)} ({provider.ratingCount} {provider.ratingCount === 1 ? 'review' : 'reviews'})
-            </div>
+            <>
+              <Popover open={hoverOpen} onOpenChange={setHoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    onMouseEnter={() => setHoverOpen(true)}
+                    onMouseLeave={() => setHoverOpen(false)}
+                    onClick={() => { setHoverOpen(false); setDialogOpen(true); }}
+                  >
+                    <svg className="h-4 w-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                    {provider.ratingAverage.toFixed(1)} ({provider.ratingCount} {provider.ratingCount === 1 ? 'review' : 'reviews'})
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-56 p-3"
+                  onMouseEnter={() => setHoverOpen(true)}
+                  onMouseLeave={() => setHoverOpen(false)}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  side="bottom"
+                  align="start"
+                >
+                  {provider.ratingBreakdown
+                    ? <ProviderRatingBreakdownBars breakdown={provider.ratingBreakdown} total={provider.ratingCount} />
+                    : <p className="text-xs text-muted-foreground">No breakdown available</p>}
+                  <button
+                    type="button"
+                    className="mt-2 w-full text-xs text-primary hover:underline text-left"
+                    onClick={() => { setHoverOpen(false); setDialogOpen(true); }}
+                  >
+                    See all reviews
+                  </button>
+                </PopoverContent>
+              </Popover>
+              <ProviderReviewsDialog
+                providerUuid={provider.uuid}
+                providerName={provider.businessName}
+                ratingAverage={provider.ratingAverage}
+                ratingCount={provider.ratingCount}
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+              />
+            </>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -107,8 +154,6 @@ function ProviderDetailContent({ uuid }: ProviderDetailViewProps) {
       {provider.description && (
         <p className="text-muted-foreground">{provider.description}</p>
       )}
-
-      <Separator />
 
       {/* Info grid */}
       <div className="grid gap-4 md:grid-cols-2">
@@ -201,6 +246,40 @@ function ProviderDetailContent({ uuid }: ProviderDetailViewProps) {
           </div>
         </div>
       )}
+
+      <Separator />
+
+      {/* User's personal rating & comment */}
+      <Accordion type="single" collapsible>
+        <AccordionItem value="user-review" className="rounded-lg border px-4">
+          <AccordionTrigger className="text-sm font-medium hover:no-underline">
+            <div className="flex items-center gap-3">
+              <span>Your Rating & Notes</span>
+              {provider.userRating ? (
+                <span className="flex items-center gap-1 text-yellow-500 text-xs font-normal">
+                  {'★'.repeat(provider.userRating)}{'☆'.repeat(5 - provider.userRating)}
+                  <span className="text-muted-foreground">{provider.userRating}/5</span>
+                </span>
+              ) : provider.userComment ? (
+                <span className="text-xs text-muted-foreground font-normal truncate max-w-[200px]">
+                  "{provider.userComment}"
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground font-normal">No rating yet</span>
+              )}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-3 pb-4">
+            <div className="flex items-center gap-2">
+              <ProviderStarRating providerUuid={provider.uuid} userRating={provider.userRating} size="md" />
+              {provider.userRating && (
+                <span className="text-sm text-muted-foreground">{provider.userRating} / 5</span>
+              )}
+            </div>
+            <ProviderCommentForm providerUuid={provider.uuid} userComment={provider.userComment} />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }

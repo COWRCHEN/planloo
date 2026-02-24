@@ -236,6 +236,19 @@ export const listVenuesQuerySchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
+export const rateProviderSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+});
+
+export const commentProviderSchema = z.object({
+  comment: z.string().max(2000).nullable(),
+});
+
+export const listProviderReviewsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
 export const rateVenueSchema = z.object({
   rating: z.number().int().min(1).max(5),
 });
@@ -311,6 +324,9 @@ export type ListProvidersQuery = z.infer<typeof listProvidersQuerySchema>;
 export type CreateVenueInput = z.infer<typeof createVenueSchema>;
 export type UpdateVenueInput = z.infer<typeof updateVenueSchema>;
 export type ListVenuesQuery = z.infer<typeof listVenuesQuerySchema>;
+export type RateProviderInput = z.infer<typeof rateProviderSchema>;
+export type CommentProviderInput = z.infer<typeof commentProviderSchema>;
+export type ListProviderReviewsQuery = z.infer<typeof listProviderReviewsQuerySchema>;
 export type RateVenueInput = z.infer<typeof rateVenueSchema>;
 export type CommentVenueInput = z.infer<typeof commentVenueSchema>;
 export type ListVenueReviewsQuery = z.infer<typeof listVenueReviewsQuerySchema>;
@@ -346,6 +362,21 @@ export interface VenueReviewsResponse {
   meta: { total: number; limit: number; offset: number };
 }
 
+export interface ProviderReviewItem {
+  id: number;
+  userName: string;
+  rating: number | null;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProviderReviewsResponse {
+  reviews: ProviderReviewItem[];
+  breakdown: RatingBreakdown;
+  meta: { total: number; limit: number; offset: number };
+}
+
 export interface ServiceProviderResponse {
   uuid: string;
   businessName: string;
@@ -364,6 +395,10 @@ export interface ServiceProviderResponse {
   locationPostalCode: string | null;
   ratingAverage: number;
   ratingCount: number;
+  ratingBreakdown: RatingBreakdown | null;
+  isOwner: boolean;
+  userRating: number | null;
+  userComment: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -39,7 +39,10 @@ export interface ServiceProviderResponse {
   locationPostalCode: string | null;
   ratingAverage: number;
   ratingCount: number;
+  ratingBreakdown: RatingBreakdown | null;
   isOwner: boolean;
+  userRating: number | null;
+  userComment: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,6 +66,21 @@ export interface VenueReviewItem {
 
 export interface VenueReviewsResult {
   reviews: VenueReviewItem[];
+  breakdown: RatingBreakdown;
+  meta: { total: number; limit: number; offset: number };
+}
+
+export interface ProviderReviewItem {
+  id: number;
+  userName: string;
+  rating: number | null;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProviderReviewsResult {
+  reviews: ProviderReviewItem[];
   breakdown: RatingBreakdown;
   meta: { total: number; limit: number; offset: number };
 }
@@ -290,6 +308,7 @@ export const providerKeys = {
   details: () => [...providerKeys.all, 'detail'] as const,
   detail: (uuid: string) => [...providerKeys.details(), uuid] as const,
   nearby: (params?: Partial<NearbyQuery>) => [...providerKeys.all, 'nearby', params] as const,
+  reviews: (uuid: string, params?: { limit?: number; offset?: number }) => [...providerKeys.all, 'reviews', uuid, params] as const,
 };
 
 export const venueKeys = {
@@ -379,6 +398,28 @@ export function useProvider(uuid: string | undefined) {
     },
     enabled: !!uuid,
     staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useProviderReviews(
+  providerUuid: string | undefined,
+  params?: { limit?: number; offset?: number },
+  enabled = false,
+) {
+  return useQuery<ProviderReviewsResult>({
+    queryKey: providerKeys.reviews(providerUuid ?? '', params),
+    queryFn: async (): Promise<ProviderReviewsResult> => {
+      if (!providerUuid) throw new Error('Provider UUID is required');
+      const searchParams = new URLSearchParams();
+      if (params?.limit !== undefined) searchParams.set('limit', params.limit.toString());
+      if (params?.offset !== undefined) searchParams.set('offset', params.offset.toString());
+      const url = `${API_URL}/providers/${providerUuid}/reviews${searchParams.toString() ? `?${searchParams}` : ''}`;
+      const response = await fetch(url, { credentials: 'include' });
+      const result = await handleResponse<ProviderReviewsResult>(response);
+      return result.data!;
+    },
+    enabled: !!providerUuid && enabled,
+    staleTime: 1000 * 60 * 2,
   });
 }
 
@@ -494,6 +535,56 @@ export function useRateVenue() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: venueKeys.lists() });
       queryClient.invalidateQueries({ queryKey: venueKeys.details() });
+    },
+  });
+}
+
+export function useRateProvider() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ providerUuid, rating }: { providerUuid: string; rating: number | null }) => {
+      if (rating === null) {
+        const response = await fetch(`${API_URL}/providers/ratings/${providerUuid}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        const result = await handleResponse<{ rating: null }>(response);
+        return result.data;
+      }
+      const response = await fetch(`${API_URL}/providers/ratings/${providerUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ rating }),
+      });
+      const result = await handleResponse<{ rating: number }>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: providerKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: providerKeys.details() });
+    },
+  });
+}
+
+export function useCommentProvider() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ providerUuid, comment }: { providerUuid: string; comment: string | null }) => {
+      const response = await fetch(`${API_URL}/providers/comments/${providerUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ comment }),
+      });
+      const result = await handleResponse<{ comment: string | null }>(response);
+      return result.data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: providerKeys.detail(variables.providerUuid) });
+      queryClient.invalidateQueries({ queryKey: providerKeys.lists() });
     },
   });
 }
