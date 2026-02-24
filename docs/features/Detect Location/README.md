@@ -6,16 +6,31 @@ Detects the user's approximate location from Cloudflare Workers metadata and off
 
 - **No GPS or browser permission required** — Cloudflare automatically injects `request.cf` (city, state, country, postalCode) into every Worker request.
 - **Opt-in only** — the banner is shown but filters are never applied automatically.
-- **Graceful degradation** — in local dev where `request.cf` is absent, `detected: false` is returned and the banner never appears.
+- **Graceful degradation** — if `request.cf` is absent (non-wrangler runtimes, unit tests), `detected: false` is returned and the banner never appears.
 - **Supported countries**: US, CA (gated by `SUPPORTED_COUNTRIES` from shared schema).
 - **Tiered broadening** — "Show nearby" starts at city precision and automatically widens to state/province, then country, if each tier returns zero results.
+
+## Local Development
+
+Location detection **works in local dev** — no special setup required.
+
+Wrangler (`npm run dev` / `npm run dev:remote`) populates `request.cf` using your machine's real public IP address, queried against Cloudflare's geolocation database. This is the same database used in production, so the detected city/state/country will be accurate to your ISP's registered location.
+
+| Mode | `request.cf` populated? | Source |
+|------|--------------------------|--------|
+| `npm run dev` (local miniflare) | Yes — wrangler v3+ fetches geolocation from Cloudflare API | Your public IP |
+| `npm run dev:remote` (edge runtime) | Yes — Worker runs on Cloudflare edge | Your public IP |
+| Production (deployed Worker) | Yes | End-user's IP |
+| Non-wrangler (unit tests, raw fetch) | No — `cf` is `undefined` | — → `detected: false` |
+
+> If you want to test the `detected: false` path locally, temporarily return early in `location.ts` before the `cf` check, or call the endpoint from a Vitest test (which does not go through wrangler).
 
 ## UX Flow
 
 ```
 Page loads → useUserLocation() fetches /api/v1/location/detect (cached 30 min)
-  ├── CF unavailable (local dev) → { detected: false } → no banner
-  ├── Country not US/CA          → { detected: false } → no banner
+  ├── CF unavailable (non-wrangler runtime) → { detected: false } → no banner
+  ├── Country not US/CA                     → { detected: false } → no banner
   └── City detected (e.g. "Kitchener", "ON", "CA")
         → Banner: "We detected you are near Kitchener. Show providers near you?"
               ├── "Dismiss"    → banner gone, no filter change
