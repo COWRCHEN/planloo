@@ -229,6 +229,7 @@ export interface ListProvidersQuery {
   priceRange?: PriceRange;
   city?: string;
   state?: string;
+  country?: string;
   limit?: number;
   offset?: number;
   sortBy?: 'businessName' | 'ratingAverage' | 'createdAt';
@@ -373,6 +374,7 @@ export function useProviders(filters?: Partial<ListProvidersQuery>) {
       if (filters?.priceRange) params.set('priceRange', filters.priceRange);
       if (filters?.city) params.set('city', filters.city);
       if (filters?.state) params.set('state', filters.state);
+      if (filters?.country) params.set('country', filters.country);
       if (filters?.limit) params.set('limit', filters.limit.toString());
       if (filters?.offset) params.set('offset', filters.offset.toString());
       if (filters?.sortBy) params.set('sortBy', filters.sortBy);

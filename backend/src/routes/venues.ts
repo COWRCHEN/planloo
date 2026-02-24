@@ -131,7 +131,7 @@ venues.get(
       );
     }
     if (venueType) conditions.push(eq(schema.venues.venueType, venueType));
-    if (city) conditions.push(eq(schema.venues.city, city));
+    if (city) conditions.push(sql`LOWER(${schema.venues.city}) = LOWER(${city})`);
     if (state) conditions.push(eq(schema.venues.state, state));
     if (country) conditions.push(eq(schema.venues.country, country));
     if (capacityMin !== undefined) conditions.push(gte(schema.venues.capacityMax, capacityMin));

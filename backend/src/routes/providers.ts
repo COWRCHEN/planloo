@@ -106,7 +106,7 @@ providers.get(
   async (c) => {
     const user = c.get('user')!;
     const query = c.req.valid('query');
-    const { search, category, priceRange, city, state, limit, offset, sortBy, sortOrder } = query;
+    const { search, category, priceRange, city, state, country, limit, offset, sortBy, sortOrder } = query;
 
     const db = createDbClient(c.env.DB);
 
@@ -125,8 +125,9 @@ providers.get(
     }
     if (category) conditions.push(eq(schema.serviceProviders.category, category));
     if (priceRange) conditions.push(eq(schema.serviceProviders.priceRange, priceRange));
-    if (city) conditions.push(eq(schema.serviceProviders.locationCity, city));
+    if (city) conditions.push(sql`LOWER(${schema.serviceProviders.locationCity}) = LOWER(${city})`);
     if (state) conditions.push(eq(schema.serviceProviders.locationState, state));
+    if (country) conditions.push(eq(schema.serviceProviders.locationCountry, country));
 
     const [countResult] = await db
       .select({ count: count() })

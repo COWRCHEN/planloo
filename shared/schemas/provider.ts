@@ -169,6 +169,7 @@ export const listProvidersQuerySchema = z.object({
   priceRange: z.enum(PRICE_RANGES).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(100).optional(),
+  country: z.enum(SUPPORTED_COUNTRIES).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   sortBy: z.enum(['businessName', 'ratingAverage', 'createdAt']).default('createdAt'),

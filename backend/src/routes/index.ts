@@ -29,6 +29,7 @@ import floorPlanRoutes from './floor-plans';
 import objectTemplateRoutes from './object-templates';
 import taskRoutes from './tasks';
 import dashboard from './dashboard';
+import location from './location';
 
 const api = new Hono<HonoEnv>();
 
@@ -440,6 +441,7 @@ api.route('/events/:eventUuid/tasks', taskRoutes);
 api.route('/events/:eventUuid/floor-plans', floorPlanRoutes);
 api.route('/events/:eventUuid/floor-plans/:planUuid/object-templates', objectTemplateRoutes);
 api.route('/dashboard', dashboard);
+api.route('/location', location);
 api.route('/rsvp', rsvp); // Public routes (auth middleware is applied but not required)
 api.route('/admin', admin);
 

@@ -13,6 +13,7 @@ import {
   PRICE_RANGES,
   type ListProvidersQuery,
 } from '@/hooks/use-providers';
+import { SUPPORTED_COUNTRIES } from '../../../../shared/schemas/provider';
 
 const categoryLabels: Record<string, string> = {
   catering: 'Catering',
@@ -59,7 +60,7 @@ export function ProviderFilters({ filters, onChange }: ProviderFiltersProps) {
     return () => clearTimeout(timeout);
   }, [searchInput]);
 
-  const hasFilters = filters.search || filters.category || filters.priceRange;
+  const hasFilters = filters.search || filters.category || filters.priceRange || filters.country;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -100,6 +101,24 @@ export function ProviderFilters({ filters, onChange }: ProviderFiltersProps) {
           <SelectItem value="all">Any Price</SelectItem>
           {PRICE_RANGES.map((pr) => (
             <SelectItem key={pr} value={pr}>{pr}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={filters.country ?? 'all'}
+        onValueChange={(val) =>
+          onChange(buildFilters(filters, { country: val === 'all' ? undefined : val, offset: 0 }))
+        }
+      >
+        <SelectTrigger className="w-36">
+          <SelectValue placeholder="Country" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Countries</SelectItem>
+          {SUPPORTED_COUNTRIES.map((c) => (
+            <SelectItem key={c} value={c}>
+              {c === 'US' ? 'United States' : 'Canada'}
+            </SelectItem>
           ))}
         </SelectContent>
       </Select>

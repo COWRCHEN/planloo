@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +13,8 @@ import { VenueFilters } from './VenueFilters';
 import { VenueDialog } from './VenueDialog';
 import { VenueCompareView } from './VenueCompareView';
 import { useVenues, type ListVenuesQuery, type VenueResponse } from '@/hooks/use-providers';
+import { useUserLocation } from '@/hooks/use-location';
+import { NearYouBanner } from './NearYouBanner';
 
 interface VenueListProps {
   onSelectVenue?: (venue: VenueResponse) => void;
@@ -27,6 +29,11 @@ export function VenueList({ onSelectVenue }: VenueListProps) {
   const [selectedForCompare, setSelectedForCompare] = useState<Set<string>>(new Set());
   const [showCompareDialog, setShowCompareDialog] = useState(false);
 
+  type NearbyTier = 'city' | 'state' | 'country';
+  const nearbyLocationRef = useRef<{ city: string | null; state: string | null; country: string } | null>(null);
+  const [nearbyTier, setNearbyTier] = useState<NearbyTier | null>(null);
+
+  const { data: locationData } = useUserLocation();
   const { data, isLoading, error } = useVenues(filters);
   const items = data?.items ?? [];
   const total = data?.meta?.total ?? 0;
@@ -57,6 +64,30 @@ export function VenueList({ onSelectVenue }: VenueListProps) {
       setShowCompareDialog(false);
     }
   };
+
+  // Auto-broaden: city → state → country when each tier returns 0 results
+  useEffect(() => {
+    if (!nearbyTier || isLoading) return;
+    if ((data?.meta?.total ?? 0) > 0) return;
+    const loc = nearbyLocationRef.current;
+    if (!loc) return;
+
+    if (nearbyTier === 'city') {
+      if (loc.state) {
+        setNearbyTier('state');
+        setFilters((prev) => ({ ...prev, city: undefined, state: loc.state!, country: loc.country, offset: 0 }));
+      } else {
+        setNearbyTier('country');
+        setFilters((prev) => ({ ...prev, city: undefined, country: loc.country, offset: 0 }));
+      }
+    } else if (nearbyTier === 'state') {
+      setNearbyTier('country');
+      setFilters((prev) => ({ ...prev, state: undefined, country: loc.country, offset: 0 }));
+    }
+  }, [data, isLoading, nearbyTier]);
+
+  const detected = locationData?.detected ? locationData : null;
+  const showBanner = !!detected && !nearbyTier;
 
   if (error) {
     return (
@@ -89,6 +120,28 @@ export function VenueList({ onSelectVenue }: VenueListProps) {
           <VenueDialog />
         </div>
       </div>
+
+      {showBanner && (
+        <NearYouBanner
+          city={detected.city}
+          state={detected.state}
+          postalCode={detected.postalCode}
+          country={detected.country}
+          onApply={({ city, state, country }) => {
+            nearbyLocationRef.current = { city: city ?? null, state: state ?? null, country };
+            if (city) {
+              setNearbyTier('city');
+              setFilters((prev) => ({ ...prev, city, state: undefined, country, offset: 0 }));
+            } else if (state) {
+              setNearbyTier('state');
+              setFilters((prev) => ({ ...prev, city: undefined, state, country, offset: 0 }));
+            } else {
+              setNearbyTier('country');
+              setFilters((prev) => ({ ...prev, city: undefined, state: undefined, country, offset: 0 }));
+            }
+          }}
+        />
+      )}
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
