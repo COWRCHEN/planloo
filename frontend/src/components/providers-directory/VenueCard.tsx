@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { VenueStarRating } from './VenueStarRating';
 import { VenueDialog } from './VenueDialog';
 import type { VenueResponse } from '@/hooks/use-providers';
 
@@ -45,12 +44,9 @@ export function VenueCard({ venue, onSelect, showCheckbox, isChecked, onToggleCh
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base leading-snug">{venue.name}</CardTitle>
-          <div className="flex items-center gap-1">
-            <VenueStarRating venueUuid={venue.uuid} userRating={venue.userRating} />
-            {venue.venueType && (
-              <Badge variant="outline">{venueTypeLabels[venue.venueType] ?? venue.venueType}</Badge>
-            )}
-          </div>
+          {venue.venueType && (
+            <Badge variant="outline">{venueTypeLabels[venue.venueType] ?? venue.venueType}</Badge>
+          )}
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3 pt-0">
@@ -102,11 +98,11 @@ export function VenueCard({ venue, onSelect, showCheckbox, isChecked, onToggleCh
             </div>
           )}
           {venue.ratingCount > 0 && (
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-              {venue.ratingAverage.toFixed(1)} ({venue.ratingCount})
+            <div className="flex items-center gap-1.5">
+              <span className="flex items-center gap-0.5 text-yellow-500">
+                {'★'.repeat(Math.round(venue.ratingAverage))}{'☆'.repeat(5 - Math.round(venue.ratingAverage))}
+              </span>
+              <span className="text-muted-foreground">{venue.ratingAverage.toFixed(1)} ({venue.ratingCount})</span>
             </div>
           )}
         </div>
