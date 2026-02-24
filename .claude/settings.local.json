@@ -29,7 +29,10 @@
       "Bash(npm audit:*)",
       "Bash(git -C /c/github/cowrchen/planloo log --all --full-history --source -- \"*/.env\" \"*/.env.local\")",
       "Bash(ls:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(cd /c/github/cowrchen/planloo/frontend && node investigate-snapback.mjs 2>&1)",
+      "Bash(cd /c/github/cowrchen/planloo/frontend && npx playwright install chromium 2>&1)",
+      "Bash(cd /c/github/cowrchen/planloo/frontend && node test-star-rating.mjs 2>&1)"
     ]
   }
 }

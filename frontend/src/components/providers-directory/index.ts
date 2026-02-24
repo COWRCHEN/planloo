@@ -20,5 +20,7 @@ export { BookingStatusBadge } from './BookingStatusBadge';
 export { ProviderCategoryBadge } from './ProviderCategoryBadge';
 export { ProviderDetailView } from './ProviderDetailView';
 export { VenueDetailView } from './VenueDetailView';
-export { VenueFavoriteButton } from './VenueFavoriteButton';
+export { VenueStarRating } from './VenueStarRating';
+export { VenueCommentForm } from './VenueCommentForm';
 export { VenueCompareView } from './VenueCompareView';
+export { VenueReviewsDialog, RatingBreakdownBars } from './VenueReviewsDialog';

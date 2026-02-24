@@ -200,16 +200,19 @@ export const reviews = sqliteTable('reviews', {
 }));
 
 /**
- * User Venue Favorites Table
- * Tracks which venues a user has favorited
+ * User Venue Ratings Table
+ * Tracks user 1-5 star ratings for venues
  */
-export const userVenueFavorites = sqliteTable('user_venue_favorites', {
+export const userVenueRatings = sqliteTable('user_venue_ratings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   venueId: integer('venue_id').notNull().references(() => venues.id, { onDelete: 'cascade' }),
+  rating: integer('rating'), // 1-5, nullable (user may comment without rating)
+  comment: text('comment'), // optional free-text comment
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
-  userIdx: index('idx_uvf_user').on(table.userId),
-  venueIdx: index('idx_uvf_venue').on(table.venueId),
-  uniqueUserVenue: unique('unique_user_venue_favorite').on(table.userId, table.venueId),
+  userIdx: index('idx_uvr_user').on(table.userId),
+  venueIdx: index('idx_uvr_venue').on(table.venueId),
+  uniqueUserVenue: unique('unique_user_venue_rating').on(table.userId, table.venueId),
 }));

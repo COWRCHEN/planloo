@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { VenueFavoriteButton } from './VenueFavoriteButton';
+import { VenueStarRating } from './VenueStarRating';
 import { VenueDialog } from './VenueDialog';
 import type { VenueResponse } from '@/hooks/use-providers';
 
@@ -46,7 +46,7 @@ export function VenueCard({ venue, onSelect, showCheckbox, isChecked, onToggleCh
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base leading-snug">{venue.name}</CardTitle>
           <div className="flex items-center gap-1">
-            <VenueFavoriteButton venueUuid={venue.uuid} isFavorited={venue.isFavorited} />
+            <VenueStarRating venueUuid={venue.uuid} userRating={venue.userRating} />
             {venue.venueType && (
               <Badge variant="outline">{venueTypeLabels[venue.venueType] ?? venue.venueType}</Badge>
             )}

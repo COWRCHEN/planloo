@@ -9,7 +9,7 @@ import {
   birthdayGuestDetails,
 } from './guestDetails';
 import { budgetItems, payments } from './budget';
-import { serviceProviders, venues, eventServiceProviders, eventVenues, reviews, userVenueFavorites } from './providers';
+import { serviceProviders, venues, eventServiceProviders, eventVenues, reviews, userVenueRatings } from './providers';
 import { auditLog, impersonationSession } from './admin';
 import { guestAudit } from './guestAudit';
 import { emailLog } from './notifications';
@@ -35,7 +35,7 @@ export const userRelations = relations(user, ({ many }) => ({
   impersonationSessionsAsAdmin: many(impersonationSession, { relationName: 'impersonationAdmin' }),
   impersonationSessionsAsTarget: many(impersonationSession, { relationName: 'impersonationTarget' }),
   emailLogs: many(emailLog),
-  venueFavorites: many(userVenueFavorites),
+  venueRatings: many(userVenueRatings),
 }));
 
 /**
@@ -276,7 +276,7 @@ export const venuesRelations = relations(venues, ({ one, many }) => ({
     references: [user.id]
   }),
   eventBookings: many(eventVenues),
-  favorites: many(userVenueFavorites),
+  ratings: many(userVenueRatings),
 }));
 
 /**
@@ -450,15 +450,15 @@ export const emailLogRelations = relations(emailLog, ({ one }) => ({
 }));
 
 /**
- * User Venue Favorites Relations
+ * User Venue Ratings Relations
  */
-export const userVenueFavoritesRelations = relations(userVenueFavorites, ({ one }) => ({
+export const userVenueRatingsRelations = relations(userVenueRatings, ({ one }) => ({
   user: one(user, {
-    fields: [userVenueFavorites.userId],
+    fields: [userVenueRatings.userId],
     references: [user.id]
   }),
   venue: one(venues, {
-    fields: [userVenueFavorites.venueId],
+    fields: [userVenueRatings.venueId],
     references: [venues.id]
   }),
 }));

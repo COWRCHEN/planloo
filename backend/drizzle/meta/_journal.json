@@ -176,6 +176,20 @@
       "when": 1772100000000,
       "tag": "0024_provider_address_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1772200000000,
+      "tag": "0025_venue_ratings",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1772300000000,
+      "tag": "0026_venue_rating_comment",
+      "breakpoints": true
     }
   ]
 }

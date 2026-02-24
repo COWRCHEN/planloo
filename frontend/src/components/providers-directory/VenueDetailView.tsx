@@ -7,8 +7,11 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { VenueFavoriteButton } from './VenueFavoriteButton';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { VenueStarRating } from './VenueStarRating';
+import { VenueCommentForm } from './VenueCommentForm';
 import { VenueDialog } from './VenueDialog';
+import { VenueReviewsDialog, RatingBreakdownBars } from './VenueReviewsDialog';
 import { useVenue, useVenueAvailability, useDeleteVenue } from '@/hooks/use-providers';
 
 const venueTypeLabels: Record<string, string> = {
@@ -38,6 +41,8 @@ function VenueDetailContent({ uuid }: VenueDetailViewProps) {
   const deleteVenue = useDeleteVenue();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [checkDate, setCheckDate] = useState<string | undefined>();
+  const [hoverOpen, setHoverOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data: availability, isLoading: availLoading } = useVenueAvailability(
     uuid,
@@ -91,16 +96,54 @@ function VenueDetailContent({ uuid }: VenueDetailViewProps) {
             )}
           </div>
           {venue.ratingCount > 0 && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-              {venue.ratingAverage.toFixed(1)} ({venue.ratingCount} {venue.ratingCount === 1 ? 'review' : 'reviews'})
-            </div>
+            <>
+              <Popover open={hoverOpen} onOpenChange={setHoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    onMouseEnter={() => setHoverOpen(true)}
+                    onMouseLeave={() => setHoverOpen(false)}
+                    onClick={() => { setHoverOpen(false); setDialogOpen(true); }}
+                  >
+                    <svg className="h-4 w-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                    {venue.ratingAverage.toFixed(1)} ({venue.ratingCount} {venue.ratingCount === 1 ? 'review' : 'reviews'})
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-56 p-3"
+                  onMouseEnter={() => setHoverOpen(true)}
+                  onMouseLeave={() => setHoverOpen(false)}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  side="bottom"
+                  align="start"
+                >
+                  {venue.ratingBreakdown
+                    ? <RatingBreakdownBars breakdown={venue.ratingBreakdown} total={venue.ratingCount} />
+                    : <p className="text-xs text-muted-foreground">No breakdown available</p>}
+                  <button
+                    type="button"
+                    className="mt-2 w-full text-xs text-primary hover:underline text-left"
+                    onClick={() => { setHoverOpen(false); setDialogOpen(true); }}
+                  >
+                    See all reviews
+                  </button>
+                </PopoverContent>
+              </Popover>
+              <VenueReviewsDialog
+                venueUuid={venue.uuid}
+                venueName={venue.name}
+                ratingAverage={venue.ratingAverage}
+                ratingCount={venue.ratingCount}
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+              />
+            </>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <VenueFavoriteButton venueUuid={venue.uuid} isFavorited={venue.isFavorited} />
           {venue.isOwner && (
             <>
               <VenueDialog
@@ -136,6 +179,38 @@ function VenueDetailContent({ uuid }: VenueDetailViewProps) {
       {venue.description && (
         <p className="text-muted-foreground">{venue.description}</p>
       )}
+
+      {/* User's personal rating & comment */}
+      <Accordion type="single" collapsible>
+        <AccordionItem value="user-review" className="rounded-lg border px-4">
+          <AccordionTrigger className="text-sm font-medium hover:no-underline">
+            <div className="flex items-center gap-3">
+              <span>Your Rating & Notes</span>
+              {venue.userRating ? (
+                <span className="flex items-center gap-1 text-yellow-500 text-xs font-normal">
+                  {'★'.repeat(venue.userRating)}{'☆'.repeat(5 - venue.userRating)}
+                  <span className="text-muted-foreground">{venue.userRating}/5</span>
+                </span>
+              ) : venue.userComment ? (
+                <span className="text-xs text-muted-foreground font-normal truncate max-w-[200px]">
+                  "{venue.userComment}"
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground font-normal">No rating yet</span>
+              )}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-3 pb-4">
+            <div className="flex items-center gap-2">
+              <VenueStarRating venueUuid={venue.uuid} userRating={venue.userRating} size="md" />
+              {venue.userRating && (
+                <span className="text-sm text-muted-foreground">{venue.userRating} / 5</span>
+              )}
+            </div>
+            <VenueCommentForm venueUuid={venue.uuid} userComment={venue.userComment} />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <Separator />
 

@@ -44,6 +44,29 @@ export interface ServiceProviderResponse {
   updatedAt: string;
 }
 
+export interface RatingBreakdown {
+  1: number;
+  2: number;
+  3: number;
+  4: number;
+  5: number;
+}
+
+export interface VenueReviewItem {
+  id: number;
+  userName: string;
+  rating: number | null;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VenueReviewsResult {
+  reviews: VenueReviewItem[];
+  breakdown: RatingBreakdown;
+  meta: { total: number; limit: number; offset: number };
+}
+
 export interface VenueResponse {
   uuid: string;
   name: string;
@@ -65,8 +88,10 @@ export interface VenueResponse {
   website: string | null;
   ratingAverage: number;
   ratingCount: number;
+  ratingBreakdown: RatingBreakdown | null;
   isOwner: boolean;
-  isFavorited?: boolean;
+  userRating: number | null;
+  userComment: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -201,7 +226,6 @@ export interface ListVenuesQuery {
   capacityMin?: number;
   priceMax?: number;
   amenities?: string;
-  favoritesOnly?: boolean;
   limit?: number;
   offset?: number;
   sortBy?: 'name' | 'ratingAverage' | 'capacityMax' | 'pricePerDay' | 'createdAt';
@@ -274,9 +298,9 @@ export const venueKeys = {
   list: (filters?: Partial<ListVenuesQuery>) => [...venueKeys.lists(), filters] as const,
   details: () => [...venueKeys.all, 'detail'] as const,
   detail: (uuid: string) => [...venueKeys.details(), uuid] as const,
-  favorites: () => [...venueKeys.all, 'favorites'] as const,
   availability: (uuid: string, date: string) => [...venueKeys.all, 'availability', uuid, date] as const,
   nearby: (params?: Partial<NearbyQuery>) => [...venueKeys.all, 'nearby', params] as const,
+  reviews: (uuid: string, params?: { limit?: number; offset?: number }) => [...venueKeys.all, 'reviews', uuid, params] as const,
 };
 
 export const eventProviderKeys = {
@@ -378,7 +402,6 @@ export function useVenues(filters?: Partial<ListVenuesQuery>) {
       if (filters?.capacityMin !== undefined) params.set('capacityMin', filters.capacityMin.toString());
       if (filters?.priceMax !== undefined) params.set('priceMax', filters.priceMax.toString());
       if (filters?.amenities) params.set('amenities', filters.amenities);
-      if (filters?.favoritesOnly) params.set('favoritesOnly', 'true');
       if (filters?.limit) params.set('limit', filters.limit.toString());
       if (filters?.offset) params.set('offset', filters.offset.toString());
       if (filters?.sortBy) params.set('sortBy', filters.sortBy);
@@ -407,7 +430,29 @@ export function useVenue(uuid: string | undefined) {
   });
 }
 
-// ==================== VENUE AVAILABILITY + FAVORITES HOOKS ====================
+export function useVenueReviews(
+  venueUuid: string | undefined,
+  params?: { limit?: number; offset?: number },
+  enabled = false,
+) {
+  return useQuery<VenueReviewsResult>({
+    queryKey: venueKeys.reviews(venueUuid ?? '', params),
+    queryFn: async (): Promise<VenueReviewsResult> => {
+      if (!venueUuid) throw new Error('Venue UUID is required');
+      const searchParams = new URLSearchParams();
+      if (params?.limit !== undefined) searchParams.set('limit', params.limit.toString());
+      if (params?.offset !== undefined) searchParams.set('offset', params.offset.toString());
+      const url = `${API_URL}/venues/${venueUuid}/reviews${searchParams.toString() ? `?${searchParams}` : ''}`;
+      const response = await fetch(url, { credentials: 'include' });
+      const result = await handleResponse<VenueReviewsResult>(response);
+      return result.data!;
+    },
+    enabled: !!venueUuid && enabled,
+    staleTime: 1000 * 60 * 2,
+  });
+}
+
+// ==================== VENUE AVAILABILITY + RATINGS HOOKS ====================
 
 export function useVenueAvailability(venueUuid: string | undefined, date: string | undefined) {
   return useQuery<AvailabilityCheckResult | undefined>({
@@ -424,34 +469,52 @@ export function useVenueAvailability(venueUuid: string | undefined, date: string
   });
 }
 
-export function useFavoriteVenues() {
-  return useQuery<VenueResponse[]>({
-    queryKey: venueKeys.favorites(),
-    queryFn: async (): Promise<VenueResponse[]> => {
-      const response = await fetch(`${API_URL}/venues/favorites`, { credentials: 'include' });
-      const result = await handleResponse<VenueResponse[]>(response);
-      return result.data ?? [];
-    },
-    staleTime: 1000 * 60 * 5,
-  });
-}
-
-export function useToggleFavorite() {
+export function useRateVenue() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (venueUuid: string) => {
-      const response = await fetch(`${API_URL}/venues/favorites/${venueUuid}`, {
-        method: 'POST',
+    mutationFn: async ({ venueUuid, rating }: { venueUuid: string; rating: number | null }) => {
+      if (rating === null) {
+        const response = await fetch(`${API_URL}/venues/ratings/${venueUuid}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        const result = await handleResponse<{ rating: null }>(response);
+        return result.data;
+      }
+      const response = await fetch(`${API_URL}/venues/ratings/${venueUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({ rating }),
       });
-      const result = await handleResponse<{ favorited: boolean }>(response);
+      const result = await handleResponse<{ rating: number }>(response);
       return result.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: venueKeys.lists() });
       queryClient.invalidateQueries({ queryKey: venueKeys.details() });
-      queryClient.invalidateQueries({ queryKey: venueKeys.favorites() });
+    },
+  });
+}
+
+export function useCommentVenue() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ venueUuid, comment }: { venueUuid: string; comment: string | null }) => {
+      const response = await fetch(`${API_URL}/venues/comments/${venueUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ comment }),
+      });
+      const result = await handleResponse<{ comment: string | null }>(response);
+      return result.data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: venueKeys.detail(variables.venueUuid) });
+      queryClient.invalidateQueries({ queryKey: venueKeys.lists() });
     },
   });
 }

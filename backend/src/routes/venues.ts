@@ -2,7 +2,7 @@
  * Venue Routes
  *
  * CRUD endpoints for the global venue directory.
- * Includes amenities filtering, availability check, favorites, and nearby search.
+ * Includes amenities filtering, availability check, star ratings, and nearby search.
  */
 
 import { Hono } from 'hono';
@@ -10,7 +10,7 @@ import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and, isNull, desc, asc, like, or, count, lte, gte, inArray, ne, sql } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, desc, asc, like, or, count, lte, gte, inArray, ne, sql } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import {
   createVenueSchema,
@@ -18,6 +18,10 @@ import {
   listVenuesQuerySchema,
   checkAvailabilityQuerySchema,
   nearbyQuerySchema,
+  rateVenueSchema,
+  commentVenueSchema,
+  listVenueReviewsQuerySchema,
+  type RatingBreakdown,
 } from '../../../shared/schemas/provider';
 
 const venues = new Hono<HonoEnv>();
@@ -33,7 +37,13 @@ function parseJson(raw: string | null): string[] | null {
   }
 }
 
-function formatVenue(v: typeof schema.venues.$inferSelect, isFavorited?: boolean, currentUserId?: string) {
+function formatVenue(
+  v: typeof schema.venues.$inferSelect,
+  userRating?: number | null,
+  userComment?: string | null,
+  currentUserId?: string,
+  ratingBreakdown?: RatingBreakdown | null,
+) {
   return {
     uuid: v.uuid,
     name: v.name,
@@ -55,11 +65,38 @@ function formatVenue(v: typeof schema.venues.$inferSelect, isFavorited?: boolean
     website: v.website,
     ratingAverage: v.ratingAverage,
     ratingCount: v.ratingCount,
+    ratingBreakdown: ratingBreakdown ?? null,
     isOwner: currentUserId ? v.userId === currentUserId : false,
-    isFavorited: isFavorited ?? false,
+    userRating: userRating ?? null,
+    userComment: userComment ?? null,
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   };
+}
+
+/** Recalculate venue aggregate rating from rows that have a non-null rating */
+async function recalculateVenueRating(db: ReturnType<typeof createDbClient>, venueId: number) {
+  const [agg] = await db
+    .select({
+      avg: sql<number>`AVG(${schema.userVenueRatings.rating})`,
+      cnt: count(),
+    })
+    .from(schema.userVenueRatings)
+    .where(
+      and(
+        eq(schema.userVenueRatings.venueId, venueId),
+        isNotNull(schema.userVenueRatings.rating),
+      )
+    );
+
+  await db
+    .update(schema.venues)
+    .set({
+      ratingAverage: agg?.cnt ? Number(agg.avg) : 0,
+      ratingCount: agg?.cnt ?? 0,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.venues.id, venueId));
 }
 
 // ==================== ROUTES ====================
@@ -67,7 +104,7 @@ function formatVenue(v: typeof schema.venues.$inferSelect, isFavorited?: boolean
 
 /**
  * GET /venues
- * List/search venues with amenities and favorites filtering
+ * List/search venues with amenities filtering
  */
 venues.get(
   '/',
@@ -76,7 +113,7 @@ venues.get(
   async (c) => {
     const user = c.get('user')!;
     const query = c.req.valid('query');
-    const { search, venueType, city, state, country, capacityMin, priceMax, amenities, favoritesOnly, limit, offset, sortBy, sortOrder } = query;
+    const { search, venueType, city, state, country, capacityMin, priceMax, amenities, limit, offset, sortBy, sortOrder } = query;
 
     const db = createDbClient(c.env.DB);
 
@@ -108,23 +145,6 @@ venues.get(
       }
     }
 
-    // Favorites-only filter: restrict to venues the user has favorited
-    if (favoritesOnly === 'true') {
-      const favRows = await db
-        .select({ venueId: schema.userVenueFavorites.venueId })
-        .from(schema.userVenueFavorites)
-        .where(eq(schema.userVenueFavorites.userId, user.id));
-      const favVenueIds = favRows.map((r) => r.venueId);
-      if (favVenueIds.length === 0) {
-        return c.json({
-          success: true,
-          data: [],
-          meta: { total: 0, limit, offset },
-        });
-      }
-      conditions.push(inArray(schema.venues.id, favVenueIds));
-    }
-
     const [countResult] = await db
       .select({ count: count() })
       .from(schema.venues)
@@ -148,25 +168,32 @@ venues.get(
       .limit(limit)
       .offset(offset);
 
-    // Batch-check favorites for the returned items
-    let favoritedIds = new Set<number>();
+    // Batch-check ratings + comments for the returned items
+    let userDataMap = new Map<number, { rating: number | null; comment: string | null }>();
     if (items.length > 0) {
       const venueIds = items.map((v) => v.id);
-      const favRows = await db
-        .select({ venueId: schema.userVenueFavorites.venueId })
-        .from(schema.userVenueFavorites)
+      const rows = await db
+        .select({
+          venueId: schema.userVenueRatings.venueId,
+          rating: schema.userVenueRatings.rating,
+          comment: schema.userVenueRatings.comment,
+        })
+        .from(schema.userVenueRatings)
         .where(
           and(
-            eq(schema.userVenueFavorites.userId, user.id),
-            inArray(schema.userVenueFavorites.venueId, venueIds)
+            eq(schema.userVenueRatings.userId, user.id),
+            inArray(schema.userVenueRatings.venueId, venueIds)
           )
         );
-      favoritedIds = new Set(favRows.map((r) => r.venueId));
+      userDataMap = new Map(rows.map((r) => [r.venueId, { rating: r.rating, comment: r.comment }]));
     }
 
     return c.json({
       success: true,
-      data: items.map((v) => formatVenue(v, favoritedIds.has(v.id), user.id)),
+      data: items.map((v) => {
+        const ud = userDataMap.get(v.id);
+        return formatVenue(v, ud?.rating ?? null, ud?.comment ?? null, user.id);
+      }),
       meta: {
         total: countResult?.count ?? 0,
         limit,
@@ -236,87 +263,162 @@ venues.get(
 );
 
 /**
- * GET /venues/favorites
- * List user's favorite venues
+ * PUT /venues/ratings/:venueUuid
+ * Upsert a user's star rating (1-5) for a venue
  */
-venues.get('/favorites', requireAuth, async (c) => {
-  const user = c.get('user')!;
-  const db = createDbClient(c.env.DB);
+venues.put(
+  '/ratings/:venueUuid',
+  requireAuth,
+  zValidator('json', rateVenueSchema),
+  async (c) => {
+    const user = c.get('user')!;
+    const venueUuid = c.req.param('venueUuid')!;
+    const { rating } = c.req.valid('json');
+    const db = createDbClient(c.env.DB);
 
-  const rows = await db
-    .select({ venue: schema.venues })
-    .from(schema.userVenueFavorites)
-    .innerJoin(schema.venues, eq(schema.userVenueFavorites.venueId, schema.venues.id))
-    .where(
-      and(
-        eq(schema.userVenueFavorites.userId, user.id),
-        eq(schema.venues.isActive, true),
-        isNull(schema.venues.deletedAt)
+    // Resolve venue
+    const [venue] = await db
+      .select({ id: schema.venues.id })
+      .from(schema.venues)
+      .where(
+        and(
+          eq(schema.venues.uuid, venueUuid),
+          eq(schema.venues.isActive, true),
+          isNull(schema.venues.deletedAt)
+        )
       )
-    )
-    .orderBy(desc(schema.userVenueFavorites.createdAt));
+      .limit(1);
 
-  return c.json({
-    success: true,
-    data: rows.map((r) => formatVenue(r.venue, true, user.id)),
-  });
-});
+    if (!venue) {
+      return c.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Venue not found' } },
+        404
+      );
+    }
+
+    // Upsert rating
+    await db
+      .insert(schema.userVenueRatings)
+      .values({ userId: user.id, venueId: venue.id, rating })
+      .onConflictDoUpdate({
+        target: [schema.userVenueRatings.userId, schema.userVenueRatings.venueId],
+        set: { rating, updatedAt: new Date() },
+      });
+
+    // Recalculate venue aggregate
+    await recalculateVenueRating(db, venue.id);
+
+    return c.json({ success: true, data: { rating } });
+  }
+);
 
 /**
- * POST /venues/favorites/:venueUuid
- * Toggle favorite on a venue
+ * DELETE /venues/ratings/:venueUuid
+ * Remove a user's rating for a venue
  */
-venues.post('/favorites/:venueUuid', requireAuth, async (c) => {
-  const user = c.get('user')!;
-  const venueUuid = c.req.param('venueUuid')!;
-  const db = createDbClient(c.env.DB);
+venues.delete(
+  '/ratings/:venueUuid',
+  requireAuth,
+  async (c) => {
+    const user = c.get('user')!;
+    const venueUuid = c.req.param('venueUuid')!;
+    const db = createDbClient(c.env.DB);
 
-  // Resolve venue
-  const [venue] = await db
-    .select({ id: schema.venues.id })
-    .from(schema.venues)
-    .where(
-      and(
-        eq(schema.venues.uuid, venueUuid),
-        eq(schema.venues.isActive, true),
-        isNull(schema.venues.deletedAt)
+    // Resolve venue
+    const [venue] = await db
+      .select({ id: schema.venues.id })
+      .from(schema.venues)
+      .where(
+        and(
+          eq(schema.venues.uuid, venueUuid),
+          eq(schema.venues.isActive, true),
+          isNull(schema.venues.deletedAt)
+        )
       )
-    )
-    .limit(1);
+      .limit(1);
 
-  if (!venue) {
-    return c.json(
-      { success: false, error: { code: 'NOT_FOUND', message: 'Venue not found' } },
-      404
-    );
-  }
+    if (!venue) {
+      return c.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Venue not found' } },
+        404
+      );
+    }
 
-  // Check if already favorited
-  const [existing] = await db
-    .select({ id: schema.userVenueFavorites.id })
-    .from(schema.userVenueFavorites)
-    .where(
-      and(
-        eq(schema.userVenueFavorites.userId, user.id),
-        eq(schema.userVenueFavorites.venueId, venue.id)
-      )
-    )
-    .limit(1);
-
-  if (existing) {
-    // Unfavorite
+    // Delete rating
     await db
-      .delete(schema.userVenueFavorites)
-      .where(eq(schema.userVenueFavorites.id, existing.id));
-    return c.json({ success: true, data: { favorited: false } });
-  }
+      .delete(schema.userVenueRatings)
+      .where(
+        and(
+          eq(schema.userVenueRatings.userId, user.id),
+          eq(schema.userVenueRatings.venueId, venue.id)
+        )
+      );
 
-  // Favorite
-  await db
-    .insert(schema.userVenueFavorites)
-    .values({ userId: user.id, venueId: venue.id });
-  return c.json({ success: true, data: { favorited: true } }, 201);
-});
+    // Recalculate venue aggregate
+    await recalculateVenueRating(db, venue.id);
+
+    return c.json({ success: true, data: { rating: null } });
+  }
+);
+
+/**
+ * PUT /venues/comments/:venueUuid
+ * Upsert a user's text comment for a venue (independent of rating)
+ */
+venues.put(
+  '/comments/:venueUuid',
+  requireAuth,
+  zValidator('json', commentVenueSchema),
+  async (c) => {
+    const user = c.get('user')!;
+    const venueUuid = c.req.param('venueUuid')!;
+    const { comment } = c.req.valid('json');
+    const db = createDbClient(c.env.DB);
+
+    const [venue] = await db
+      .select({ id: schema.venues.id })
+      .from(schema.venues)
+      .where(
+        and(
+          eq(schema.venues.uuid, venueUuid),
+          eq(schema.venues.isActive, true),
+          isNull(schema.venues.deletedAt)
+        )
+      )
+      .limit(1);
+
+    if (!venue) {
+      return c.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Venue not found' } },
+        404
+      );
+    }
+
+    if (comment === null) {
+      // Clear comment: update existing row if it exists
+      await db
+        .update(schema.userVenueRatings)
+        .set({ comment: null, updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.userVenueRatings.userId, user.id),
+            eq(schema.userVenueRatings.venueId, venue.id)
+          )
+        );
+    } else {
+      // Upsert: insert new row with null rating if no row exists, or update comment on existing row
+      await db
+        .insert(schema.userVenueRatings)
+        .values({ userId: user.id, venueId: venue.id, rating: null, comment })
+        .onConflictDoUpdate({
+          target: [schema.userVenueRatings.userId, schema.userVenueRatings.venueId],
+          set: { comment, updatedAt: new Date() },
+        });
+    }
+
+    return c.json({ success: true, data: { comment } });
+  }
+);
 
 /**
  * GET /venues/nearby
@@ -376,32 +478,149 @@ venues.get(
       .orderBy(desc(schema.venues.ratingAverage))
       .limit(limit);
 
-    // Check favorites for the returned items
-    let favoritedIds = new Set<number>();
+    // Check ratings + comments for the returned items
+    let nearbyDataMap = new Map<number, { rating: number | null; comment: string | null }>();
     if (items.length > 0) {
       const venueIds = items.map((v) => v.id);
-      const favRows = await db
-        .select({ venueId: schema.userVenueFavorites.venueId })
-        .from(schema.userVenueFavorites)
+      const rows = await db
+        .select({
+          venueId: schema.userVenueRatings.venueId,
+          rating: schema.userVenueRatings.rating,
+          comment: schema.userVenueRatings.comment,
+        })
+        .from(schema.userVenueRatings)
         .where(
           and(
-            eq(schema.userVenueFavorites.userId, user.id),
-            inArray(schema.userVenueFavorites.venueId, venueIds)
+            eq(schema.userVenueRatings.userId, user.id),
+            inArray(schema.userVenueRatings.venueId, venueIds)
           )
         );
-      favoritedIds = new Set(favRows.map((r) => r.venueId));
+      nearbyDataMap = new Map(rows.map((r) => [r.venueId, { rating: r.rating, comment: r.comment }]));
     }
 
     return c.json({
       success: true,
-      data: items.map((v) => formatVenue(v, favoritedIds.has(v.id), user.id)),
+      data: items.map((v) => {
+        const ud = nearbyDataMap.get(v.id);
+        return formatVenue(v, ud?.rating ?? null, ud?.comment ?? null, user.id);
+      }),
+    });
+  }
+);
+
+/**
+ * GET /venues/:uuid/reviews
+ * List all reviews (ratings + comments) for a venue, with pagination
+ */
+venues.get(
+  '/:uuid/reviews',
+  requireAuth,
+  zValidator('query', listVenueReviewsQuerySchema),
+  async (c) => {
+    const uuid = c.req.param('uuid')!;
+    const { limit, offset } = c.req.valid('query');
+    const db = createDbClient(c.env.DB);
+
+    const [venue] = await db
+      .select({ id: schema.venues.id })
+      .from(schema.venues)
+      .where(
+        and(
+          eq(schema.venues.uuid, uuid),
+          eq(schema.venues.isActive, true),
+          isNull(schema.venues.deletedAt)
+        )
+      )
+      .limit(1);
+
+    if (!venue) {
+      return c.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Venue not found' } },
+        404
+      );
+    }
+
+    const reviewConditions = and(
+      eq(schema.userVenueRatings.venueId, venue.id),
+      or(
+        isNotNull(schema.userVenueRatings.rating),
+        isNotNull(schema.userVenueRatings.comment)
+      )
+    );
+
+    // Total count
+    const [countResult] = await db
+      .select({ count: count() })
+      .from(schema.userVenueRatings)
+      .where(reviewConditions);
+
+    // Paginated rows joined with user name
+    const rows = await db
+      .select({
+        id: schema.userVenueRatings.id,
+        rating: schema.userVenueRatings.rating,
+        comment: schema.userVenueRatings.comment,
+        createdAt: schema.userVenueRatings.createdAt,
+        updatedAt: schema.userVenueRatings.updatedAt,
+        userName: schema.user.name,
+      })
+      .from(schema.userVenueRatings)
+      .leftJoin(schema.user, eq(schema.userVenueRatings.userId, schema.user.id))
+      .where(reviewConditions)
+      .orderBy(desc(schema.userVenueRatings.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Rating breakdown
+    const breakdownRows = await db
+      .select({ rating: schema.userVenueRatings.rating, cnt: count() })
+      .from(schema.userVenueRatings)
+      .where(and(eq(schema.userVenueRatings.venueId, venue.id), isNotNull(schema.userVenueRatings.rating)))
+      .groupBy(schema.userVenueRatings.rating);
+
+    const breakdown: RatingBreakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const row of breakdownRows) {
+      if (row.rating) breakdown[row.rating as 1 | 2 | 3 | 4 | 5] = row.cnt;
+    }
+
+    const reviews = rows.map((r) => {
+      let userName = 'Anonymous';
+      if (r.userName) {
+        const parts = r.userName.trim().split(/\s+/);
+        if (parts.length >= 2) {
+          userName = `${parts[0]} ${parts[parts.length - 1]!.charAt(0).toUpperCase()}.`;
+        } else {
+          userName = parts[0]!;
+        }
+      }
+      return {
+        id: r.id,
+        userName,
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
+        updatedAt: r.updatedAt instanceof Date ? r.updatedAt.toISOString() : String(r.updatedAt),
+      };
+    });
+
+    return c.json({
+      success: true,
+      data: {
+        reviews,
+        breakdown,
+        meta: {
+          total: countResult?.count ?? 0,
+          limit,
+          offset,
+        },
+      },
     });
   }
 );
 
 /**
  * GET /venues/:uuid
- * Get venue detail (with isFavorited)
+ * Get venue detail (with userRating and ratingBreakdown)
  */
 venues.get('/:uuid', requireAuth, async (c) => {
   const user = c.get('user')!;
@@ -427,19 +646,34 @@ venues.get('/:uuid', requireAuth, async (c) => {
     );
   }
 
-  // Check if favorited
-  const [fav] = await db
-    .select({ id: schema.userVenueFavorites.id })
-    .from(schema.userVenueFavorites)
+  // Check user's rating + comment
+  const [userRow] = await db
+    .select({ rating: schema.userVenueRatings.rating, comment: schema.userVenueRatings.comment })
+    .from(schema.userVenueRatings)
     .where(
       and(
-        eq(schema.userVenueFavorites.userId, user.id),
-        eq(schema.userVenueFavorites.venueId, venue.id)
+        eq(schema.userVenueRatings.userId, user.id),
+        eq(schema.userVenueRatings.venueId, venue.id)
       )
     )
     .limit(1);
 
-  return c.json({ success: true, data: formatVenue(venue, !!fav, user.id) });
+  // Compute rating breakdown
+  const breakdownRows = await db
+    .select({ rating: schema.userVenueRatings.rating, cnt: count() })
+    .from(schema.userVenueRatings)
+    .where(and(eq(schema.userVenueRatings.venueId, venue.id), isNotNull(schema.userVenueRatings.rating)))
+    .groupBy(schema.userVenueRatings.rating);
+
+  const ratingBreakdown: RatingBreakdown = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const row of breakdownRows) {
+    if (row.rating) ratingBreakdown[row.rating as 1 | 2 | 3 | 4 | 5] = row.cnt;
+  }
+
+  return c.json({
+    success: true,
+    data: formatVenue(venue, userRow?.rating ?? null, userRow?.comment ?? null, user.id, ratingBreakdown),
+  });
 });
 
 /**
@@ -483,7 +717,7 @@ venues.post(
       })
       .returning();
 
-    return c.json({ success: true, data: formatVenue(newVenue!, false, user.id) }, 201);
+    return c.json({ success: true, data: formatVenue(newVenue!, null, null, user.id) }, 201);
   }
 );
 
@@ -560,7 +794,7 @@ venues.patch(
       .where(eq(schema.venues.id, existing.id))
       .limit(1);
 
-    return c.json({ success: true, data: formatVenue(fresh!, false, user.id) });
+    return c.json({ success: true, data: formatVenue(fresh!, null, null, user.id) });
   }
 );
 

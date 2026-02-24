@@ -230,11 +230,23 @@ export const listVenuesQuerySchema = z.object({
   capacityMin: z.coerce.number().int().min(0).optional(),
   priceMax: z.coerce.number().min(0).optional(),
   amenities: z.string().max(500).optional(),
-  favoritesOnly: z.enum(['true', 'false']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   sortBy: z.enum(['name', 'ratingAverage', 'capacityMax', 'pricePerDay', 'createdAt']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+
+export const rateVenueSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+});
+
+export const commentVenueSchema = z.object({
+  comment: z.string().max(2000).nullable(),
+});
+
+export const listVenueReviewsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+  offset: z.coerce.number().int().min(0).default(0),
 });
 
 export const checkAvailabilityQuerySchema = z.object({
@@ -299,6 +311,9 @@ export type ListProvidersQuery = z.infer<typeof listProvidersQuerySchema>;
 export type CreateVenueInput = z.infer<typeof createVenueSchema>;
 export type UpdateVenueInput = z.infer<typeof updateVenueSchema>;
 export type ListVenuesQuery = z.infer<typeof listVenuesQuerySchema>;
+export type RateVenueInput = z.infer<typeof rateVenueSchema>;
+export type CommentVenueInput = z.infer<typeof commentVenueSchema>;
+export type ListVenueReviewsQuery = z.infer<typeof listVenueReviewsQuerySchema>;
 export type CheckAvailabilityQuery = z.infer<typeof checkAvailabilityQuerySchema>;
 export type NearbyQuery = z.infer<typeof nearbyQuerySchema>;
 export type CreateEventProviderInput = z.infer<typeof createEventProviderSchema>;
@@ -307,6 +322,29 @@ export type CreateEventVenueInput = z.infer<typeof createEventVenueSchema>;
 export type UpdateEventVenueInput = z.infer<typeof updateEventVenueSchema>;
 
 // ==================== RESPONSE TYPES ====================
+
+export interface RatingBreakdown {
+  1: number;
+  2: number;
+  3: number;
+  4: number;
+  5: number;
+}
+
+export interface VenueReviewItem {
+  id: number;
+  userName: string;
+  rating: number | null;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VenueReviewsResponse {
+  reviews: VenueReviewItem[];
+  breakdown: RatingBreakdown;
+  meta: { total: number; limit: number; offset: number };
+}
 
 export interface ServiceProviderResponse {
   uuid: string;
@@ -351,7 +389,9 @@ export interface VenueResponse {
   website: string | null;
   ratingAverage: number;
   ratingCount: number;
-  isFavorited?: boolean;
+  ratingBreakdown: RatingBreakdown | null;
+  userRating: number | null;
+  userComment: string | null;
   createdAt: string;
   updatedAt: string;
 }

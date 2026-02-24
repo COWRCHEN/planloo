@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -61,7 +59,7 @@ export function VenueFilters({ filters, onChange }: VenueFiltersProps) {
     return () => clearTimeout(timeout);
   }, [amenitiesInput]);
 
-  const hasFilters = filters.search || filters.venueType || filters.country || filters.capacityMin || filters.priceMax || filters.amenities || filters.favoritesOnly;
+  const hasFilters = filters.search || filters.venueType || filters.country || filters.capacityMin || filters.priceMax || filters.amenities;
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -134,18 +132,6 @@ export function VenueFilters({ filters, onChange }: VenueFiltersProps) {
         onChange={(e) => setAmenitiesInput(e.target.value)}
         className="w-56"
       />
-      <div className="flex items-center gap-2">
-        <Switch
-          id="favorites-only"
-          checked={!!filters.favoritesOnly}
-          onCheckedChange={(checked) =>
-            onChange(buildFilters(filters, { favoritesOnly: checked || undefined, offset: 0 }))
-          }
-        />
-        <Label htmlFor="favorites-only" className="text-sm whitespace-nowrap">
-          Favorites only
-        </Label>
-      </div>
       {hasFilters && (
         <Button
           variant="ghost"
