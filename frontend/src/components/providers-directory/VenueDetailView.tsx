@@ -180,40 +180,6 @@ function VenueDetailContent({ uuid }: VenueDetailViewProps) {
         <p className="text-muted-foreground">{venue.description}</p>
       )}
 
-      {/* User's personal rating & comment */}
-      <Accordion type="single" collapsible>
-        <AccordionItem value="user-review" className="rounded-lg border px-4">
-          <AccordionTrigger className="text-sm font-medium hover:no-underline">
-            <div className="flex items-center gap-3">
-              <span>Your Rating & Notes</span>
-              {venue.userRating ? (
-                <span className="flex items-center gap-1 text-yellow-500 text-xs font-normal">
-                  {'★'.repeat(venue.userRating)}{'☆'.repeat(5 - venue.userRating)}
-                  <span className="text-muted-foreground">{venue.userRating}/5</span>
-                </span>
-              ) : venue.userComment ? (
-                <span className="text-xs text-muted-foreground font-normal truncate max-w-[200px]">
-                  "{venue.userComment}"
-                </span>
-              ) : (
-                <span className="text-xs text-muted-foreground font-normal">No rating yet</span>
-              )}
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="space-y-3 pb-4">
-            <div className="flex items-center gap-2">
-              <VenueStarRating venueUuid={venue.uuid} userRating={venue.userRating} size="md" />
-              {venue.userRating && (
-                <span className="text-sm text-muted-foreground">{venue.userRating} / 5</span>
-              )}
-            </div>
-            <VenueCommentForm venueUuid={venue.uuid} userComment={venue.userComment} />
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
-
-      <Separator />
-
       {/* Info grid */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Location card */}
@@ -365,6 +331,40 @@ function VenueDetailContent({ uuid }: VenueDetailViewProps) {
           )}
         </div>
       </div>
+
+      <Separator />
+
+      {/* User's personal rating & comment */}
+      <Accordion type="single" collapsible>
+        <AccordionItem value="user-review" className="rounded-lg border px-4">
+          <AccordionTrigger className="text-sm font-medium hover:no-underline">
+            <div className="flex items-center gap-3">
+              <span>Your Rating & Notes</span>
+              {venue.userRating ? (
+                <span className="flex items-center gap-1 text-yellow-500 text-xs font-normal">
+                  {'★'.repeat(venue.userRating)}{'☆'.repeat(5 - venue.userRating)}
+                  <span className="text-muted-foreground">{venue.userRating}/5</span>
+                </span>
+              ) : venue.userComment ? (
+                <span className="text-xs text-muted-foreground font-normal truncate max-w-[200px]">
+                  "{venue.userComment}"
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground font-normal">No rating yet</span>
+              )}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="space-y-3 pb-4">
+            <div className="flex items-center gap-2">
+              <VenueStarRating venueUuid={venue.uuid} userRating={venue.userRating} size="md" />
+              {venue.userRating && (
+                <span className="text-sm text-muted-foreground">{venue.userRating} / 5</span>
+              )}
+            </div>
+            <VenueCommentForm venueUuid={venue.uuid} userComment={venue.userComment} />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 }
