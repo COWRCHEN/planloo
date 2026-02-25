@@ -348,6 +348,10 @@ export const createEventProviderSchema = z.object({
   status: z.enum(BOOKING_STATUSES).default('inquiry'),
   quoteAmount: z.coerce.number().min(0).optional().nullable(),
   currency: z.string().length(3).default('USD'),
+  depositAmount: z.coerce.number().min(0).optional().nullable(),
+  depositPaid: z.boolean().optional(),
+  paymentDueDate: z.coerce.date().optional().nullable(),
+  priceIncludes: z.string().max(1000).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
 
@@ -356,6 +360,10 @@ export const updateEventProviderSchema = z.object({
   quoteAmount: z.coerce.number().min(0).optional().nullable(),
   finalAmount: z.coerce.number().min(0).optional().nullable(),
   currency: z.string().length(3).optional(),
+  depositAmount: z.coerce.number().min(0).optional().nullable(),
+  depositPaid: z.boolean().optional(),
+  paymentDueDate: z.coerce.date().optional().nullable(),
+  priceIncludes: z.string().max(1000).optional().nullable(),
   contractUrl: z.string().url().max(500).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
@@ -377,6 +385,8 @@ export const updateEventVenueSchema = z.object({
   currency: z.string().length(3).optional(),
   depositAmount: z.coerce.number().min(0).optional().nullable(),
   depositPaid: z.boolean().optional(),
+  paymentDueDate: z.coerce.date().optional().nullable(),
+  priceIncludes: z.string().max(1000).optional().nullable(),
   contractUrl: z.string().url().max(500).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
@@ -508,6 +518,10 @@ export interface EventServiceProviderResponse {
   quoteAmount: number | null;
   finalAmount: number | null;
   currency: string;
+  depositAmount: number | null;
+  depositPaid: boolean;
+  paymentDueDate: string | null;
+  priceIncludes: string | null;
   contractUrl: string | null;
   notes: string | null;
   createdAt: string;
@@ -524,6 +538,8 @@ export interface EventVenueResponse {
   currency: string;
   depositAmount: number | null;
   depositPaid: boolean;
+  paymentDueDate: string | null;
+  priceIncludes: string | null;
   contractUrl: string | null;
   notes: string | null;
   createdAt: string;

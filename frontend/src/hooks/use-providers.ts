@@ -126,6 +126,10 @@ export interface EventServiceProviderResponse {
   quoteAmount: number | null;
   finalAmount: number | null;
   currency: string;
+  depositAmount: number | null;
+  depositPaid: boolean;
+  paymentDueDate: string | null;
+  priceIncludes: string | null;
   contractUrl: string | null;
   notes: string | null;
   createdAt: string;
@@ -142,6 +146,8 @@ export interface EventVenueResponse {
   currency: string;
   depositAmount: number | null;
   depositPaid: boolean;
+  paymentDueDate: string | null;
+  priceIncludes: string | null;
   contractUrl: string | null;
   notes: string | null;
   createdAt: string;
@@ -273,6 +279,10 @@ export interface UpdateEventProviderInput {
   quoteAmount?: number | null;
   finalAmount?: number | null;
   currency?: string;
+  depositAmount?: number | null;
+  depositPaid?: boolean;
+  paymentDueDate?: Date | null;
+  priceIncludes?: string | null;
   contractUrl?: string | null;
   notes?: string | null;
 }
@@ -294,6 +304,8 @@ export interface UpdateEventVenueInput {
   currency?: string;
   depositAmount?: number | null;
   depositPaid?: boolean;
+  paymentDueDate?: Date | null;
+  priceIncludes?: string | null;
   contractUrl?: string | null;
   notes?: string | null;
 }

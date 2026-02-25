@@ -26,6 +26,10 @@ const createEventProviderSchema = z.object({
   status: z.enum(BOOKING_STATUSES).default('inquiry'),
   quoteAmount: z.coerce.number().min(0).optional().nullable(),
   currency: z.string().length(3).default('USD'),
+  depositAmount: z.coerce.number().min(0).optional().nullable(),
+  depositPaid: z.boolean().optional(),
+  paymentDueDate: z.coerce.date().optional().nullable(),
+  priceIncludes: z.string().max(1000).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
 
@@ -34,6 +38,10 @@ const updateEventProviderSchema = z.object({
   quoteAmount: z.coerce.number().min(0).optional().nullable(),
   finalAmount: z.coerce.number().min(0).optional().nullable(),
   currency: z.string().length(3).optional(),
+  depositAmount: z.coerce.number().min(0).optional().nullable(),
+  depositPaid: z.boolean().optional(),
+  paymentDueDate: z.coerce.date().optional().nullable(),
+  priceIncludes: z.string().max(1000).optional().nullable(),
   contractUrl: z.string().url().max(500).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
@@ -55,6 +63,8 @@ const updateEventVenueSchema = z.object({
   currency: z.string().length(3).optional(),
   depositAmount: z.coerce.number().min(0).optional().nullable(),
   depositPaid: z.boolean().optional(),
+  paymentDueDate: z.coerce.date().optional().nullable(),
+  priceIncludes: z.string().max(1000).optional().nullable(),
   contractUrl: z.string().url().max(500).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
@@ -151,6 +161,10 @@ eventProviders.get('/', requireAuth, async (c) => {
         quoteAmount: schema.eventServiceProviders.quoteAmount,
         finalAmount: schema.eventServiceProviders.finalAmount,
         currency: schema.eventServiceProviders.currency,
+        depositAmount: schema.eventServiceProviders.depositAmount,
+        depositPaid: schema.eventServiceProviders.depositPaid,
+        paymentDueDate: schema.eventServiceProviders.paymentDueDate,
+        priceIncludes: schema.eventServiceProviders.priceIncludes,
         contractUrl: schema.eventServiceProviders.contractUrl,
         notes: schema.eventServiceProviders.notes,
         createdAt: schema.eventServiceProviders.createdAt,
@@ -171,6 +185,10 @@ eventProviders.get('/', requireAuth, async (c) => {
     quoteAmount: row.link.quoteAmount,
     finalAmount: row.link.finalAmount,
     currency: row.link.currency,
+    depositAmount: row.link.depositAmount,
+    depositPaid: row.link.depositPaid,
+    paymentDueDate: row.link.paymentDueDate,
+    priceIncludes: row.link.priceIncludes,
     contractUrl: row.link.contractUrl,
     notes: row.link.notes,
     createdAt: row.link.createdAt,
@@ -238,6 +256,10 @@ eventProviders.post(
         status: body.status,
         quoteAmount: body.quoteAmount ?? null,
         currency: body.currency,
+        depositAmount: body.depositAmount ?? null,
+        depositPaid: body.depositPaid ?? false,
+        paymentDueDate: body.paymentDueDate ?? null,
+        priceIncludes: body.priceIncludes ?? null,
         notes: body.notes ?? null,
       });
     } catch (err: unknown) {
@@ -260,6 +282,10 @@ eventProviders.post(
           quoteAmount: schema.eventServiceProviders.quoteAmount,
           finalAmount: schema.eventServiceProviders.finalAmount,
           currency: schema.eventServiceProviders.currency,
+          depositAmount: schema.eventServiceProviders.depositAmount,
+          depositPaid: schema.eventServiceProviders.depositPaid,
+          paymentDueDate: schema.eventServiceProviders.paymentDueDate,
+          priceIncludes: schema.eventServiceProviders.priceIncludes,
           contractUrl: schema.eventServiceProviders.contractUrl,
           notes: schema.eventServiceProviders.notes,
           createdAt: schema.eventServiceProviders.createdAt,
@@ -289,6 +315,10 @@ eventProviders.post(
           quoteAmount: link!.link.quoteAmount,
           finalAmount: link!.link.finalAmount,
           currency: link!.link.currency,
+          depositAmount: link!.link.depositAmount,
+          depositPaid: link!.link.depositPaid,
+          paymentDueDate: link!.link.paymentDueDate,
+          priceIncludes: link!.link.priceIncludes,
           contractUrl: link!.link.contractUrl,
           notes: link!.link.notes,
           createdAt: link!.link.createdAt,
@@ -332,6 +362,8 @@ eventProviders.get('/venues', requireAuth, async (c) => {
         currency: schema.eventVenues.currency,
         depositAmount: schema.eventVenues.depositAmount,
         depositPaid: schema.eventVenues.depositPaid,
+        paymentDueDate: schema.eventVenues.paymentDueDate,
+        priceIncludes: schema.eventVenues.priceIncludes,
         contractUrl: schema.eventVenues.contractUrl,
         notes: schema.eventVenues.notes,
         createdAt: schema.eventVenues.createdAt,
@@ -352,6 +384,8 @@ eventProviders.get('/venues', requireAuth, async (c) => {
     currency: row.link.currency,
     depositAmount: row.link.depositAmount,
     depositPaid: row.link.depositPaid,
+    paymentDueDate: row.link.paymentDueDate,
+    priceIncludes: row.link.priceIncludes,
     contractUrl: row.link.contractUrl,
     notes: row.link.notes,
     createdAt: row.link.createdAt,
@@ -433,6 +467,8 @@ eventProviders.post(
           currency: schema.eventVenues.currency,
           depositAmount: schema.eventVenues.depositAmount,
           depositPaid: schema.eventVenues.depositPaid,
+          paymentDueDate: schema.eventVenues.paymentDueDate,
+          priceIncludes: schema.eventVenues.priceIncludes,
           contractUrl: schema.eventVenues.contractUrl,
           notes: schema.eventVenues.notes,
           createdAt: schema.eventVenues.createdAt,
@@ -464,6 +500,8 @@ eventProviders.post(
           currency: row.link.currency,
           depositAmount: row.link.depositAmount,
           depositPaid: row.link.depositPaid,
+          paymentDueDate: row.link.paymentDueDate,
+          priceIncludes: row.link.priceIncludes,
           contractUrl: row.link.contractUrl,
           notes: row.link.notes,
           createdAt: row.link.createdAt,
@@ -534,6 +572,8 @@ eventProviders.patch(
     if (updates.currency !== undefined) updateData.currency = updates.currency;
     if (updates.depositAmount !== undefined) updateData.depositAmount = updates.depositAmount;
     if (updates.depositPaid !== undefined) updateData.depositPaid = updates.depositPaid;
+    if (updates.paymentDueDate !== undefined) updateData.paymentDueDate = updates.paymentDueDate;
+    if (updates.priceIncludes !== undefined) updateData.priceIncludes = updates.priceIncludes;
     if (updates.contractUrl !== undefined) updateData.contractUrl = updates.contractUrl;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
 
@@ -554,6 +594,8 @@ eventProviders.patch(
           currency: schema.eventVenues.currency,
           depositAmount: schema.eventVenues.depositAmount,
           depositPaid: schema.eventVenues.depositPaid,
+          paymentDueDate: schema.eventVenues.paymentDueDate,
+          priceIncludes: schema.eventVenues.priceIncludes,
           contractUrl: schema.eventVenues.contractUrl,
           notes: schema.eventVenues.notes,
           createdAt: schema.eventVenues.createdAt,
@@ -577,6 +619,8 @@ eventProviders.patch(
         currency: row!.link.currency,
         depositAmount: row!.link.depositAmount,
         depositPaid: row!.link.depositPaid,
+        paymentDueDate: row!.link.paymentDueDate,
+        priceIncludes: row!.link.priceIncludes,
         contractUrl: row!.link.contractUrl,
         notes: row!.link.notes,
         createdAt: row!.link.createdAt,
@@ -686,6 +730,10 @@ eventProviders.patch(
     if (updates.quoteAmount !== undefined) updateData.quoteAmount = updates.quoteAmount;
     if (updates.finalAmount !== undefined) updateData.finalAmount = updates.finalAmount;
     if (updates.currency !== undefined) updateData.currency = updates.currency;
+    if (updates.depositAmount !== undefined) updateData.depositAmount = updates.depositAmount;
+    if (updates.depositPaid !== undefined) updateData.depositPaid = updates.depositPaid;
+    if (updates.paymentDueDate !== undefined) updateData.paymentDueDate = updates.paymentDueDate;
+    if (updates.priceIncludes !== undefined) updateData.priceIncludes = updates.priceIncludes;
     if (updates.contractUrl !== undefined) updateData.contractUrl = updates.contractUrl;
     if (updates.notes !== undefined) updateData.notes = updates.notes;
 
@@ -703,6 +751,10 @@ eventProviders.patch(
           quoteAmount: schema.eventServiceProviders.quoteAmount,
           finalAmount: schema.eventServiceProviders.finalAmount,
           currency: schema.eventServiceProviders.currency,
+          depositAmount: schema.eventServiceProviders.depositAmount,
+          depositPaid: schema.eventServiceProviders.depositPaid,
+          paymentDueDate: schema.eventServiceProviders.paymentDueDate,
+          priceIncludes: schema.eventServiceProviders.priceIncludes,
           contractUrl: schema.eventServiceProviders.contractUrl,
           notes: schema.eventServiceProviders.notes,
           createdAt: schema.eventServiceProviders.createdAt,
@@ -726,6 +778,10 @@ eventProviders.patch(
         quoteAmount: row!.link.quoteAmount,
         finalAmount: row!.link.finalAmount,
         currency: row!.link.currency,
+        depositAmount: row!.link.depositAmount,
+        depositPaid: row!.link.depositPaid,
+        paymentDueDate: row!.link.paymentDueDate,
+        priceIncludes: row!.link.priceIncludes,
         contractUrl: row!.link.contractUrl,
         notes: row!.link.notes,
         createdAt: row!.link.createdAt,
