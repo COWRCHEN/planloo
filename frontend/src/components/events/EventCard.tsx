@@ -105,7 +105,7 @@ export function EventCard({ event }: EventCardProps) {
       )}
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-2 font-semibold leading-tight">{event.title}</h3>
+          <h3 className="truncate font-semibold leading-tight">{event.title}</h3>
           <EventStatusBadge status={event.status} />
         </div>
         {event.organizationName && (

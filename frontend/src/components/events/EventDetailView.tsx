@@ -160,10 +160,10 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-4">
           <a
             href="/dashboard/events"
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-primary-300 text-primary-600 hover:bg-primary-50 hover:border-primary-400"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary-300 text-primary-600 hover:bg-primary-50 hover:border-primary-400"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -174,9 +174,9 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
               />
             </svg>
           </a>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold sm:text-3xl">{event.title}</h1>
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-3">
+              <h1 className="min-w-0 break-all text-2xl font-bold sm:text-3xl">{event.title}</h1>
               {canEdit ? (
                 <EventStatusSelect uuid={event.uuid} currentStatus={event.status} />
               ) : (

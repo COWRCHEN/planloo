@@ -34,15 +34,15 @@ const pageTitle = eventName ? `Budget — ${eventName}` : 'Budget';
 <DashboardLayout title={pageTitle} description="Manage event budget">
   <div class="space-y-6">
     <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight">
+      <div class="min-w-0">
+        <h1 class="truncate text-2xl font-bold tracking-tight">
           Budget{eventName && <span class="font-normal text-muted-foreground"> ({eventName})</span>}
         </h1>
         <p class="text-muted-foreground">
           Track expenses, manage payments, and monitor your budget.
         </p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex shrink-0 items-center gap-2">
         <a
           href={`/dashboard/events/${uuid}`}
           class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-primary-300 bg-white text-primary-700 shadow-sm hover:bg-primary-50 hover:border-primary-400 h-9 px-4 py-2"

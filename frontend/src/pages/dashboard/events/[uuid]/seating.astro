@@ -32,29 +32,13 @@ const pageTitle = eventName ? `Seating Chart — ${eventName}` : 'Seating Chart'
 
 <DashboardLayout title={pageTitle} description="Design your event floor plan and assign seats">
   <div class="space-y-4">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight">
-          Seating Chart{eventName && <span class="font-normal text-muted-foreground"> ({eventName})</span>}
-        </h1>
-        <p class="text-muted-foreground">
-          Design your floor plan and assign guests to tables.
-        </p>
-      </div>
-      <div class="flex items-center gap-2">
-        <a
-          href={`/dashboard/events/${uuid}`}
-          class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 border border-primary-300 bg-white text-primary-700 shadow-sm hover:bg-primary-50 hover:border-primary-400 h-9 px-4 py-2"
-        >
-          Back to Event
-        </a>
-        <a
-          href={`/dashboard/events/${uuid}/guests`}
-          class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 border border-primary-300 bg-white text-primary-700 shadow-sm hover:bg-primary-50 hover:border-primary-400 h-9 px-4 py-2"
-        >
-          Guest List
-        </a>
-      </div>
+    <div class="min-w-0">
+      <h1 class="truncate text-2xl font-bold tracking-tight">
+        Seating Chart{eventName && <span class="font-normal text-muted-foreground"> ({eventName})</span>}
+      </h1>
+      <p class="text-muted-foreground">
+        Design your floor plan and assign guests to tables.
+      </p>
     </div>
 
     <SeatingTabs client:only="react" eventUuid={uuid} />

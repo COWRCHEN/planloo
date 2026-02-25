@@ -26,7 +26,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCreateEvent, useUpdateEvent, type EventResponse } from '@/hooks/use-events';
-import { NearbyVenueSuggestions } from './NearbyVenueSuggestions';
+import { useUserLocation } from '@/hooks/use-location';
 import { COUNTRIES, FEATURED_COUNTRY_CODES } from '../../../../shared/schemas/provider';
 
 const featuredCountries = COUNTRIES.filter((c) => FEATURED_COUNTRY_CODES.includes(c.code));
@@ -47,7 +47,7 @@ const eventFormSchema = z
     locationAddress: z.string().max(500).optional(),
     locationCity: z.string().max(100).optional(),
     locationState: z.string().max(100).optional(),
-    locationCountry: z.string().max(100).optional(),
+    locationCountry: z.string().min(1, 'Country is required').max(100),
     locationPostalCode: z.string().max(20).optional(),
     guestCountExpected: z.coerce.number().int().min(0).optional(),
     budgetTotal: z.coerce.number().min(0).optional(),
@@ -261,10 +261,13 @@ function combineDateAndTime(date: string, time?: string): Date | null {
 
 export function EventForm({ event, onSuccess }: EventFormProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [locationAutoDetected, setLocationAutoDetected] = useState(false);
   const isEditing = !!event;
 
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent(event?.uuid ?? '');
+  const { data: locationData } = useUserLocation();
+  const detectedLocation = locationData?.detected ? locationData : null;
 
   const startDateTime = formatDateTimeForInput(event?.startDate);
   const endDateTime = formatDateTimeForInput(event?.endDate);
@@ -467,7 +470,7 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
           {currentStep === 0 && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="title">Event Title *</Label>
+                <Label htmlFor="title">Event Title <span className="text-destructive">*</span></Label>
                 <Input
                   id="title"
                   placeholder="e.g., Sarah's Wedding Reception"
@@ -519,7 +522,7 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
             <>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="startDate">Start Date *</Label>
+                  <Label htmlFor="startDate">Start Date <span className="text-destructive">*</span></Label>
                   <Input id="startDate" type="date" {...register('startDate')} />
                   {errors.startDate && (
                     <p className="text-sm text-destructive">{errors.startDate.message}</p>
@@ -627,6 +630,29 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
           {/* Step 3: Location */}
           {currentStep === 2 && (
             <>
+              <div className="flex items-center justify-between">
+                {locationAutoDetected ? (
+                  <p className="text-xs text-muted-foreground">Automatically detected from your browser</p>
+                ) : (
+                  <span />
+                )}
+                {detectedLocation && !locationAutoDetected && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValue('locationCity', detectedLocation.city ?? '');
+                      setValue('locationState', detectedLocation.state ?? '');
+                      setValue('locationCountry', detectedLocation.country ?? '');
+                      setValue('locationPostalCode', detectedLocation.postalCode ?? '');
+                      setLocationAutoDetected(true);
+                    }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Detect my location
+                  </button>
+                )}
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="locationName">Venue Name</Label>
                 <Input
@@ -662,10 +688,10 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Country</Label>
+                  <Label>Country <span className="text-destructive">*</span></Label>
                   <Select
                     value={formData.locationCountry ?? ''}
-                    onValueChange={(val) => setValue('locationCountry', val)}
+                    onValueChange={(val) => setValue('locationCountry', val, { shouldValidate: true })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select country" />
@@ -686,6 +712,9 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                       </SelectGroup>
                     </SelectContent>
                   </Select>
+                  {errors.locationCountry && (
+                    <p className="text-sm text-destructive">{errors.locationCountry.message}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="locationPostalCode">Postal Code</Label>
@@ -697,11 +726,6 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                 </div>
               </div>
 
-              <NearbyVenueSuggestions
-                city={formData.locationCity ?? ''}
-                postalCode={formData.locationPostalCode ?? ''}
-                country={formData.locationCountry ?? ''}
-              />
             </>
           )}
 

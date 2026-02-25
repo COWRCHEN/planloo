@@ -49,7 +49,7 @@ function EventTaskCard({ event }: { event: { uuid: string; title: string; startD
   return (
     <Card className="flex flex-col">
       <CardHeader className="flex-1">
-        <CardTitle className="text-lg">{event.title}</CardTitle>
+        <CardTitle className="truncate text-lg">{event.title}</CardTitle>
         <CardDescription>
           {formatDate(event.startDate)}
           {event.locationCity && ` · ${event.locationCity}`}

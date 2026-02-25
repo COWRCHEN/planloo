@@ -136,7 +136,7 @@ export function EventRecentActivity({ eventUuid }: EventRecentActivityProps) {
                     {config.icon}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-snug">{activity.description}</p>
+                    <p className="truncate text-sm leading-snug">{activity.description}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {formatRelativeTime(activity.timestamp)}
                     </p>

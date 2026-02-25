@@ -252,8 +252,8 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
   return (
     <div className="space-y-3">
       {/* Plan tabs + actions bar */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1">
           {plans.map((p) => (
             <div key={p.uuid} className="flex items-center">
               <Button
@@ -310,7 +310,7 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
           )}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <ArrangementPresetPicker onApplyPreset={handleApplyPreset} />
           <AutoAssignDialog
             unassignedGuests={unassignedGuests}
@@ -318,6 +318,18 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
             isAutoAssigning={autoAssign.isPending}
           />
           <GuestRelationshipsDialog eventUuid={eventUuid} allGuests={uniqueGuests} />
+          <a
+            href={`/dashboard/events/${eventUuid}/guests`}
+            className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            Guest List
+          </a>
+          <a
+            href={`/dashboard/events/${eventUuid}`}
+            className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            Back to Event
+          </a>
         </div>
       </div>
 
