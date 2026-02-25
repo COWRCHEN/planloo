@@ -16,7 +16,10 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -28,12 +31,13 @@ import {
   type CreateVenueInput,
 } from '@/hooks/use-providers';
 import {
-  SUPPORTED_COUNTRIES,
+  COUNTRIES,
+  FEATURED_COUNTRY_CODES,
+  STRUCTURED_COUNTRIES,
   US_STATES,
   CA_PROVINCES,
   STATE_LABELS,
   validateVenueAddress,
-  type SupportedCountry,
 } from '../../../../shared/schemas/provider';
 
 const VENUE_TYPES_ENUM = ['banquet_hall', 'outdoor', 'hotel', 'restaurant', 'conference_center', 'other'] as const;
@@ -43,9 +47,9 @@ const formSchema = z.object({
   venueType: z.enum(VENUE_TYPES_ENUM).optional().nullable(),
   address: z.string().min(1, 'Address is required').max(500),
   city: z.string().min(1, 'City is required').max(100),
-  state: z.string().min(1, 'State/Province is required').max(10),
-  country: z.enum(SUPPORTED_COUNTRIES, { required_error: 'Country is required' }),
-  postalCode: z.string().min(1, 'Postal code is required').max(20),
+  state: z.string().max(100).optional().nullable(),
+  country: z.string().min(1, 'Country is required'),
+  postalCode: z.string().max(20).optional().nullable(),
   capacityMin: z.coerce.number().int().min(0).optional().nullable(),
   capacityMax: z.coerce.number().int().min(0).optional().nullable(),
   pricePerHour: z.coerce.number().min(0).optional().nullable(),
@@ -69,10 +73,8 @@ const venueTypeLabels: Record<string, string> = {
   other: 'Other',
 };
 
-const countryLabels: Record<string, string> = {
-  US: 'United States',
-  CA: 'Canada',
-};
+const featuredCountries = COUNTRIES.filter((c) => FEATURED_COUNTRY_CODES.includes(c.code));
+const otherCountries = COUNTRIES.filter((c) => !FEATURED_COUNTRY_CODES.includes(c.code));
 
 interface VenueDialogProps {
   venue?: VenueResponse;
@@ -93,9 +95,9 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
       venueType: venue?.venueType ?? null,
       address: venue?.address ?? '',
       city: venue?.city ?? '',
-      state: venue?.state ?? '',
-      country: (venue?.country as SupportedCountry) ?? 'US',
-      postalCode: venue?.postalCode ?? '',
+      state: venue?.state ?? null,
+      country: venue?.country ?? 'US',
+      postalCode: venue?.postalCode ?? null,
       capacityMin: venue?.capacityMin ?? null,
       capacityMax: venue?.capacityMax ?? null,
       pricePerHour: venue?.pricePerHour ?? null,
@@ -125,22 +127,17 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
   const selectedCountry = watch('country');
   const selectedState = watch('state');
 
+  const isStructuredCountry = (STRUCTURED_COUNTRIES as readonly string[]).includes(selectedCountry);
   const stateOptions = selectedCountry === 'CA' ? CA_PROVINCES : US_STATES;
 
   useEffect(() => {
     if (open) reset(getDefaults());
   }, [open, venue, reset]);
 
-  // Reset state when country changes
+  // Clear state when switching between structured and free-text countries
   useEffect(() => {
     if (!open) return;
-    const currentState = watch('state');
-    if (currentState) {
-      const validStates = selectedCountry === 'CA' ? CA_PROVINCES : US_STATES;
-      if (!(validStates as readonly string[]).includes(currentState)) {
-        setValue('state', '');
-      }
-    }
+    setValue('state', null);
   }, [selectedCountry]);
 
   const onSubmit = handleSubmit(async (data) => {
@@ -148,9 +145,9 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
       name: data.name,
       address: data.address,
       city: data.city,
-      state: data.state,
+      state: data.state ?? null,
       country: data.country,
-      postalCode: data.postalCode,
+      postalCode: data.postalCode ?? null,
       currency: data.currency,
       venueType: data.venueType ?? null,
       capacityMin: data.capacityMin ?? null,
@@ -231,23 +228,33 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
               )}
             </div>
             <div className="space-y-2">
-              <Label>State/Province <span className="text-destructive">*</span></Label>
-              <Select
-                value={selectedState || 'none'}
-                onValueChange={(val) => setValue('state', val === 'none' ? '' : val)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Select...</SelectItem>
-                  {stateOptions.map((st) => (
-                    <SelectItem key={st} value={st}>
-                      {STATE_LABELS[st] ?? st} ({st})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>
+                {isStructuredCountry ? 'State/Province' : 'State / Province / Region'}{' '}
+                {isStructuredCountry && <span className="text-destructive">*</span>}
+              </Label>
+              {isStructuredCountry ? (
+                <Select
+                  value={selectedState || 'none'}
+                  onValueChange={(val) => setValue('state', val === 'none' ? null : val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Select...</SelectItem>
+                    {stateOptions.map((st) => (
+                      <SelectItem key={st} value={st}>
+                        {STATE_LABELS[st] ?? st} ({st})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  {...register('state')}
+                  placeholder="e.g. Greater London"
+                />
+              )}
               {errors.state && (
                 <p className="text-sm text-destructive">{errors.state.message}</p>
               )}
@@ -259,26 +266,37 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
               <Label>Country <span className="text-destructive">*</span></Label>
               <Select
                 value={selectedCountry}
-                onValueChange={(val) => setValue('country', val as SupportedCountry)}
+                onValueChange={(val) => setValue('country', val)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select country" />
                 </SelectTrigger>
                 <SelectContent>
-                  {SUPPORTED_COUNTRIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {countryLabels[c]}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectLabel>Featured</SelectLabel>
+                    {featuredCountries.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>All Countries</SelectLabel>
+                    {otherCountries.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
+              <Label htmlFor="postalCode">
+                Postal Code{' '}
+                {isStructuredCountry && <span className="text-destructive">*</span>}
+              </Label>
               <Input
                 id="postalCode"
                 {...register('postalCode')}
-                placeholder={selectedCountry === 'CA' ? 'A1A 1A1' : '90210'}
+                placeholder={selectedCountry === 'CA' ? 'A1A 1A1' : selectedCountry === 'US' ? '90210' : ''}
               />
               {errors.postalCode && (
                 <p className="text-sm text-destructive">{errors.postalCode.message}</p>

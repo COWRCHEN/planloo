@@ -16,7 +16,10 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -29,12 +32,13 @@ import {
   type CreateProviderInput,
 } from '@/hooks/use-providers';
 import {
-  SUPPORTED_COUNTRIES,
+  COUNTRIES,
+  FEATURED_COUNTRY_CODES,
+  STRUCTURED_COUNTRIES,
   US_STATES,
   CA_PROVINCES,
   STATE_LABELS,
   validateProviderAddress,
-  type SupportedCountry,
 } from '../../../../shared/schemas/provider';
 
 const PROVIDER_CATEGORIES_ENUM = ['catering', 'photography', 'videography', 'dj', 'entertainment', 'florist', 'decoration', 'transportation', 'av_technology', 'hair_makeup', 'other'] as const;
@@ -52,9 +56,9 @@ const formSchema = z.object({
   servicesOffered: z.string().optional().nullable(),
   locationAddress: z.string().min(1, 'Address is required').max(500),
   locationCity: z.string().min(1, 'City is required').max(100),
-  locationState: z.string().max(10),
-  locationCountry: z.enum(SUPPORTED_COUNTRIES, { required_error: 'Country is required' }),
-  locationPostalCode: z.string().min(1, 'Postal code is required').max(20),
+  locationState: z.string().max(100).optional().nullable(),
+  locationCountry: z.string().min(1, 'Country is required'),
+  locationPostalCode: z.string().max(20).optional().nullable(),
 }).superRefine((data, ctx) => validateProviderAddress(data, ctx));
 
 type FormData = z.infer<typeof formSchema>;
@@ -73,10 +77,8 @@ const categoryLabels: Record<string, string> = {
   other: 'Other',
 };
 
-const countryLabels: Record<string, string> = {
-  US: 'United States',
-  CA: 'Canada',
-};
+const featuredCountries = COUNTRIES.filter((c) => FEATURED_COUNTRY_CODES.includes(c.code));
+const otherCountries = COUNTRIES.filter((c) => !FEATURED_COUNTRY_CODES.includes(c.code));
 
 interface ProviderDialogProps {
   provider?: ServiceProviderResponse;
@@ -104,9 +106,9 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
       servicesOffered: provider?.servicesOffered?.join(', ') ?? null,
       locationAddress: provider?.locationAddress ?? '',
       locationCity: provider?.locationCity ?? '',
-      locationState: provider?.locationState ?? '',
-      locationCountry: (provider?.locationCountry as SupportedCountry) ?? 'US',
-      locationPostalCode: provider?.locationPostalCode ?? '',
+      locationState: provider?.locationState ?? null,
+      locationCountry: provider?.locationCountry ?? 'US',
+      locationPostalCode: provider?.locationPostalCode ?? null,
     };
   }
 
@@ -127,22 +129,17 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
   const selectedCountry = watch('locationCountry');
   const selectedState = watch('locationState');
 
+  const isStructuredCountry = (STRUCTURED_COUNTRIES as readonly string[]).includes(selectedCountry);
   const stateOptions = selectedCountry === 'CA' ? CA_PROVINCES : US_STATES;
 
   useEffect(() => {
     if (open) reset(getDefaults());
   }, [open, provider, reset]);
 
-  // Reset state when country changes
+  // Clear state when switching between structured and free-text countries
   useEffect(() => {
     if (!open) return;
-    const currentState = watch('locationState');
-    if (currentState) {
-      const validStates = selectedCountry === 'CA' ? CA_PROVINCES : US_STATES;
-      if (!(validStates as readonly string[]).includes(currentState)) {
-        setValue('locationState', '');
-      }
-    }
+    setValue('locationState', null);
   }, [selectedCountry]);
 
   const onSubmit = handleSubmit(async (data) => {
@@ -157,9 +154,9 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
       priceRange: data.priceRange ?? null,
       locationAddress: data.locationAddress,
       locationCity: data.locationCity,
-      locationState: data.locationState,
+      locationState: data.locationState ?? null,
       locationCountry: data.locationCountry,
-      locationPostalCode: data.locationPostalCode,
+      locationPostalCode: data.locationPostalCode ?? null,
       servicesOffered: data.servicesOffered
         ? data.servicesOffered.split(',').map((s) => s.trim()).filter(Boolean)
         : null,
@@ -286,23 +283,33 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
               )}
             </div>
             <div className="space-y-2">
-              <Label>State/Province <span className="text-destructive">*</span></Label>
-              <Select
-                value={selectedState || 'none'}
-                onValueChange={(val) => setValue('locationState', val === 'none' ? '' : val)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Select...</SelectItem>
-                  {stateOptions.map((st) => (
-                    <SelectItem key={st} value={st}>
-                      {STATE_LABELS[st] ?? st} ({st})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>
+                {isStructuredCountry ? 'State/Province' : 'State / Province / Region'}{' '}
+                {isStructuredCountry && <span className="text-destructive">*</span>}
+              </Label>
+              {isStructuredCountry ? (
+                <Select
+                  value={selectedState || 'none'}
+                  onValueChange={(val) => setValue('locationState', val === 'none' ? null : val)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Select...</SelectItem>
+                    {stateOptions.map((st) => (
+                      <SelectItem key={st} value={st}>
+                        {STATE_LABELS[st] ?? st} ({st})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  {...register('locationState')}
+                  placeholder="e.g. Greater London"
+                />
+              )}
               {errors.locationState && (
                 <p className="text-sm text-destructive">{errors.locationState.message}</p>
               )}
@@ -314,26 +321,37 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
               <Label>Country <span className="text-destructive">*</span></Label>
               <Select
                 value={selectedCountry}
-                onValueChange={(val) => setValue('locationCountry', val as SupportedCountry)}
+                onValueChange={(val) => setValue('locationCountry', val)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select country" />
                 </SelectTrigger>
                 <SelectContent>
-                  {SUPPORTED_COUNTRIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {countryLabels[c]}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectLabel>Featured</SelectLabel>
+                    {featuredCountries.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectLabel>All Countries</SelectLabel>
+                    {otherCountries.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="locationPostalCode">Postal Code <span className="text-destructive">*</span></Label>
+              <Label htmlFor="locationPostalCode">
+                Postal Code{' '}
+                {isStructuredCountry && <span className="text-destructive">*</span>}
+              </Label>
               <Input
                 id="locationPostalCode"
                 {...register('locationPostalCode')}
-                placeholder={selectedCountry === 'CA' ? 'A1A 1A1' : '90210'}
+                placeholder={selectedCountry === 'CA' ? 'A1A 1A1' : selectedCountry === 'US' ? '90210' : ''}
               />
               {errors.locationPostalCode && (
                 <p className="text-sm text-destructive">{errors.locationPostalCode.message}</p>

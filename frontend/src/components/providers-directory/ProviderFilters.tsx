@@ -4,7 +4,10 @@ import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -13,7 +16,10 @@ import {
   PRICE_RANGES,
   type ListProvidersQuery,
 } from '@/hooks/use-providers';
-import { SUPPORTED_COUNTRIES } from '../../../../shared/schemas/provider';
+import { COUNTRIES, FEATURED_COUNTRY_CODES } from '../../../../shared/schemas/provider';
+
+const featuredCountries = COUNTRIES.filter((c) => FEATURED_COUNTRY_CODES.includes(c.code));
+const otherCountries = COUNTRIES.filter((c) => !FEATURED_COUNTRY_CODES.includes(c.code));
 
 const categoryLabels: Record<string, string> = {
   catering: 'Catering',
@@ -110,16 +116,25 @@ export function ProviderFilters({ filters, onChange }: ProviderFiltersProps) {
           onChange(buildFilters(filters, { country: val === 'all' ? undefined : val, offset: 0 }))
         }
       >
-        <SelectTrigger className="w-36">
+        <SelectTrigger className="w-44">
           <SelectValue placeholder="Country" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Countries</SelectItem>
-          {SUPPORTED_COUNTRIES.map((c) => (
-            <SelectItem key={c} value={c}>
-              {c === 'US' ? 'United States' : 'Canada'}
-            </SelectItem>
-          ))}
+          <SelectSeparator />
+          <SelectGroup>
+            <SelectLabel>Featured</SelectLabel>
+            {featuredCountries.map((c) => (
+              <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+            ))}
+          </SelectGroup>
+          <SelectSeparator />
+          <SelectGroup>
+            <SelectLabel>All Countries</SelectLabel>
+            {otherCountries.map((c) => (
+              <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
       {hasFilters && (

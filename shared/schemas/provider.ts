@@ -24,6 +24,70 @@ export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 export const SUPPORTED_COUNTRIES = ['US', 'CA'] as const;
 export type SupportedCountry = (typeof SUPPORTED_COUNTRIES)[number];
 
+export const STRUCTURED_COUNTRIES = ['US', 'CA'] as const;
+export type StructuredCountry = (typeof STRUCTURED_COUNTRIES)[number];
+
+export const COUNTRIES: { code: string; name: string }[] = [
+  // Featured first
+  { code: 'US', name: 'United States' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'MX', name: 'Mexico' },
+  { code: 'GB', name: 'United Kingdom' },
+  { code: 'AU', name: 'Australia' },
+  { code: 'NZ', name: 'New Zealand' },
+  { code: 'IE', name: 'Ireland' },
+  // Alphabetical
+  { code: 'AR', name: 'Argentina' },
+  { code: 'IN', name: 'India' },
+  { code: 'AT', name: 'Austria' },
+  { code: 'AE', name: 'United Arab Emirates' },
+  { code: 'BE', name: 'Belgium' },
+  { code: 'BR', name: 'Brazil' },
+  { code: 'CH', name: 'Switzerland' },
+  { code: 'CL', name: 'Chile' },
+  { code: 'CN', name: 'China' },
+  { code: 'CO', name: 'Colombia' },
+  { code: 'DE', name: 'Germany' },
+  { code: 'DK', name: 'Denmark' },
+  { code: 'EG', name: 'Egypt' },
+  { code: 'ES', name: 'Spain' },
+  { code: 'FI', name: 'Finland' },
+  { code: 'FR', name: 'France' },
+  { code: 'GH', name: 'Ghana' },
+  { code: 'GR', name: 'Greece' },
+  { code: 'HK', name: 'Hong Kong' },
+  { code: 'ID', name: 'Indonesia' },
+  { code: 'IL', name: 'Israel' },
+  { code: 'IT', name: 'Italy' },
+  { code: 'JP', name: 'Japan' },
+  { code: 'KE', name: 'Kenya' },
+  { code: 'KR', name: 'South Korea' },
+  { code: 'MY', name: 'Malaysia' },
+  { code: 'NG', name: 'Nigeria' },
+  { code: 'NL', name: 'Netherlands' },
+  { code: 'NO', name: 'Norway' },
+  { code: 'PH', name: 'Philippines' },
+  { code: 'PK', name: 'Pakistan' },
+  { code: 'PL', name: 'Poland' },
+  { code: 'PT', name: 'Portugal' },
+  { code: 'RO', name: 'Romania' },
+  { code: 'SA', name: 'Saudi Arabia' },
+  { code: 'SE', name: 'Sweden' },
+  { code: 'SG', name: 'Singapore' },
+  { code: 'TH', name: 'Thailand' },
+  { code: 'TR', name: 'Turkey' },
+  { code: 'TW', name: 'Taiwan' },
+  { code: 'UA', name: 'Ukraine' },
+  { code: 'VN', name: 'Vietnam' },
+  { code: 'ZA', name: 'South Africa' },
+];
+
+export const FEATURED_COUNTRY_CODES = ['US', 'CA', 'GB', 'AU', 'NZ', 'IE', 'MX'];
+
+export function getCountryName(code: string): string {
+  return COUNTRIES.find((c) => c.code === code)?.name ?? code;
+}
+
 export const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
   'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
@@ -137,9 +201,9 @@ export const createProviderSchema = z.object({
   priceRange: z.enum(PRICE_RANGES).optional().nullable(),
   locationAddress: z.string().min(1, 'Address is required').max(500),
   locationCity: z.string().min(1, 'City is required').max(100),
-  locationState: z.string().max(10),
-  locationCountry: z.enum(SUPPORTED_COUNTRIES, { required_error: 'Country is required' }),
-  locationPostalCode: z.string().min(1, 'Postal code is required').max(20),
+  locationState: z.string().max(100).optional().nullable(),
+  locationCountry: z.string().min(1, 'Country is required'),
+  locationPostalCode: z.string().max(20).optional().nullable(),
 }).superRefine((data, ctx) => validateProviderAddress(data, ctx));
 
 export const updateProviderSchema = z.object({
@@ -154,9 +218,9 @@ export const updateProviderSchema = z.object({
   priceRange: z.enum(PRICE_RANGES).optional().nullable(),
   locationAddress: z.string().min(1).max(500).optional(),
   locationCity: z.string().min(1).max(100).optional(),
-  locationState: z.string().max(10).optional(),
-  locationCountry: z.enum(SUPPORTED_COUNTRIES).optional(),
-  locationPostalCode: z.string().max(20).optional(),
+  locationState: z.string().max(100).optional().nullable(),
+  locationCountry: z.string().min(1).optional(),
+  locationPostalCode: z.string().max(20).optional().nullable(),
 }).superRefine((data, ctx) => {
   if (data.locationCountry || data.locationState || data.locationPostalCode) {
     validateProviderAddress(data, ctx);
@@ -169,7 +233,7 @@ export const listProvidersQuerySchema = z.object({
   priceRange: z.enum(PRICE_RANGES).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(100).optional(),
-  country: z.enum(SUPPORTED_COUNTRIES).optional(),
+  country: z.string().max(2).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
   sortBy: z.enum(['businessName', 'ratingAverage', 'createdAt']).default('createdAt'),
@@ -184,9 +248,9 @@ export const createVenueSchema = z.object({
   venueType: z.enum(VENUE_TYPES).optional().nullable(),
   address: z.string().min(1, 'Address is required').max(500),
   city: z.string().min(1, 'City is required').max(100),
-  state: z.string().min(1, 'State/Province is required').max(10),
-  country: z.enum(SUPPORTED_COUNTRIES, { required_error: 'Country is required' }),
-  postalCode: z.string().min(1, 'Postal code is required').max(20),
+  state: z.string().max(100).optional().nullable(),
+  country: z.string().min(1, 'Country is required'),
+  postalCode: z.string().max(20).optional().nullable(),
   capacityMin: z.coerce.number().int().min(0).optional().nullable(),
   capacityMax: z.coerce.number().int().min(0).optional().nullable(),
   pricePerHour: z.coerce.number().min(0).optional().nullable(),
@@ -204,9 +268,9 @@ export const updateVenueSchema = z.object({
   venueType: z.enum(VENUE_TYPES).optional().nullable(),
   address: z.string().min(1).max(500).optional(),
   city: z.string().min(1).max(100).optional(),
-  state: z.string().max(10).optional(),
-  country: z.enum(SUPPORTED_COUNTRIES).optional(),
-  postalCode: z.string().max(20).optional(),
+  state: z.string().max(100).optional().nullable(),
+  country: z.string().min(1).optional(),
+  postalCode: z.string().max(20).optional().nullable(),
   capacityMin: z.coerce.number().int().min(0).optional().nullable(),
   capacityMax: z.coerce.number().int().min(0).optional().nullable(),
   pricePerHour: z.coerce.number().min(0).optional().nullable(),
@@ -227,7 +291,7 @@ export const listVenuesQuerySchema = z.object({
   venueType: z.enum(VENUE_TYPES).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(100).optional(),
-  country: z.enum(SUPPORTED_COUNTRIES).optional(),
+  country: z.string().max(2).optional(),
   capacityMin: z.coerce.number().int().min(0).optional(),
   priceMax: z.coerce.number().min(0).optional(),
   amenities: z.string().max(500).optional(),
@@ -271,7 +335,7 @@ export const checkAvailabilityQuerySchema = z.object({
 export const nearbyQuerySchema = z.object({
   city: z.string().max(100).optional(),
   postalCode: z.string().max(20).optional(),
-  country: z.enum(SUPPORTED_COUNTRIES).optional(),
+  country: z.string().max(2).optional(),
   category: z.enum(PROVIDER_CATEGORIES).optional(),
   venueType: z.enum(VENUE_TYPES).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(10),

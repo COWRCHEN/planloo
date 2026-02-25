@@ -7,7 +7,7 @@ export interface DetectedLocation {
   city: string | null;
   state: string | null;
   postalCode: string | null;
-  country: 'US' | 'CA';
+  country: string;
 }
 export interface LocationNotDetected {
   detected: false;

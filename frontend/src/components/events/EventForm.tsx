@@ -19,6 +19,7 @@ import {
   SelectGroup,
   SelectItem,
   SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -26,6 +27,10 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCreateEvent, useUpdateEvent, type EventResponse } from '@/hooks/use-events';
 import { NearbyVenueSuggestions } from './NearbyVenueSuggestions';
+import { COUNTRIES, FEATURED_COUNTRY_CODES } from '../../../../shared/schemas/provider';
+
+const featuredCountries = COUNTRIES.filter((c) => FEATURED_COUNTRY_CODES.includes(c.code));
+const otherCountries = COUNTRIES.filter((c) => !FEATURED_COUNTRY_CODES.includes(c.code));
 
 // Form schema
 const eventFormSchema = z
@@ -657,8 +662,30 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="locationCountry">Country</Label>
-                  <Input id="locationCountry" placeholder="Country" {...register('locationCountry')} />
+                  <Label>Country</Label>
+                  <Select
+                    value={formData.locationCountry ?? ''}
+                    onValueChange={(val) => setValue('locationCountry', val)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Featured</SelectLabel>
+                        {featuredCountries.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                      <SelectSeparator />
+                      <SelectGroup>
+                        <SelectLabel>All Countries</SelectLabel>
+                        {otherCountries.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="locationPostalCode">Postal Code</Label>

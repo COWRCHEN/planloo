@@ -6,7 +6,7 @@ interface NearYouBannerProps {
   city: string | null;
   state: string | null;
   postalCode: string | null;
-  country: 'US' | 'CA';
+  country: string;
   onApply: (params: { city?: string; state?: string; postalCode?: string; country: string }) => void;
 }
 
