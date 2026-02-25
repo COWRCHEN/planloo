@@ -637,8 +637,10 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                   <span />
                 )}
                 {detectedLocation && !locationAutoDetected && (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
                       setValue('locationCity', detectedLocation.city ?? '');
                       setValue('locationState', detectedLocation.state ?? '');
@@ -646,10 +648,9 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                       setValue('locationPostalCode', detectedLocation.postalCode ?? '');
                       setLocationAutoDetected(true);
                     }}
-                    className="text-xs text-primary hover:underline"
                   >
                     Detect my location
-                  </button>
+                  </Button>
                 )}
               </div>
 
