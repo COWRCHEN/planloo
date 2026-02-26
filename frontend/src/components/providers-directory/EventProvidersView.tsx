@@ -37,6 +37,12 @@ import { cn } from '@/lib/utils';
 import { useSession } from '@/hooks/use-auth';
 import { useEvent } from '@/hooks/use-events';
 import { ProviderCategoryBadge } from './ProviderCategoryBadge';
+import { ProviderStarRating } from './ProviderStarRating';
+import { ProviderCommentForm } from './ProviderCommentForm';
+import { ProviderReviewsDialog, ProviderRatingBreakdownBars } from './ProviderReviewsDialog';
+import { VenueStarRating } from './VenueStarRating';
+import { VenueCommentForm } from './VenueCommentForm';
+import { VenueReviewsDialog, RatingBreakdownBars as VenueRatingBreakdownBars } from './VenueReviewsDialog';
 import { LinkProviderDialog } from './LinkProviderDialog';
 import { LinkVenueDialog } from './LinkVenueDialog';
 import {
@@ -347,6 +353,8 @@ function ProviderCard({
   const unlinkMutation = useUnlinkProvider(eventUuid);
   const { provider } = link;
   const isCancelled = link.status === 'cancelled';
+  const [reviewsOpen, setReviewsOpen] = useState(false);
+  const [hoverOpen, setHoverOpen] = useState(false);
 
   const address = [provider.locationAddress, provider.locationCity, provider.locationState]
     .filter(Boolean)
@@ -464,6 +472,53 @@ function ProviderCard({
             )}
           </div>
 
+          {/* All Reviews */}
+          {provider.ratingCount > 0 && (
+            <>
+              <Popover open={hoverOpen} onOpenChange={setHoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    onMouseEnter={() => setHoverOpen(true)}
+                    onMouseLeave={() => setHoverOpen(false)}
+                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
+                  >
+                    <span className="flex items-center gap-0.5 text-yellow-500">
+                      {'★'.repeat(Math.round(provider.ratingAverage))}{'☆'.repeat(5 - Math.round(provider.ratingAverage))}
+                    </span>
+                    <span>{provider.ratingAverage.toFixed(1)} ({provider.ratingCount} {provider.ratingCount === 1 ? 'review' : 'reviews'})</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-56 p-3"
+                  onMouseEnter={() => setHoverOpen(true)}
+                  onMouseLeave={() => setHoverOpen(false)}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  side="bottom"
+                  align="start"
+                >
+                  <ProviderRatingBreakdownBars breakdown={provider.ratingBreakdown ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }} total={provider.ratingCount} />
+                  <button
+                    type="button"
+                    className="mt-2 w-full text-xs text-primary hover:underline text-left"
+                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
+                  >
+                    See all reviews
+                  </button>
+                </PopoverContent>
+              </Popover>
+              <ProviderReviewsDialog
+                providerUuid={provider.uuid}
+                providerName={provider.businessName}
+                ratingAverage={provider.ratingAverage}
+                ratingCount={provider.ratingCount}
+                open={reviewsOpen}
+                onOpenChange={setReviewsOpen}
+              />
+            </>
+          )}
+
           {/* Payment grid */}
           <Separator />
           <PaymentGrid
@@ -482,6 +537,26 @@ function ProviderCard({
             type="provider"
             currency={link.currency}
           />
+          <Accordion type="single" collapsible>
+            <AccordionItem value="rating" className="border-0">
+              <AccordionTrigger className="py-1 text-xs text-muted-foreground hover:text-foreground hover:no-underline">
+                <div className="flex items-center gap-2">
+                  My Rating & Review
+                  {provider.userRating ? (
+                    <span className="text-[11px] text-yellow-500">
+                      {'★'.repeat(provider.userRating)}{'☆'.repeat(5 - provider.userRating)}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">No rating yet</span>
+                  )}
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-2 pb-0 pt-2">
+                <ProviderStarRating providerUuid={provider.uuid} userRating={provider.userRating} size="sm" />
+                <ProviderCommentForm providerUuid={provider.uuid} userComment={provider.userComment} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
     </>
@@ -502,6 +577,8 @@ function VenueCard({
   const unlinkMutation = useUnlinkVenue(eventUuid);
   const { venue } = link;
   const isCancelled = link.status === 'cancelled';
+  const [reviewsOpen, setReviewsOpen] = useState(false);
+  const [hoverOpen, setHoverOpen] = useState(false);
 
   const address = [venue.address, venue.city, venue.state].filter(Boolean).join(', ');
 
@@ -621,6 +698,53 @@ function VenueCard({
             )}
           </div>
 
+          {/* All Reviews */}
+          {venue.ratingCount > 0 && (
+            <>
+              <Popover open={hoverOpen} onOpenChange={setHoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    onMouseEnter={() => setHoverOpen(true)}
+                    onMouseLeave={() => setHoverOpen(false)}
+                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
+                  >
+                    <span className="flex items-center gap-0.5 text-yellow-500">
+                      {'★'.repeat(Math.round(venue.ratingAverage))}{'☆'.repeat(5 - Math.round(venue.ratingAverage))}
+                    </span>
+                    <span>{venue.ratingAverage.toFixed(1)} ({venue.ratingCount} {venue.ratingCount === 1 ? 'review' : 'reviews'})</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-56 p-3"
+                  onMouseEnter={() => setHoverOpen(true)}
+                  onMouseLeave={() => setHoverOpen(false)}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  side="bottom"
+                  align="start"
+                >
+                  <VenueRatingBreakdownBars breakdown={venue.ratingBreakdown ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }} total={venue.ratingCount} />
+                  <button
+                    type="button"
+                    className="mt-2 w-full text-xs text-primary hover:underline text-left"
+                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
+                  >
+                    See all reviews
+                  </button>
+                </PopoverContent>
+              </Popover>
+              <VenueReviewsDialog
+                venueUuid={venue.uuid}
+                venueName={venue.name}
+                ratingAverage={venue.ratingAverage}
+                ratingCount={venue.ratingCount}
+                open={reviewsOpen}
+                onOpenChange={setReviewsOpen}
+              />
+            </>
+          )}
+
           {/* Payment grid */}
           <Separator />
           <PaymentGrid
@@ -641,6 +765,26 @@ function VenueCard({
             type="venue"
             currency={link.currency}
           />
+          <Accordion type="single" collapsible>
+            <AccordionItem value="rating" className="border-0">
+              <AccordionTrigger className="py-1 text-xs text-muted-foreground hover:text-foreground hover:no-underline">
+                <div className="flex items-center gap-2">
+                  My Rating & Review
+                  {venue.userRating ? (
+                    <span className="text-[11px] text-yellow-500">
+                      {'★'.repeat(venue.userRating)}{'☆'.repeat(5 - venue.userRating)}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">No rating yet</span>
+                  )}
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-2 pb-0 pt-2">
+                <VenueStarRating venueUuid={venue.uuid} userRating={venue.userRating} size="sm" />
+                <VenueCommentForm venueUuid={venue.uuid} userComment={venue.userComment} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
 
           {/* Availability check */}
           <VenueAvailabilityCheck venueUuid={venue.uuid} eventDate={eventDate} />

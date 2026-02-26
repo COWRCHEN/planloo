@@ -552,6 +552,7 @@ export function useRateVenue() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: venueKeys.lists() });
       queryClient.invalidateQueries({ queryKey: venueKeys.details() });
+      queryClient.invalidateQueries({ queryKey: eventVenueKeys.all });
     },
   });
 }
@@ -581,6 +582,7 @@ export function useRateProvider() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: providerKeys.lists() });
       queryClient.invalidateQueries({ queryKey: providerKeys.details() });
+      queryClient.invalidateQueries({ queryKey: eventProviderKeys.all });
     },
   });
 }
@@ -602,6 +604,7 @@ export function useCommentProvider() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: providerKeys.detail(variables.providerUuid) });
       queryClient.invalidateQueries({ queryKey: providerKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: eventProviderKeys.all });
     },
   });
 }
@@ -623,6 +626,7 @@ export function useCommentVenue() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: venueKeys.detail(variables.venueUuid) });
       queryClient.invalidateQueries({ queryKey: venueKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: eventVenueKeys.all });
     },
   });
 }

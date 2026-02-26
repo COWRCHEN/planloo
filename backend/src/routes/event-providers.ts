@@ -11,7 +11,7 @@ import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and, isNull, desc } from 'drizzle-orm';
+import { eq, and, isNull, desc, count, inArray } from 'drizzle-orm';
 import { user as userTable } from '@/db/schema/auth';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
@@ -183,13 +183,38 @@ eventProviders.get('/', requireAuth, async (c) => {
         updatedAt: schema.eventServiceProviders.updatedAt,
       },
       provider: schema.serviceProviders,
+      userRating: schema.userProviderRatings.rating,
+      userComment: schema.userProviderRatings.comment,
     })
     .from(schema.eventServiceProviders)
     .innerJoin(
       schema.serviceProviders,
       eq(schema.eventServiceProviders.serviceProviderId, schema.serviceProviders.id)
     )
+    .leftJoin(
+      schema.userProviderRatings,
+      and(
+        eq(schema.userProviderRatings.providerId, schema.serviceProviders.id),
+        eq(schema.userProviderRatings.userId, user.id)
+      )
+    )
     .where(eq(schema.eventServiceProviders.eventId, event.id));
+
+  // Batch-fetch rating breakdown for all linked providers
+  type RatingBreakdown = { 1: number; 2: number; 3: number; 4: number; 5: number };
+  const providerBreakdownMap = new Map<number, RatingBreakdown>();
+  const providerIds = links.map((r) => r.provider.id);
+  if (providerIds.length > 0) {
+    const bdRows = await db
+      .select({ providerId: schema.userProviderRatings.providerId, rating: schema.userProviderRatings.rating, cnt: count() })
+      .from(schema.userProviderRatings)
+      .where(and(inArray(schema.userProviderRatings.providerId, providerIds), isNull(schema.userProviderRatings.rating).not()))
+      .groupBy(schema.userProviderRatings.providerId, schema.userProviderRatings.rating);
+    for (const r of bdRows) {
+      if (!providerBreakdownMap.has(r.providerId)) providerBreakdownMap.set(r.providerId, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
+      if (r.rating) providerBreakdownMap.get(r.providerId)![r.rating as 1 | 2 | 3 | 4 | 5] = r.cnt;
+    }
+  }
 
   const data = links.map((row) => ({
     id: row.link.id,
@@ -205,7 +230,7 @@ eventProviders.get('/', requireAuth, async (c) => {
     notes: row.link.notes,
     createdAt: row.link.createdAt,
     updatedAt: row.link.updatedAt,
-    provider: formatProvider(row.provider, user.id),
+    provider: { ...formatProvider(row.provider, user.id), userRating: row.userRating ?? null, userComment: row.userComment ?? null, ratingBreakdown: providerBreakdownMap.get(row.provider.id) ?? null },
   }));
 
   return c.json({ success: true, data });
@@ -304,11 +329,20 @@ eventProviders.post(
           updatedAt: schema.eventServiceProviders.updatedAt,
         },
         provider: schema.serviceProviders,
+        userRating: schema.userProviderRatings.rating,
+        userComment: schema.userProviderRatings.comment,
       })
       .from(schema.eventServiceProviders)
       .innerJoin(
         schema.serviceProviders,
         eq(schema.eventServiceProviders.serviceProviderId, schema.serviceProviders.id)
+      )
+      .leftJoin(
+        schema.userProviderRatings,
+        and(
+          eq(schema.userProviderRatings.providerId, schema.serviceProviders.id),
+          eq(schema.userProviderRatings.userId, user.id)
+        )
       )
       .where(
         and(
@@ -335,7 +369,7 @@ eventProviders.post(
           notes: link!.link.notes,
           createdAt: link!.link.createdAt,
           updatedAt: link!.link.updatedAt,
-          provider: formatProvider(link!.provider, user.id),
+          provider: { ...formatProvider(link!.provider, user.id), userRating: link!.userRating ?? null, userComment: link!.userComment ?? null },
         },
       },
       201
@@ -465,6 +499,8 @@ eventProviders.get('/venues', requireAuth, async (c) => {
         id: schema.eventVenues.id,
         status: schema.eventVenues.status,
         bookingDate: schema.eventVenues.bookingDate,
+        bookingStartTime: schema.eventVenues.bookingStartTime,
+        bookingEndTime: schema.eventVenues.bookingEndTime,
         quoteAmount: schema.eventVenues.quoteAmount,
         finalAmount: schema.eventVenues.finalAmount,
         currency: schema.eventVenues.currency,
@@ -478,10 +514,35 @@ eventProviders.get('/venues', requireAuth, async (c) => {
         updatedAt: schema.eventVenues.updatedAt,
       },
       venue: schema.venues,
+      userRating: schema.userVenueRatings.rating,
+      userComment: schema.userVenueRatings.comment,
     })
     .from(schema.eventVenues)
     .innerJoin(schema.venues, eq(schema.eventVenues.venueId, schema.venues.id))
+    .leftJoin(
+      schema.userVenueRatings,
+      and(
+        eq(schema.userVenueRatings.venueId, schema.venues.id),
+        eq(schema.userVenueRatings.userId, user.id)
+      )
+    )
     .where(eq(schema.eventVenues.eventId, event.id));
+
+  // Batch-fetch rating breakdown for all linked venues
+  type RatingBreakdown = { 1: number; 2: number; 3: number; 4: number; 5: number };
+  const venueBreakdownMap = new Map<number, RatingBreakdown>();
+  const venueIds = links.map((r) => r.venue.id);
+  if (venueIds.length > 0) {
+    const bdRows = await db
+      .select({ venueId: schema.userVenueRatings.venueId, rating: schema.userVenueRatings.rating, cnt: count() })
+      .from(schema.userVenueRatings)
+      .where(and(inArray(schema.userVenueRatings.venueId, venueIds), isNull(schema.userVenueRatings.rating).not()))
+      .groupBy(schema.userVenueRatings.venueId, schema.userVenueRatings.rating);
+    for (const r of bdRows) {
+      if (!venueBreakdownMap.has(r.venueId)) venueBreakdownMap.set(r.venueId, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
+      if (r.rating) venueBreakdownMap.get(r.venueId)![r.rating as 1 | 2 | 3 | 4 | 5] = r.cnt;
+    }
+  }
 
   const data = links.map((row) => ({
     id: row.link.id,
@@ -500,7 +561,7 @@ eventProviders.get('/venues', requireAuth, async (c) => {
     notes: row.link.notes,
     createdAt: row.link.createdAt,
     updatedAt: row.link.updatedAt,
-    venue: formatVenue(row.venue, user.id),
+    venue: { ...formatVenue(row.venue, user.id), userRating: row.userRating ?? null, userComment: row.userComment ?? null, ratingBreakdown: venueBreakdownMap.get(row.venue.id) ?? null },
   }));
 
   return c.json({ success: true, data });
@@ -587,9 +648,18 @@ eventProviders.post(
           updatedAt: schema.eventVenues.updatedAt,
         },
         venue: schema.venues,
+        userRating: schema.userVenueRatings.rating,
+        userComment: schema.userVenueRatings.comment,
       })
       .from(schema.eventVenues)
       .innerJoin(schema.venues, eq(schema.eventVenues.venueId, schema.venues.id))
+      .leftJoin(
+        schema.userVenueRatings,
+        and(
+          eq(schema.userVenueRatings.venueId, schema.venues.id),
+          eq(schema.userVenueRatings.userId, user.id)
+        )
+      )
       .where(
         and(
           eq(schema.eventVenues.eventId, event.id),
@@ -620,7 +690,7 @@ eventProviders.post(
           notes: row.link.notes,
           createdAt: row.link.createdAt,
           updatedAt: row.link.updatedAt,
-          venue: formatVenue(row.venue, user.id),
+          venue: { ...formatVenue(row.venue, user.id), userRating: row.userRating ?? null, userComment: row.userComment ?? null },
         },
       },
       201
@@ -812,9 +882,18 @@ eventProviders.patch(
           updatedAt: schema.eventVenues.updatedAt,
         },
         venue: schema.venues,
+        userRating: schema.userVenueRatings.rating,
+        userComment: schema.userVenueRatings.comment,
       })
       .from(schema.eventVenues)
       .innerJoin(schema.venues, eq(schema.eventVenues.venueId, schema.venues.id))
+      .leftJoin(
+        schema.userVenueRatings,
+        and(
+          eq(schema.userVenueRatings.venueId, schema.venues.id),
+          eq(schema.userVenueRatings.userId, user.id)
+        )
+      )
       .where(eq(schema.eventVenues.id, existing.id))
       .limit(1);
 
@@ -837,7 +916,7 @@ eventProviders.patch(
         notes: row!.link.notes,
         createdAt: row!.link.createdAt,
         updatedAt: row!.link.updatedAt,
-        venue: formatVenue(row!.venue, user.id),
+        venue: { ...formatVenue(row!.venue, user.id), userRating: row!.userRating ?? null, userComment: row!.userComment ?? null },
       },
     });
   }
@@ -971,11 +1050,20 @@ eventProviders.patch(
           updatedAt: schema.eventServiceProviders.updatedAt,
         },
         provider: schema.serviceProviders,
+        userRating: schema.userProviderRatings.rating,
+        userComment: schema.userProviderRatings.comment,
       })
       .from(schema.eventServiceProviders)
       .innerJoin(
         schema.serviceProviders,
         eq(schema.eventServiceProviders.serviceProviderId, schema.serviceProviders.id)
+      )
+      .leftJoin(
+        schema.userProviderRatings,
+        and(
+          eq(schema.userProviderRatings.providerId, schema.serviceProviders.id),
+          eq(schema.userProviderRatings.userId, user.id)
+        )
       )
       .where(eq(schema.eventServiceProviders.id, existing.id))
       .limit(1);
@@ -996,7 +1084,7 @@ eventProviders.patch(
         notes: row!.link.notes,
         createdAt: row!.link.createdAt,
         updatedAt: row!.link.updatedAt,
-        provider: formatProvider(row!.provider, user.id),
+        provider: { ...formatProvider(row!.provider, user.id), userRating: row!.userRating ?? null, userComment: row!.userComment ?? null },
       },
     });
   }
