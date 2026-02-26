@@ -11,7 +11,8 @@ import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, desc } from 'drizzle-orm';
+import { user as userTable } from '@/db/schema/auth';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
 
@@ -34,9 +35,7 @@ const createEventProviderSchema = z.object({
 });
 
 const updateEventProviderSchema = z.object({
-  status: z.enum(BOOKING_STATUSES).optional(),
   quoteAmount: z.coerce.number().min(0).optional().nullable(),
-  finalAmount: z.coerce.number().min(0).optional().nullable(),
   currency: z.string().length(3).optional(),
   depositAmount: z.coerce.number().min(0).optional().nullable(),
   depositPaid: z.boolean().optional(),
@@ -55,11 +54,24 @@ const createEventVenueSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
 });
 
-const updateEventVenueSchema = z.object({
-  status: z.enum(BOOKING_STATUSES).optional(),
-  bookingDate: z.coerce.date().optional().nullable(),
+const createLogSchema = z.object({
+  contactPerson: z.string().max(200).optional().nullable(),
+  result: z.string().max(500).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  statusChange: z.enum(BOOKING_STATUSES).optional().nullable(),
+  currency: z.string().length(3).optional(),
   quoteAmount: z.coerce.number().min(0).optional().nullable(),
   finalAmount: z.coerce.number().min(0).optional().nullable(),
+  depositAmount: z.coerce.number().min(0).optional().nullable(),
+  depositPaid: z.boolean().optional().nullable(),
+  paymentDueDate: z.coerce.date().optional().nullable(),
+  bookingStartTime: z.coerce.date().optional().nullable(),
+  bookingEndTime: z.coerce.date().optional().nullable(),
+});
+
+const updateEventVenueSchema = z.object({
+  bookingDate: z.coerce.date().optional().nullable(),
+  quoteAmount: z.coerce.number().min(0).optional().nullable(),
   currency: z.string().length(3).optional(),
   depositAmount: z.coerce.number().min(0).optional().nullable(),
   depositPaid: z.boolean().optional(),
@@ -331,6 +343,102 @@ eventProviders.post(
   }
 );
 
+// ==================== PROVIDER LOG ROUTES (before /:linkId param) ====================
+
+/**
+ * GET /events/:eventUuid/providers/:linkId/logs
+ */
+eventProviders.get('/:linkId/logs', requireAuth, async (c) => {
+  const user = c.get('user')!;
+  const eventUuid = c.req.param('eventUuid')!;
+  const linkId = parseInt(c.req.param('linkId')!, 10);
+  const db = createDbClient(c.env.DB);
+
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
+
+  const rows = await db
+    .select({
+      id: schema.eventProviderLogs.id,
+      entityType: schema.eventProviderLogs.entityType,
+      linkId: schema.eventProviderLogs.linkId,
+      logDate: schema.eventProviderLogs.logDate,
+      contactPerson: schema.eventProviderLogs.contactPerson,
+      result: schema.eventProviderLogs.result,
+      notes: schema.eventProviderLogs.notes,
+      statusChange: schema.eventProviderLogs.statusChange,
+      quoteAmount: schema.eventProviderLogs.quoteAmount,
+      finalAmount: schema.eventProviderLogs.finalAmount,
+      depositAmount: schema.eventProviderLogs.depositAmount,
+      depositPaid: schema.eventProviderLogs.depositPaid,
+      paymentDueDate: schema.eventProviderLogs.paymentDueDate,
+      bookingStartTime: schema.eventProviderLogs.bookingStartTime,
+      bookingEndTime: schema.eventProviderLogs.bookingEndTime,
+      createdByUserId: schema.eventProviderLogs.createdByUserId,
+      createdByName: userTable.name,
+      createdAt: schema.eventProviderLogs.createdAt,
+      updatedAt: schema.eventProviderLogs.updatedAt,
+    })
+    .from(schema.eventProviderLogs)
+    .leftJoin(userTable, eq(schema.eventProviderLogs.createdByUserId, userTable.id))
+    .where(and(eq(schema.eventProviderLogs.entityType, 'provider'), eq(schema.eventProviderLogs.linkId, linkId)))
+    .orderBy(desc(schema.eventProviderLogs.logDate));
+
+  return c.json({ success: true, data: rows });
+});
+
+/**
+ * POST /events/:eventUuid/providers/:linkId/logs
+ */
+eventProviders.post('/:linkId/logs', requireAuth, requireVerifiedEmail, zValidator('json', createLogSchema), async (c) => {
+  const user = c.get('user')!;
+  const eventUuid = c.req.param('eventUuid')!;
+  const linkId = parseInt(c.req.param('linkId')!, 10);
+  const body = c.req.valid('json');
+  const db = createDbClient(c.env.DB);
+
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
+  if (!access.canEdit) return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } }, 403);
+
+  const statusChange = body.statusChange ?? null;
+  const logValues = {
+    entityType: 'provider' as const,
+    linkId,
+    logDate: new Date(),
+    contactPerson: body.contactPerson ?? null,
+    result: body.result ?? null,
+    notes: body.notes ?? null,
+    statusChange,
+    createdByUserId: user.id,
+    quoteAmount: body.quoteAmount ?? null,
+    finalAmount: body.finalAmount ?? null,
+    depositAmount: body.depositAmount ?? null,
+    depositPaid: body.depositPaid ?? null,
+    paymentDueDate: body.paymentDueDate ?? null,
+    bookingStartTime: body.bookingStartTime ?? null,
+    bookingEndTime: body.bookingEndTime ?? null,
+  };
+
+  const linkUpdateData: Record<string, unknown> = { updatedAt: new Date() };
+  if (statusChange) linkUpdateData.status = statusChange;
+  if (body.currency) linkUpdateData.currency = body.currency;
+  if (body.quoteAmount != null) linkUpdateData.quoteAmount = body.quoteAmount;
+  if (body.finalAmount != null) linkUpdateData.finalAmount = body.finalAmount;
+  if (body.depositAmount != null) linkUpdateData.depositAmount = body.depositAmount;
+  if (body.depositPaid != null) linkUpdateData.depositPaid = body.depositPaid;
+  if (body.paymentDueDate !== undefined) linkUpdateData.paymentDueDate = body.paymentDueDate ?? null;
+
+  const batchResults = await db.batch([
+    db.insert(schema.eventProviderLogs).values(logValues).returning(),
+    db.update(schema.eventServiceProviders).set(linkUpdateData).where(eq(schema.eventServiceProviders.id, linkId)),
+  ]);
+  const insertedLog = (batchResults[0] as typeof schema.eventProviderLogs.$inferSelect[])[0]!;
+
+  const log = { ...insertedLog, createdByName: user.name };
+  return c.json({ success: true, data: log }, 201);
+});
+
 // ==================== VENUE LINK ROUTES (static paths BEFORE /:linkId) ====================
 
 /**
@@ -379,6 +487,8 @@ eventProviders.get('/venues', requireAuth, async (c) => {
     id: row.link.id,
     status: row.link.status,
     bookingDate: row.link.bookingDate,
+    bookingStartTime: row.link.bookingStartTime,
+    bookingEndTime: row.link.bookingEndTime,
     quoteAmount: row.link.quoteAmount,
     finalAmount: row.link.finalAmount,
     currency: row.link.currency,
@@ -462,6 +572,8 @@ eventProviders.post(
           id: schema.eventVenues.id,
           status: schema.eventVenues.status,
           bookingDate: schema.eventVenues.bookingDate,
+          bookingStartTime: schema.eventVenues.bookingStartTime,
+          bookingEndTime: schema.eventVenues.bookingEndTime,
           quoteAmount: schema.eventVenues.quoteAmount,
           finalAmount: schema.eventVenues.finalAmount,
           currency: schema.eventVenues.currency,
@@ -495,6 +607,8 @@ eventProviders.post(
           id: row.link.id,
           status: row.link.status,
           bookingDate: row.link.bookingDate,
+          bookingStartTime: row.link.bookingStartTime,
+          bookingEndTime: row.link.bookingEndTime,
           quoteAmount: row.link.quoteAmount,
           finalAmount: row.link.finalAmount,
           currency: row.link.currency,
@@ -513,6 +627,102 @@ eventProviders.post(
     );
   }
 );
+
+/**
+ * GET /events/:eventUuid/providers/venues/:linkId/logs
+ */
+eventProviders.get('/venues/:linkId/logs', requireAuth, async (c) => {
+  const user = c.get('user')!;
+  const eventUuid = c.req.param('eventUuid')!;
+  const linkId = parseInt(c.req.param('linkId')!, 10);
+  const db = createDbClient(c.env.DB);
+
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
+
+  const rows = await db
+    .select({
+      id: schema.eventProviderLogs.id,
+      entityType: schema.eventProviderLogs.entityType,
+      linkId: schema.eventProviderLogs.linkId,
+      logDate: schema.eventProviderLogs.logDate,
+      contactPerson: schema.eventProviderLogs.contactPerson,
+      result: schema.eventProviderLogs.result,
+      notes: schema.eventProviderLogs.notes,
+      statusChange: schema.eventProviderLogs.statusChange,
+      quoteAmount: schema.eventProviderLogs.quoteAmount,
+      finalAmount: schema.eventProviderLogs.finalAmount,
+      depositAmount: schema.eventProviderLogs.depositAmount,
+      depositPaid: schema.eventProviderLogs.depositPaid,
+      paymentDueDate: schema.eventProviderLogs.paymentDueDate,
+      bookingStartTime: schema.eventProviderLogs.bookingStartTime,
+      bookingEndTime: schema.eventProviderLogs.bookingEndTime,
+      createdByUserId: schema.eventProviderLogs.createdByUserId,
+      createdByName: userTable.name,
+      createdAt: schema.eventProviderLogs.createdAt,
+      updatedAt: schema.eventProviderLogs.updatedAt,
+    })
+    .from(schema.eventProviderLogs)
+    .leftJoin(userTable, eq(schema.eventProviderLogs.createdByUserId, userTable.id))
+    .where(and(eq(schema.eventProviderLogs.entityType, 'venue'), eq(schema.eventProviderLogs.linkId, linkId)))
+    .orderBy(desc(schema.eventProviderLogs.logDate));
+
+  return c.json({ success: true, data: rows });
+});
+
+/**
+ * POST /events/:eventUuid/providers/venues/:linkId/logs
+ */
+eventProviders.post('/venues/:linkId/logs', requireAuth, requireVerifiedEmail, zValidator('json', createLogSchema), async (c) => {
+  const user = c.get('user')!;
+  const eventUuid = c.req.param('eventUuid')!;
+  const linkId = parseInt(c.req.param('linkId')!, 10);
+  const body = c.req.valid('json');
+  const db = createDbClient(c.env.DB);
+
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
+  if (!access.canEdit) return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } }, 403);
+
+  const statusChange = body.statusChange ?? null;
+  const logValues = {
+    entityType: 'venue' as const,
+    linkId,
+    logDate: new Date(),
+    contactPerson: body.contactPerson ?? null,
+    result: body.result ?? null,
+    notes: body.notes ?? null,
+    statusChange,
+    createdByUserId: user.id,
+    quoteAmount: body.quoteAmount ?? null,
+    finalAmount: body.finalAmount ?? null,
+    depositAmount: body.depositAmount ?? null,
+    depositPaid: body.depositPaid ?? null,
+    paymentDueDate: body.paymentDueDate ?? null,
+    bookingStartTime: body.bookingStartTime ?? null,
+    bookingEndTime: body.bookingEndTime ?? null,
+  };
+
+  const venueLinkUpdateData: Record<string, unknown> = { updatedAt: new Date() };
+  if (statusChange) venueLinkUpdateData.status = statusChange;
+  if (body.currency) venueLinkUpdateData.currency = body.currency;
+  if (body.quoteAmount != null) venueLinkUpdateData.quoteAmount = body.quoteAmount;
+  if (body.finalAmount != null) venueLinkUpdateData.finalAmount = body.finalAmount;
+  if (body.depositAmount != null) venueLinkUpdateData.depositAmount = body.depositAmount;
+  if (body.depositPaid != null) venueLinkUpdateData.depositPaid = body.depositPaid;
+  if (body.paymentDueDate !== undefined) venueLinkUpdateData.paymentDueDate = body.paymentDueDate ?? null;
+  if (body.bookingStartTime !== undefined) venueLinkUpdateData.bookingStartTime = body.bookingStartTime ?? null;
+  if (body.bookingEndTime !== undefined) venueLinkUpdateData.bookingEndTime = body.bookingEndTime ?? null;
+
+  const venueBatchResults = await db.batch([
+    db.insert(schema.eventProviderLogs).values(logValues).returning(),
+    db.update(schema.eventVenues).set(venueLinkUpdateData).where(eq(schema.eventVenues.id, linkId)),
+  ]);
+  const insertedVenueLog = (venueBatchResults[0] as typeof schema.eventProviderLogs.$inferSelect[])[0]!;
+
+  const venueLog = { ...insertedVenueLog, createdByName: user.name };
+  return c.json({ success: true, data: venueLog }, 201);
+});
 
 /**
  * PATCH /events/:eventUuid/providers/venues/:linkId
@@ -565,10 +775,8 @@ eventProviders.patch(
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
 
-    if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.bookingDate !== undefined) updateData.bookingDate = updates.bookingDate;
     if (updates.quoteAmount !== undefined) updateData.quoteAmount = updates.quoteAmount;
-    if (updates.finalAmount !== undefined) updateData.finalAmount = updates.finalAmount;
     if (updates.currency !== undefined) updateData.currency = updates.currency;
     if (updates.depositAmount !== undefined) updateData.depositAmount = updates.depositAmount;
     if (updates.depositPaid !== undefined) updateData.depositPaid = updates.depositPaid;
@@ -589,6 +797,8 @@ eventProviders.patch(
           id: schema.eventVenues.id,
           status: schema.eventVenues.status,
           bookingDate: schema.eventVenues.bookingDate,
+          bookingStartTime: schema.eventVenues.bookingStartTime,
+          bookingEndTime: schema.eventVenues.bookingEndTime,
           quoteAmount: schema.eventVenues.quoteAmount,
           finalAmount: schema.eventVenues.finalAmount,
           currency: schema.eventVenues.currency,
@@ -614,6 +824,8 @@ eventProviders.patch(
         id: row!.link.id,
         status: row!.link.status,
         bookingDate: row!.link.bookingDate,
+        bookingStartTime: row!.link.bookingStartTime,
+        bookingEndTime: row!.link.bookingEndTime,
         quoteAmount: row!.link.quoteAmount,
         finalAmount: row!.link.finalAmount,
         currency: row!.link.currency,
@@ -726,9 +938,7 @@ eventProviders.patch(
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
 
-    if (updates.status !== undefined) updateData.status = updates.status;
     if (updates.quoteAmount !== undefined) updateData.quoteAmount = updates.quoteAmount;
-    if (updates.finalAmount !== undefined) updateData.finalAmount = updates.finalAmount;
     if (updates.currency !== undefined) updateData.currency = updates.currency;
     if (updates.depositAmount !== undefined) updateData.depositAmount = updates.depositAmount;
     if (updates.depositPaid !== undefined) updateData.depositPaid = updates.depositPaid;

@@ -155,6 +155,36 @@ export const eventVenues = sqliteTable('event_venues', {
 }));
 
 /**
+ * Event Provider Logs Table
+ * Contact/interaction logs for event provider and venue links
+ */
+export const eventProviderLogs = sqliteTable('event_provider_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  entityType: text('entity_type', { enum: ['provider', 'venue'] }).notNull(),
+  linkId: integer('link_id').notNull(),
+  logDate: integer('log_date', { mode: 'timestamp' }).notNull(),
+  contactPerson: text('contact_person'),
+  result: text('result'),
+  notes: text('notes'),
+  statusChange: text('status_change', {
+    enum: ['inquiry', 'quoted', 'booked', 'confirmed', 'completed', 'cancelled']
+  }),
+  createdByUserId: text('created_by_user_id').references(() => user.id, { onDelete: 'set null' }),
+  quoteAmount: real('quote_amount'),
+  finalAmount: real('final_amount'),
+  depositAmount: real('deposit_amount'),
+  depositPaid: integer('deposit_paid', { mode: 'boolean' }),
+  paymentDueDate: integer('payment_due_date', { mode: 'timestamp' }),
+  bookingStartTime: integer('booking_start_time', { mode: 'timestamp' }),
+  bookingEndTime: integer('booking_end_time', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
+}, (table) => ({
+  entityLinkIdx: index('idx_event_provider_logs_entity_link').on(table.entityType, table.linkId),
+  logDateIdx: index('idx_event_provider_logs_date').on(table.logDate),
+}));
+
+/**
  * Images Table
  * Image storage for events, venues, and providers
  */

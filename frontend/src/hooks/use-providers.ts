@@ -141,6 +141,8 @@ export interface EventVenueResponse {
   id: number;
   status: BookingStatus;
   bookingDate: string | null;
+  bookingStartTime: string | null;
+  bookingEndTime: string | null;
   quoteAmount: number | null;
   finalAmount: number | null;
   currency: string;
@@ -275,9 +277,7 @@ export interface LinkProviderInput {
 }
 
 export interface UpdateEventProviderInput {
-  status?: BookingStatus;
   quoteAmount?: number | null;
-  finalAmount?: number | null;
   currency?: string;
   depositAmount?: number | null;
   depositPaid?: boolean;
@@ -297,10 +297,8 @@ export interface LinkVenueInput {
 }
 
 export interface UpdateEventVenueInput {
-  status?: BookingStatus;
   bookingDate?: Date | null;
   quoteAmount?: number | null;
-  finalAmount?: number | null;
   currency?: string;
   depositAmount?: number | null;
   depositPaid?: boolean;
@@ -343,6 +341,11 @@ export const eventProviderKeys = {
 export const eventVenueKeys = {
   all: ['eventVenues'] as const,
   list: (eventUuid: string) => [...eventVenueKeys.all, 'list', eventUuid] as const,
+};
+
+export const providerLogKeys = {
+  provider: (eventUuid: string, linkId: number) => ['providerLogs', 'provider', eventUuid, linkId] as const,
+  venue: (eventUuid: string, linkId: number) => ['providerLogs', 'venue', eventUuid, linkId] as const,
 };
 
 // ==================== HELPERS ====================
@@ -949,3 +952,111 @@ export function useUnlinkVenue(eventUuid: string) {
     },
   });
 }
+
+// ==================== CONTACT LOG TYPES & HOOKS ====================
+
+export interface ProviderLog {
+  id: number;
+  entityType: 'provider' | 'venue';
+  linkId: number;
+  logDate: string;
+  contactPerson: string | null;
+  result: string | null;
+  notes: string | null;
+  statusChange: BookingStatus | null;
+  quoteAmount: number | null;
+  finalAmount: number | null;
+  depositAmount: number | null;
+  depositPaid: boolean | null;
+  paymentDueDate: string | null;
+  bookingStartTime: string | null;
+  bookingEndTime: string | null;
+  createdByUserId: string | null;
+  createdByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateLogInput {
+  contactPerson?: string | null;
+  result?: string | null;
+  notes?: string | null;
+  statusChange?: BookingStatus | null;
+  currency?: string;
+  quoteAmount?: number | null;
+  finalAmount?: number | null;
+  depositAmount?: number | null;
+  depositPaid?: boolean | null;
+  paymentDueDate?: Date | null;
+  bookingStartTime?: Date | null;
+  bookingEndTime?: Date | null;
+}
+
+export function useProviderLogs(eventUuid: string, linkId: number) {
+  return useQuery({
+    queryKey: providerLogKeys.provider(eventUuid, linkId),
+    queryFn: async () => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/providers/${linkId}/logs`, {
+        credentials: 'include',
+      });
+      const result = await handleResponse<ProviderLog[]>(response);
+      return result.data ?? [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useVenueLogs(eventUuid: string, linkId: number) {
+  return useQuery({
+    queryKey: providerLogKeys.venue(eventUuid, linkId),
+    queryFn: async () => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/providers/venues/${linkId}/logs`, {
+        credentials: 'include',
+      });
+      const result = await handleResponse<ProviderLog[]>(response);
+      return result.data ?? [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useCreateProviderLog(eventUuid: string, linkId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: CreateLogInput) => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/providers/${linkId}/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      const result = await handleResponse<ProviderLog>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: providerLogKeys.provider(eventUuid, linkId) });
+      queryClient.invalidateQueries({ queryKey: eventProviderKeys.list(eventUuid) });
+    },
+  });
+}
+
+export function useCreateVenueLog(eventUuid: string, linkId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: CreateLogInput) => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/providers/venues/${linkId}/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      const result = await handleResponse<ProviderLog>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: providerLogKeys.venue(eventUuid, linkId) });
+      queryClient.invalidateQueries({ queryKey: eventVenueKeys.list(eventUuid) });
+    },
+  });
+}
+
