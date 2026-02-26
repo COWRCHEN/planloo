@@ -515,8 +515,8 @@ function PaymentGrid({
       <div>
         <p className="text-xs text-muted-foreground">Balance Due</p>
         <div className="flex items-center gap-1">
-          <p className="text-sm font-medium">
-            {balance !== null ? (depositPaid ? '—' : formatCurrency(balance, currency)) : '—'}
+          <p className={cn('text-sm font-medium', balance !== null && depositPaid && 'text-red-600')}>
+            {balance !== null && depositPaid ? formatCurrency(balance, currency) : '—'}
           </p>
         </div>
       </div>
