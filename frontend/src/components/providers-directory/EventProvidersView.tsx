@@ -527,7 +527,7 @@ function PaymentGrid({
           {dueDateInfo.badge && (
             <Badge
               variant={dueDateInfo.variant === 'destructive' ? 'destructive' : 'secondary'}
-              className="h-4 px-1 text-[10px]"
+              className={cn('h-4 px-1 text-[10px]', dueDateInfo.variant === 'secondary' && 'text-red-600')}
             >
               {dueDateInfo.badge}
             </Badge>
