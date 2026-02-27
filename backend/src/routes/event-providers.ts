@@ -11,7 +11,7 @@ import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and, isNull, desc, count, inArray } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, desc, count, inArray, sql } from 'drizzle-orm';
 import { user as userTable } from '@/db/schema/auth';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
@@ -24,14 +24,6 @@ const BOOKING_STATUSES = ['inquiry', 'quoted', 'booked', 'confirmed', 'completed
 
 const createEventProviderSchema = z.object({
   providerUuid: z.string().uuid(),
-  status: z.enum(BOOKING_STATUSES).default('inquiry'),
-  quoteAmount: z.coerce.number().min(0).optional().nullable(),
-  currency: z.string().length(3).default('USD'),
-  depositAmount: z.coerce.number().min(0).optional().nullable(),
-  depositPaid: z.boolean().optional(),
-  paymentDueDate: z.coerce.date().optional().nullable(),
-  priceIncludes: z.string().max(1000).optional().nullable(),
-  notes: z.string().max(2000).optional().nullable(),
 });
 
 const updateEventProviderSchema = z.object({
@@ -47,11 +39,6 @@ const updateEventProviderSchema = z.object({
 
 const createEventVenueSchema = z.object({
   venueUuid: z.string().uuid(),
-  status: z.enum(BOOKING_STATUSES).default('inquiry'),
-  bookingDate: z.coerce.date().optional().nullable(),
-  quoteAmount: z.coerce.number().min(0).optional().nullable(),
-  currency: z.string().length(3).default('USD'),
-  notes: z.string().max(2000).optional().nullable(),
 });
 
 const createLogSchema = z.object({
@@ -208,7 +195,7 @@ eventProviders.get('/', requireAuth, async (c) => {
     const bdRows = await db
       .select({ providerId: schema.userProviderRatings.providerId, rating: schema.userProviderRatings.rating, cnt: count() })
       .from(schema.userProviderRatings)
-      .where(and(inArray(schema.userProviderRatings.providerId, providerIds), isNull(schema.userProviderRatings.rating).not()))
+      .where(and(inArray(schema.userProviderRatings.providerId, providerIds), isNotNull(schema.userProviderRatings.rating)))
       .groupBy(schema.userProviderRatings.providerId, schema.userProviderRatings.rating);
     for (const r of bdRows) {
       if (!providerBreakdownMap.has(r.providerId)) providerBreakdownMap.set(r.providerId, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
@@ -287,21 +274,12 @@ eventProviders.post(
     }
 
     try {
-      await db.insert(schema.eventServiceProviders).values({
-        eventId: event.id,
-        serviceProviderId: provider.id,
-        status: body.status,
-        quoteAmount: body.quoteAmount ?? null,
-        currency: body.currency,
-        depositAmount: body.depositAmount ?? null,
-        depositPaid: body.depositPaid ?? false,
-        paymentDueDate: body.paymentDueDate ?? null,
-        priceIncludes: body.priceIncludes ?? null,
-        notes: body.notes ?? null,
-      });
+      await db.run(sql`INSERT INTO event_service_providers (event_id, service_provider_id) VALUES (${event.id}, ${provider.id})`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '';
-      if (message.includes('UNIQUE constraint failed') || message.includes('unique_event_provider')) {
+      const cause = err instanceof Error && err.cause != null ? String(err.cause) : '';
+      const full = `${message} ${cause}`;
+      if (full.includes('UNIQUE constraint failed') || full.includes('unique_event_provider')) {
         return c.json(
           { success: false, error: { code: 'CONFLICT', message: 'Provider already linked to this event' } },
           409
@@ -536,7 +514,7 @@ eventProviders.get('/venues', requireAuth, async (c) => {
     const bdRows = await db
       .select({ venueId: schema.userVenueRatings.venueId, rating: schema.userVenueRatings.rating, cnt: count() })
       .from(schema.userVenueRatings)
-      .where(and(inArray(schema.userVenueRatings.venueId, venueIds), isNull(schema.userVenueRatings.rating).not()))
+      .where(and(inArray(schema.userVenueRatings.venueId, venueIds), isNotNull(schema.userVenueRatings.rating)))
       .groupBy(schema.userVenueRatings.venueId, schema.userVenueRatings.rating);
     for (const r of bdRows) {
       if (!venueBreakdownMap.has(r.venueId)) venueBreakdownMap.set(r.venueId, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
@@ -616,15 +594,7 @@ eventProviders.post(
       );
     }
 
-    await db.insert(schema.eventVenues).values({
-      eventId: event.id,
-      venueId: venue.id,
-      status: body.status,
-      bookingDate: body.bookingDate ?? null,
-      quoteAmount: body.quoteAmount ?? null,
-      currency: body.currency,
-      notes: body.notes ?? null,
-    });
+    await db.run(sql`INSERT INTO event_venues (event_id, venue_id) VALUES (${event.id}, ${venue.id})`);
 
     // Re-fetch with join
     const links = await db

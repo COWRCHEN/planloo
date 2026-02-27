@@ -327,11 +327,6 @@ export const listVenueReviewsQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-export const checkAvailabilityQuerySchema = z.object({
-  venueUuid: z.string().uuid(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-});
-
 export const nearbyQuerySchema = z.object({
   city: z.string().max(100).optional(),
   postalCode: z.string().max(20).optional(),
@@ -405,7 +400,6 @@ export type ListProviderReviewsQuery = z.infer<typeof listProviderReviewsQuerySc
 export type RateVenueInput = z.infer<typeof rateVenueSchema>;
 export type CommentVenueInput = z.infer<typeof commentVenueSchema>;
 export type ListVenueReviewsQuery = z.infer<typeof listVenueReviewsQuerySchema>;
-export type CheckAvailabilityQuery = z.infer<typeof checkAvailabilityQuerySchema>;
 export type NearbyQuery = z.infer<typeof nearbyQuerySchema>;
 export type CreateEventProviderInput = z.infer<typeof createEventProviderSchema>;
 export type UpdateEventProviderInput = z.infer<typeof updateEventProviderSchema>;
@@ -504,12 +498,6 @@ export interface VenueResponse {
   userComment: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface AvailabilityResponse {
-  available: boolean;
-  conflictCount: number;
-  date: string;
 }
 
 export interface EventServiceProviderResponse {

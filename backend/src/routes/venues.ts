@@ -10,13 +10,12 @@ import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and, isNull, isNotNull, desc, asc, like, or, count, lte, gte, inArray, ne, sql } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, desc, asc, like, or, count, lte, gte, inArray, sql } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import {
   createVenueSchema,
   updateVenueSchema,
   listVenuesQuerySchema,
-  checkAvailabilityQuerySchema,
   nearbyQuerySchema,
   rateVenueSchema,
   commentVenueSchema,
@@ -198,65 +197,6 @@ venues.get(
         total: countResult?.count ?? 0,
         limit,
         offset,
-      },
-    });
-  }
-);
-
-/**
- * GET /venues/check-availability
- * Check if a venue is available on a specific date
- */
-venues.get(
-  '/check-availability',
-  requireAuth,
-  zValidator('query', checkAvailabilityQuerySchema),
-  async (c) => {
-    const { venueUuid, date } = c.req.valid('query');
-    const db = createDbClient(c.env.DB);
-
-    // Resolve venue by UUID
-    const [venue] = await db
-      .select({ id: schema.venues.id })
-      .from(schema.venues)
-      .where(
-        and(
-          eq(schema.venues.uuid, venueUuid),
-          eq(schema.venues.isActive, true),
-          isNull(schema.venues.deletedAt)
-        )
-      )
-      .limit(1);
-
-    if (!venue) {
-      return c.json(
-        { success: false, error: { code: 'NOT_FOUND', message: 'Venue not found' } },
-        404
-      );
-    }
-
-    // Check for bookings on that date (not cancelled)
-    const targetDate = new Date(date + 'T00:00:00Z');
-    const targetEnd = new Date(date + 'T23:59:59Z');
-
-    const bookings = await db
-      .select({ id: schema.eventVenues.id })
-      .from(schema.eventVenues)
-      .where(
-        and(
-          eq(schema.eventVenues.venueId, venue.id),
-          ne(schema.eventVenues.status, 'cancelled'),
-          gte(schema.eventVenues.bookingDate, targetDate),
-          lte(schema.eventVenues.bookingDate, targetEnd)
-        )
-      );
-
-    return c.json({
-      success: true,
-      data: {
-        available: bookings.length === 0,
-        conflictCount: bookings.length,
-        date,
       },
     });
   }

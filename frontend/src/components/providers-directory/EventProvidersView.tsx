@@ -50,7 +50,6 @@ import {
   useEventVenues,
   useUnlinkProvider,
   useUnlinkVenue,
-  useVenueAvailability,
   useProviderLogs,
   useVenueLogs,
   useCreateProviderLog,
@@ -278,65 +277,6 @@ function PaymentGrid({
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ==================== VENUE AVAILABILITY CHECK ====================
-
-function VenueAvailabilityCheck({
-  venueUuid,
-  eventDate,
-}: {
-  venueUuid: string;
-  eventDate: string | null;
-}) {
-  const defaultDate = eventDate ? new Date(eventDate) : undefined;
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(defaultDate);
-  const [checkDate, setCheckDate] = useState<string | undefined>(
-    defaultDate ? toDateString(defaultDate) : undefined
-  );
-  const [calOpen, setCalOpen] = useState(false);
-
-  const { data: availability, isLoading } = useVenueAvailability(venueUuid, checkDate);
-
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs text-muted-foreground">Check availability:</span>
-      <Popover open={calOpen} onOpenChange={setCalOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="h-7 text-xs">
-            {selectedDate ? toDateString(selectedDate) : 'Pick a date'}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={date => {
-              setSelectedDate(date);
-              if (date) {
-                setCheckDate(toDateString(date));
-                setCalOpen(false);
-              }
-            }}
-            disabled={date => date < new Date(new Date().setHours(0, 0, 0, 0))}
-          />
-        </PopoverContent>
-      </Popover>
-      {isLoading && <span className="text-xs text-muted-foreground">Checking...</span>}
-      {!isLoading && availability && (
-        <span
-          className={cn(
-            'text-xs font-medium',
-            availability.available ? 'text-green-600' : 'text-destructive'
-          )}
-        >
-          {availability.available
-            ? 'Available'
-            : `Not available (${availability.conflictCount} booking${availability.conflictCount !== 1 ? 's' : ''})`}
-        </span>
-      )}
     </div>
   );
 }
@@ -786,8 +726,6 @@ function VenueCard({
             </AccordionItem>
           </Accordion>
 
-          {/* Availability check */}
-          <VenueAvailabilityCheck venueUuid={venue.uuid} eventDate={eventDate} />
         </CardContent>
       </Card>
     </>

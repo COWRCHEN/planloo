@@ -114,12 +114,6 @@ export interface VenueResponse {
   updatedAt: string;
 }
 
-export interface AvailabilityCheckResult {
-  available: boolean;
-  conflictCount: number;
-  date: string;
-}
-
 export interface EventServiceProviderResponse {
   id: number;
   status: BookingStatus;
@@ -270,10 +264,6 @@ export interface NearbyQuery {
 
 export interface LinkProviderInput {
   providerUuid: string;
-  status?: BookingStatus;
-  quoteAmount?: number | null;
-  currency?: string;
-  notes?: string | null;
 }
 
 export interface UpdateEventProviderInput {
@@ -289,11 +279,6 @@ export interface UpdateEventProviderInput {
 
 export interface LinkVenueInput {
   venueUuid: string;
-  status?: BookingStatus;
-  bookingDate?: Date | null;
-  quoteAmount?: number | null;
-  currency?: string;
-  notes?: string | null;
 }
 
 export interface UpdateEventVenueInput {
@@ -328,7 +313,6 @@ export const venueKeys = {
   list: (filters?: Partial<ListVenuesQuery>) => [...venueKeys.lists(), filters] as const,
   details: () => [...venueKeys.all, 'detail'] as const,
   detail: (uuid: string) => [...venueKeys.details(), uuid] as const,
-  availability: (uuid: string, date: string) => [...venueKeys.all, 'availability', uuid, date] as const,
   nearby: (params?: Partial<NearbyQuery>) => [...venueKeys.all, 'nearby', params] as const,
   reviews: (uuid: string, params?: { limit?: number; offset?: number }) => [...venueKeys.all, 'reviews', uuid, params] as const,
 };
@@ -510,22 +494,7 @@ export function useVenueReviews(
   });
 }
 
-// ==================== VENUE AVAILABILITY + RATINGS HOOKS ====================
-
-export function useVenueAvailability(venueUuid: string | undefined, date: string | undefined) {
-  return useQuery<AvailabilityCheckResult | undefined>({
-    queryKey: venueKeys.availability(venueUuid ?? '', date ?? ''),
-    queryFn: async (): Promise<AvailabilityCheckResult | undefined> => {
-      if (!venueUuid || !date) throw new Error('Venue UUID and date are required');
-      const params = new URLSearchParams({ venueUuid, date });
-      const response = await fetch(`${API_URL}/venues/check-availability?${params}`, { credentials: 'include' });
-      const result = await handleResponse<AvailabilityCheckResult>(response);
-      return result.data;
-    },
-    enabled: !!venueUuid && !!date,
-    staleTime: 1000 * 60 * 5,
-  });
-}
+// ==================== VENUE RATINGS HOOKS ====================
 
 export function useRateVenue() {
   const queryClient = useQueryClient();
