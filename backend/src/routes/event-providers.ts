@@ -72,6 +72,15 @@ const updateEventVenueSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
 });
 
+const updateLogSchema = z.object({
+  contactPerson: z.string().max(200).optional().nullable(),
+  result: z.string().max(500).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  bookingStartTime: z.coerce.date().optional().nullable(),
+  bookingEndTime: z.coerce.date().optional().nullable(),
+  isAppointment: z.boolean().optional(),
+});
+
 // ==================== HELPERS ====================
 
 function parseJson(raw: string | null): string[] | null {
@@ -1061,6 +1070,129 @@ eventProviders.delete('/venues/:linkId', requireAuth, requireVerifiedEmail, asyn
   }
 
   await db.delete(schema.eventVenues).where(eq(schema.eventVenues.id, existing.id));
+
+  return c.json({ success: true, data: { deleted: true } });
+});
+
+// ==================== LOG UPDATE/DELETE (static /logs/:logId — must be before /:linkId param) ====================
+
+/**
+ * PATCH /events/:eventUuid/providers/logs/:logId
+ * Edit an appointment log entry (updates time/contact/notes fields)
+ */
+eventProviders.patch('/logs/:logId', requireAuth, requireVerifiedEmail, zValidator('json', updateLogSchema), async (c) => {
+  const user = c.get('user')!;
+  const eventUuid = c.req.param('eventUuid')!;
+  const logId = parseInt(c.req.param('logId')!, 10);
+  const body = c.req.valid('json');
+  const db = createDbClient(c.env.DB);
+
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
+  if (!access.canEdit) return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } }, 403);
+  const event = access.event;
+
+  const [log] = await db
+    .select({
+      id: schema.eventProviderLogs.id,
+      entityType: schema.eventProviderLogs.entityType,
+      linkId: schema.eventProviderLogs.linkId,
+      isAppointment: schema.eventProviderLogs.isAppointment,
+    })
+    .from(schema.eventProviderLogs)
+    .where(eq(schema.eventProviderLogs.id, logId))
+    .limit(1);
+
+  if (!log) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Log not found' } }, 404);
+
+  // Verify the log belongs to this event
+  const ownsLog =
+    log.entityType === 'provider'
+      ? await db
+          .select({ id: schema.eventServiceProviders.id })
+          .from(schema.eventServiceProviders)
+          .where(and(eq(schema.eventServiceProviders.id, log.linkId), eq(schema.eventServiceProviders.eventId, event.id)))
+          .limit(1)
+          .then((r) => r.length > 0)
+      : await db
+          .select({ id: schema.eventVenues.id })
+          .from(schema.eventVenues)
+          .where(and(eq(schema.eventVenues.id, log.linkId), eq(schema.eventVenues.eventId, event.id)))
+          .limit(1)
+          .then((r) => r.length > 0);
+
+  if (!ownsLog) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Log not found' } }, 404);
+
+  // Determine effective isAppointment after the update
+  const effectiveIsAppointment = body.isAppointment !== undefined ? body.isAppointment : log.isAppointment;
+
+  // If still an appointment, bookingStartTime cannot be cleared
+  if (effectiveIsAppointment && body.bookingStartTime === null) {
+    return c.json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'bookingStartTime is required for appointments' } }, 422);
+  }
+
+  const updateData: Record<string, unknown> = { updatedAt: new Date() };
+  if (body.isAppointment !== undefined) updateData.isAppointment = body.isAppointment;
+  if (body.contactPerson !== undefined) updateData.contactPerson = body.contactPerson;
+  if (body.result !== undefined) updateData.result = body.result;
+  if (body.notes !== undefined) updateData.notes = body.notes;
+  if (body.bookingStartTime !== undefined) updateData.bookingStartTime = body.bookingStartTime;
+  if (body.bookingEndTime !== undefined) updateData.bookingEndTime = body.bookingEndTime;
+
+  const [updated] = await db
+    .update(schema.eventProviderLogs)
+    .set(updateData)
+    .where(eq(schema.eventProviderLogs.id, logId))
+    .returning();
+
+  return c.json({ success: true, data: updated });
+});
+
+/**
+ * DELETE /events/:eventUuid/providers/logs/:logId
+ * Cancel (delete) an appointment log entry
+ */
+eventProviders.delete('/logs/:logId', requireAuth, requireVerifiedEmail, async (c) => {
+  const user = c.get('user')!;
+  const eventUuid = c.req.param('eventUuid')!;
+  const logId = parseInt(c.req.param('logId')!, 10);
+  const db = createDbClient(c.env.DB);
+
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
+  if (!access.canEdit) return c.json({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } }, 403);
+  const event = access.event;
+
+  const [log] = await db
+    .select({
+      id: schema.eventProviderLogs.id,
+      entityType: schema.eventProviderLogs.entityType,
+      linkId: schema.eventProviderLogs.linkId,
+    })
+    .from(schema.eventProviderLogs)
+    .where(eq(schema.eventProviderLogs.id, logId))
+    .limit(1);
+
+  if (!log) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Log not found' } }, 404);
+
+  const ownsLog =
+    log.entityType === 'provider'
+      ? await db
+          .select({ id: schema.eventServiceProviders.id })
+          .from(schema.eventServiceProviders)
+          .where(and(eq(schema.eventServiceProviders.id, log.linkId), eq(schema.eventServiceProviders.eventId, event.id)))
+          .limit(1)
+          .then((r) => r.length > 0)
+      : await db
+          .select({ id: schema.eventVenues.id })
+          .from(schema.eventVenues)
+          .where(and(eq(schema.eventVenues.id, log.linkId), eq(schema.eventVenues.eventId, event.id)))
+          .limit(1)
+          .then((r) => r.length > 0);
+
+  if (!ownsLog) return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Log not found' } }, 404);
+
+  await db.delete(schema.eventProviderLogs).where(eq(schema.eventProviderLogs.id, logId));
 
   return c.json({ success: true, data: { deleted: true } });
 });

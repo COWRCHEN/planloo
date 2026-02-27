@@ -971,6 +971,15 @@ export interface CreateLogInput {
   isAppointment?: boolean;
 }
 
+export interface UpdateLogInput {
+  contactPerson?: string | null;
+  result?: string | null;
+  notes?: string | null;
+  bookingStartTime?: Date | null;
+  bookingEndTime?: Date | null;
+  isAppointment?: boolean;
+}
+
 export interface AppointmentResponse {
   id: number;
   entityType: 'provider' | 'venue';
@@ -1067,6 +1076,102 @@ export function useCreateVenueLog(eventUuid: string, linkId: number) {
       queryClient.invalidateQueries({ queryKey: providerLogKeys.venue(eventUuid, linkId) });
       queryClient.invalidateQueries({ queryKey: eventVenueKeys.list(eventUuid) });
       queryClient.invalidateQueries({ queryKey: appointmentKeys.list(eventUuid) });
+    },
+  });
+}
+
+export function useUpdateLog(eventUuid: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ logId, data }: { logId: number; data: UpdateLogInput }) => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/providers/logs/${logId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      const result = await handleResponse<ProviderLog>(response);
+      return result.data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.list(eventUuid) });
+      queryClient.invalidateQueries({ queryKey: ['providerLogs', 'provider', eventUuid] });
+      queryClient.invalidateQueries({ queryKey: ['providerLogs', 'venue', eventUuid] });
+    },
+  });
+}
+
+export function useCreateLogEntry(eventUuid: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      entityType,
+      linkId,
+      notes,
+    }: {
+      entityType: 'provider' | 'venue';
+      linkId: number;
+      notes: string;
+    }) => {
+      const url =
+        entityType === 'provider'
+          ? `${API_URL}/events/${eventUuid}/providers/${linkId}/logs`
+          : `${API_URL}/events/${eventUuid}/providers/venues/${linkId}/logs`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ notes, isAppointment: false }),
+      });
+      const result = await handleResponse<ProviderLog>(response);
+      return result.data;
+    },
+    onSuccess: (_data, variables) => {
+      const key =
+        variables.entityType === 'provider'
+          ? providerLogKeys.provider(eventUuid, variables.linkId)
+          : providerLogKeys.venue(eventUuid, variables.linkId);
+      queryClient.invalidateQueries({ queryKey: key });
+    },
+  });
+}
+
+export function useCancelAppointment(eventUuid: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (logId: number) => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/providers/logs/${logId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ isAppointment: false }),
+      });
+      const result = await handleResponse<ProviderLog>(response);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.list(eventUuid) });
+      queryClient.invalidateQueries({ queryKey: ['providerLogs', 'provider', eventUuid] });
+      queryClient.invalidateQueries({ queryKey: ['providerLogs', 'venue', eventUuid] });
+    },
+  });
+}
+
+export function useDeleteLog(eventUuid: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (logId: number) => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/providers/logs/${logId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      await handleResponse<{ deleted: boolean }>(response);
+      return logId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.list(eventUuid) });
+      queryClient.invalidateQueries({ queryKey: ['providerLogs', 'provider', eventUuid] });
+      queryClient.invalidateQueries({ queryKey: ['providerLogs', 'venue', eventUuid] });
     },
   });
 }

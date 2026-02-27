@@ -19,6 +19,8 @@ Upcoming appointments are surfaced on the event detail page as a full-width "Upc
 - **Appointment Badge** — Blue "Appointment" badge on log items in the activity accordion
 - **Upcoming Appointments Card** — Full-width card on the event detail page listing future appointments from all linked providers and venues, sorted by start time
 - **Cache Invalidation** — Creating a log that is an appointment immediately refreshes the appointments card
+- **Edit Appointment** — Pencil icon on each appointment row opens a dialog to update start/end time, contact person, and notes; invalidates appointments cache on save
+- **Cancel Appointment** — X icon opens a confirmation alert; deletes the log entry and refreshes the card
 - **P2 Calendar Ready** — Response shape includes all fields needed for `.ics` generation or Google/Outlook API calls; no schema changes needed for future calendar integration
 
 ---
@@ -253,8 +255,8 @@ A future `calendarEventId` column on `event_provider_logs` would enable two-way 
 | P1 | Frontend: appointment badge on log items | Done |
 | P1 | Frontend: `EventUpcomingAppointments` card | Done |
 | P1 | Frontend: `useEventAppointments` hook + cache invalidation | Done |
-| P2 | Calendar export (`.ics` download) | Planned |
+| P2 | Calendar export (`.ics` download) | Done |
 | P2 | Google Calendar / Outlook sync | Planned |
 | P2 | Appointment reminders (email notification) | Planned |
-| P2 | Edit / cancel individual appointments | Planned |
+| P2 | Edit / cancel individual appointments | Done |
 | P3 | Appointment confirmation from provider side | Planned |
