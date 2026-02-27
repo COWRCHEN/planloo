@@ -19,12 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -307,46 +302,103 @@ function ProviderCard({
     .join(', ');
 
   return (
-    <>
-      <Card className={cn(isCancelled && 'opacity-60')}>
-        <CardContent className="space-y-3 p-4">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <Badge
-                variant="outline"
-                className={cn('shrink-0 text-xs', statusConfig[link.status].className)}
-              >
-                {statusConfig[link.status].label}
-              </Badge>
-              <p className={cn('truncate font-semibold', isCancelled && 'line-through')}>
-                {provider.businessName}
-              </p>
-              <ProviderCategoryBadge category={provider.category} />
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 w-7 shrink-0 p-0">
-                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                  </svg>
-                  <span className="sr-only">Options</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => {
-                    if (confirm('Remove this provider from the event?')) {
-                      unlinkMutation.mutate(link.id);
-                    }
-                  }}
+    <AccordionItem
+      value={`provider-${link.id}`}
+      className={cn(
+        'group overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm',
+        isCancelled && 'opacity-60'
+      )}
+    >
+      <AccordionPrimitive.Header className="relative flex items-center gap-2 px-4 py-3">
+        <AccordionPrimitive.Trigger className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset" />
+        <div className="pointer-events-none flex flex-1 items-center gap-2">
+          <Badge
+            variant="outline"
+            className={cn('shrink-0 text-xs', statusConfig[link.status].className)}
+          >
+            {statusConfig[link.status].label}
+          </Badge>
+          <span className={cn('truncate font-semibold', isCancelled && 'line-through')}>
+            {provider.businessName}
+          </span>
+          <ProviderCategoryBadge category={provider.category} />
+          {provider.ratingCount > 0 && (
+            <div className="pointer-events-auto relative z-10 flex items-center">
+              <Popover open={hoverOpen} onOpenChange={setHoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                    onMouseEnter={() => setHoverOpen(true)}
+                    onMouseLeave={() => setHoverOpen(false)}
+                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
+                  >
+                    <span className="flex items-center gap-0.5 text-yellow-500">
+                      {'★'.repeat(Math.round(provider.ratingAverage))}{'☆'.repeat(5 - Math.round(provider.ratingAverage))}
+                    </span>
+                    <span>{provider.ratingAverage.toFixed(1)}</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-56 p-3"
+                  onMouseEnter={() => setHoverOpen(true)}
+                  onMouseLeave={() => setHoverOpen(false)}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  side="bottom"
+                  align="start"
                 >
-                  Remove
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                  <ProviderRatingBreakdownBars breakdown={provider.ratingBreakdown ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }} total={provider.ratingCount} />
+                  <button
+                    type="button"
+                    className="mt-2 w-full text-left text-xs text-primary hover:underline"
+                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
+                  >
+                    See all reviews
+                  </button>
+                </PopoverContent>
+              </Popover>
+              <ProviderReviewsDialog
+                providerUuid={provider.uuid}
+                providerName={provider.businessName}
+                ratingAverage={provider.ratingAverage}
+                ratingCount={provider.ratingCount}
+                open={reviewsOpen}
+                onOpenChange={setReviewsOpen}
+              />
+            </div>
+          )}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="relative z-10 h-7 w-7 shrink-0 p-0 text-destructive hover:text-destructive/80"
+          onClick={() => {
+            if (confirm('Remove this provider from the event?')) {
+              unlinkMutation.mutate(link.id);
+            }
+          }}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+          <span className="sr-only">Remove provider</span>
+        </Button>
+        <svg
+          className="pointer-events-none relative z-10 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </AccordionPrimitive.Header>
+      <AccordionContent className="border-t px-4 pt-3">
+        <div className="space-y-3">
 
           {/* Contact info */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -418,53 +470,6 @@ function ProviderCard({
             )}
           </div>
 
-          {/* All Reviews */}
-          {provider.ratingCount > 0 && (
-            <>
-              <Popover open={hoverOpen} onOpenChange={setHoverOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    onMouseEnter={() => setHoverOpen(true)}
-                    onMouseLeave={() => setHoverOpen(false)}
-                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
-                  >
-                    <span className="flex items-center gap-0.5 text-yellow-500">
-                      {'★'.repeat(Math.round(provider.ratingAverage))}{'☆'.repeat(5 - Math.round(provider.ratingAverage))}
-                    </span>
-                    <span>{provider.ratingAverage.toFixed(1)} ({provider.ratingCount} {provider.ratingCount === 1 ? 'review' : 'reviews'})</span>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-56 p-3"
-                  onMouseEnter={() => setHoverOpen(true)}
-                  onMouseLeave={() => setHoverOpen(false)}
-                  onOpenAutoFocus={(e) => e.preventDefault()}
-                  side="bottom"
-                  align="start"
-                >
-                  <ProviderRatingBreakdownBars breakdown={provider.ratingBreakdown ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }} total={provider.ratingCount} />
-                  <button
-                    type="button"
-                    className="mt-2 w-full text-xs text-primary hover:underline text-left"
-                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
-                  >
-                    See all reviews
-                  </button>
-                </PopoverContent>
-              </Popover>
-              <ProviderReviewsDialog
-                providerUuid={provider.uuid}
-                providerName={provider.businessName}
-                ratingAverage={provider.ratingAverage}
-                ratingCount={provider.ratingCount}
-                open={reviewsOpen}
-                onOpenChange={setReviewsOpen}
-              />
-            </>
-          )}
-
           {/* Payment grid */}
           <Separator />
           <PaymentGrid
@@ -503,9 +508,9 @@ function ProviderCard({
               </AccordionContent>
             </AccordionItem>
           </Accordion>
-        </CardContent>
-      </Card>
-    </>
+        </div>
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 
@@ -529,51 +534,107 @@ function VenueCard({
   const address = [venue.address, venue.city, venue.state].filter(Boolean).join(', ');
 
   return (
-    <>
-      <Card className={cn(isCancelled && 'opacity-60')}>
-        <CardContent className="space-y-3 p-4">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <Badge
-                variant="outline"
-                className={cn('shrink-0 text-xs', statusConfig[link.status].className)}
-              >
-                {statusConfig[link.status].label}
-              </Badge>
-              <p className={cn('truncate font-semibold', isCancelled && 'line-through')}>
-                {venue.name}
-              </p>
-              {venue.venueType && (
-                <Badge variant="secondary" className="text-xs capitalize">
-                  {venue.venueType.replace('_', ' ')}
-                </Badge>
-              )}
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 w-7 shrink-0 p-0">
-                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                  </svg>
-                  <span className="sr-only">Options</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => {
-                    if (confirm('Remove this venue from the event?')) {
-                      unlinkMutation.mutate(link.id);
-                    }
-                  }}
+    <AccordionItem
+      value={`venue-${link.id}`}
+      className={cn(
+        'group overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm',
+        isCancelled && 'opacity-60'
+      )}
+    >
+      <AccordionPrimitive.Header className="relative flex items-center gap-2 px-4 py-3">
+        <AccordionPrimitive.Trigger className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset" />
+        <div className="pointer-events-none flex flex-1 items-center gap-2">
+          <Badge
+            variant="outline"
+            className={cn('shrink-0 text-xs', statusConfig[link.status].className)}
+          >
+            {statusConfig[link.status].label}
+          </Badge>
+          <span className={cn('truncate font-semibold', isCancelled && 'line-through')}>
+            {venue.name}
+          </span>
+          {venue.venueType && (
+            <Badge variant="secondary" className="text-xs capitalize">
+              {venue.venueType.replace('_', ' ')}
+            </Badge>
+          )}
+          {venue.ratingCount > 0 && (
+            <div className="pointer-events-auto relative z-10 flex items-center">
+              <Popover open={hoverOpen} onOpenChange={setHoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                    onMouseEnter={() => setHoverOpen(true)}
+                    onMouseLeave={() => setHoverOpen(false)}
+                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
+                  >
+                    <span className="flex items-center gap-0.5 text-yellow-500">
+                      {'★'.repeat(Math.round(venue.ratingAverage))}{'☆'.repeat(5 - Math.round(venue.ratingAverage))}
+                    </span>
+                    <span>{venue.ratingAverage.toFixed(1)}</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-56 p-3"
+                  onMouseEnter={() => setHoverOpen(true)}
+                  onMouseLeave={() => setHoverOpen(false)}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  side="bottom"
+                  align="start"
                 >
-                  Remove
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
+                  <VenueRatingBreakdownBars breakdown={venue.ratingBreakdown ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }} total={venue.ratingCount} />
+                  <button
+                    type="button"
+                    className="mt-2 w-full text-left text-xs text-primary hover:underline"
+                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
+                  >
+                    See all reviews
+                  </button>
+                </PopoverContent>
+              </Popover>
+              <VenueReviewsDialog
+                venueUuid={venue.uuid}
+                venueName={venue.name}
+                ratingAverage={venue.ratingAverage}
+                ratingCount={venue.ratingCount}
+                open={reviewsOpen}
+                onOpenChange={setReviewsOpen}
+              />
+            </div>
+          )}
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="relative z-10 h-7 w-7 shrink-0 p-0 text-destructive hover:text-destructive/80"
+          onClick={() => {
+            if (confirm('Remove this venue from the event?')) {
+              unlinkMutation.mutate(link.id);
+            }
+          }}
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+          <span className="sr-only">Remove venue</span>
+        </Button>
+        <svg
+          className="pointer-events-none relative z-10 h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </AccordionPrimitive.Header>
+      <AccordionContent className="border-t px-4 pt-3">
+        <div className="space-y-3">
           {/* Contact info */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {address && (
@@ -644,53 +705,6 @@ function VenueCard({
             )}
           </div>
 
-          {/* All Reviews */}
-          {venue.ratingCount > 0 && (
-            <>
-              <Popover open={hoverOpen} onOpenChange={setHoverOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    onMouseEnter={() => setHoverOpen(true)}
-                    onMouseLeave={() => setHoverOpen(false)}
-                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
-                  >
-                    <span className="flex items-center gap-0.5 text-yellow-500">
-                      {'★'.repeat(Math.round(venue.ratingAverage))}{'☆'.repeat(5 - Math.round(venue.ratingAverage))}
-                    </span>
-                    <span>{venue.ratingAverage.toFixed(1)} ({venue.ratingCount} {venue.ratingCount === 1 ? 'review' : 'reviews'})</span>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-56 p-3"
-                  onMouseEnter={() => setHoverOpen(true)}
-                  onMouseLeave={() => setHoverOpen(false)}
-                  onOpenAutoFocus={(e) => e.preventDefault()}
-                  side="bottom"
-                  align="start"
-                >
-                  <VenueRatingBreakdownBars breakdown={venue.ratingBreakdown ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }} total={venue.ratingCount} />
-                  <button
-                    type="button"
-                    className="mt-2 w-full text-xs text-primary hover:underline text-left"
-                    onClick={() => { setHoverOpen(false); setReviewsOpen(true); }}
-                  >
-                    See all reviews
-                  </button>
-                </PopoverContent>
-              </Popover>
-              <VenueReviewsDialog
-                venueUuid={venue.uuid}
-                venueName={venue.name}
-                ratingAverage={venue.ratingAverage}
-                ratingCount={venue.ratingCount}
-                open={reviewsOpen}
-                onOpenChange={setReviewsOpen}
-              />
-            </>
-          )}
-
           {/* Payment grid */}
           <Separator />
           <PaymentGrid
@@ -731,10 +745,9 @@ function VenueCard({
               </AccordionContent>
             </AccordionItem>
           </Accordion>
-
-        </CardContent>
-      </Card>
-    </>
+        </div>
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 
@@ -1200,11 +1213,11 @@ function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <Accordion type="single" collapsible className="space-y-3">
             {providers.map(link => (
               <ProviderCard key={link.id} link={link} eventUuid={eventUuid} />
             ))}
-          </div>
+          </Accordion>
         )}
       </div>
 
@@ -1237,11 +1250,11 @@ function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <Accordion type="single" collapsible className="space-y-3">
             {venues.map(link => (
               <VenueCard key={link.id} link={link} eventUuid={eventUuid} eventDate={eventDate} />
             ))}
-          </div>
+          </Accordion>
         )}
       </div>
     </div>
