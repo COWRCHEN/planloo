@@ -31,6 +31,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useSession } from '@/hooks/use-auth';
 import { useEvent } from '@/hooks/use-events';
+import { useTasks } from '@/hooks/use-tasks';
+import type { TaskResponse } from '@/hooks/use-tasks';
 import { ProviderCategoryBadge } from './ProviderCategoryBadge';
 import { ProviderStarRating } from './ProviderStarRating';
 import { ProviderCommentForm } from './ProviderCommentForm';
@@ -287,9 +289,11 @@ function PaymentGrid({
 function ProviderCard({
   link,
   eventUuid,
+  tasks,
 }: {
   link: EventServiceProviderResponse;
   eventUuid: string;
+  tasks: TaskResponse[];
 }) {
   const unlinkMutation = useUnlinkProvider(eventUuid);
   const { provider } = link;
@@ -399,6 +403,38 @@ function ProviderCard({
       </AccordionPrimitive.Header>
       <AccordionContent className="border-t px-4 pt-3">
         <div className="space-y-3">
+
+          {/* Linked Task */}
+          {(() => {
+            const linked = tasks.filter((t) => t.linkedProvider?.linkId === link.id);
+            if (linked.length === 0) return null;
+            return (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Linked Task</p>
+                {linked.map((t) => (
+                  <a
+                    key={t.uuid}
+                    href={`/dashboard/events/${eventUuid}/tasks`}
+                    className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted/50"
+                  >
+                    <span className={cn('flex-1 truncate', t.status === 'completed' && 'text-muted-foreground line-through')}>
+                      {t.title}
+                    </span>
+                    {t.status === 'completed' && (
+                      <span className="shrink-0 text-xs text-emerald-600">Completed</span>
+                    )}
+                    {t.status === 'in_progress' && (
+                      <span className="shrink-0 text-xs text-blue-600">In Progress</span>
+                    )}
+                    {t.status === 'pending' && (
+                      <span className="shrink-0 text-xs text-muted-foreground">Pending</span>
+                    )}
+                  </a>
+                ))}
+                <Separator />
+              </div>
+            );
+          })()}
 
           {/* Contact info */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -520,10 +556,12 @@ function VenueCard({
   link,
   eventUuid,
   eventDate,
+  tasks,
 }: {
   link: EventVenueResponse;
   eventUuid: string;
   eventDate: string | null;
+  tasks: TaskResponse[];
 }) {
   const unlinkMutation = useUnlinkVenue(eventUuid);
   const { venue } = link;
@@ -635,6 +673,39 @@ function VenueCard({
       </AccordionPrimitive.Header>
       <AccordionContent className="border-t px-4 pt-3">
         <div className="space-y-3">
+
+          {/* Linked Task */}
+          {(() => {
+            const linked = tasks.filter((t) => t.linkedVenue?.linkId === link.id);
+            if (linked.length === 0) return null;
+            return (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Linked Task</p>
+                {linked.map((t) => (
+                  <a
+                    key={t.uuid}
+                    href={`/dashboard/events/${eventUuid}/tasks`}
+                    className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted/50"
+                  >
+                    <span className={cn('flex-1 truncate', t.status === 'completed' && 'text-muted-foreground line-through')}>
+                      {t.title}
+                    </span>
+                    {t.status === 'completed' && (
+                      <span className="shrink-0 text-xs text-emerald-600">Completed</span>
+                    )}
+                    {t.status === 'in_progress' && (
+                      <span className="shrink-0 text-xs text-blue-600">In Progress</span>
+                    )}
+                    {t.status === 'pending' && (
+                      <span className="shrink-0 text-xs text-muted-foreground">Pending</span>
+                    )}
+                  </a>
+                ))}
+                <Separator />
+              </div>
+            );
+          })()}
+
           {/* Contact info */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {address && (
@@ -1155,6 +1226,8 @@ function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
   const { data: event } = useEvent(eventUuid);
   const { data: providers, isLoading: providersLoading } = useEventProviders(eventUuid);
   const { data: venues, isLoading: venuesLoading } = useEventVenues(eventUuid);
+  const { data: tasksData } = useTasks(eventUuid, { limit: 200 });
+  const tasks = tasksData?.items ?? [];
   const eventDate = event?.startDate ?? null;
   const linkProviderMutation = useLinkProvider(eventUuid);
   const linkVenueMutation = useLinkVenue(eventUuid);
@@ -1215,7 +1288,7 @@ function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
         ) : (
           <Accordion type="single" collapsible className="space-y-3">
             {providers.map(link => (
-              <ProviderCard key={link.id} link={link} eventUuid={eventUuid} />
+              <ProviderCard key={link.id} link={link} eventUuid={eventUuid} tasks={tasks} />
             ))}
           </Accordion>
         )}
@@ -1252,7 +1325,7 @@ function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
         ) : (
           <Accordion type="single" collapsible className="space-y-3">
             {venues.map(link => (
-              <VenueCard key={link.id} link={link} eventUuid={eventUuid} eventDate={eventDate} />
+              <VenueCard key={link.id} link={link} eventUuid={eventUuid} eventDate={eventDate} tasks={tasks} />
             ))}
           </Accordion>
         )}

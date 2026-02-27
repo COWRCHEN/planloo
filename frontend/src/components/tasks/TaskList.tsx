@@ -220,6 +220,7 @@ export function TaskList({
                           <TaskItem
                             key={task.uuid}
                             task={task}
+                            eventUuid={eventUuid}
                             onToggleComplete={onToggleComplete}
                             onChangeStatus={onChangeStatus}
                             onEdit={onEdit}

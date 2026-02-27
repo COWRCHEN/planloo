@@ -42,6 +42,8 @@ export const updateTaskSchema = z.object({
   priority: z.enum(TASK_PRIORITIES).optional(),
   status: z.enum(TASK_STATUSES).optional(),
   sortOrder: z.coerce.number().int().min(0).optional(),
+  linkedEventProviderLinkId: z.number().int().nullable().optional(),
+  linkedEventVenueLinkId: z.number().int().nullable().optional(),
 });
 
 /**
@@ -94,6 +96,19 @@ export type ReorderTasksInput = z.infer<typeof reorderTasksSchema>;
 
 // ==================== RESPONSE TYPES ====================
 
+export interface TaskLinkedProvider {
+  linkId: number;
+  name: string;
+  category: string;
+  bookingStatus: string;
+}
+
+export interface TaskLinkedVenue {
+  linkId: number;
+  name: string;
+  bookingStatus: string;
+}
+
 export interface TaskResponse {
   uuid: string;
   title: string;
@@ -109,6 +124,8 @@ export interface TaskResponse {
   createdAt: string;
   updatedAt: string;
   dependencies?: TaskDependencyResponse[];
+  linkedProvider: TaskLinkedProvider | null;
+  linkedVenue: TaskLinkedVenue | null;
 }
 
 export interface TaskDependencyResponse {

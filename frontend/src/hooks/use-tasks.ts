@@ -17,6 +17,19 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
 
 // ==================== TYPES ====================
 
+export interface TaskLinkedProvider {
+  linkId: number;
+  name: string;
+  category: string;
+  bookingStatus: string;
+}
+
+export interface TaskLinkedVenue {
+  linkId: number;
+  name: string;
+  bookingStatus: string;
+}
+
 export interface TaskResponse {
   uuid: string;
   title: string;
@@ -33,6 +46,8 @@ export interface TaskResponse {
   updatedAt: string;
   dependencyCount?: number;
   dependencies?: TaskDependencyResponse[];
+  linkedProvider: TaskLinkedProvider | null;
+  linkedVenue: TaskLinkedVenue | null;
 }
 
 export interface TaskDependencyResponse {
@@ -75,6 +90,8 @@ export interface UpdateTaskInput {
   priority?: TaskPriority;
   status?: TaskStatus;
   sortOrder?: number;
+  linkedEventProviderLinkId?: number | null;
+  linkedEventVenueLinkId?: number | null;
 }
 
 export interface ListTasksQuery {

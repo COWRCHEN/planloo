@@ -171,6 +171,8 @@ export const tasks = sqliteTable('tasks', {
   completedAt: integer('completed_at', { mode: 'timestamp' }),
   sortOrder: integer('sort_order').default(0).notNull(),
   sourceTemplateId: text('source_template_id'),
+  linkedEventProviderLinkId: integer('linked_event_provider_link_id'),
+  linkedEventVenueLinkId: integer('linked_event_venue_link_id'),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   deletedAt: integer('deleted_at', { mode: 'timestamp' })

@@ -44,6 +44,8 @@ const updateTaskSchema = z.object({
   priority: z.enum(TASK_PRIORITIES).optional(),
   status: z.enum(TASK_STATUSES).optional(),
   sortOrder: z.coerce.number().int().min(0).optional(),
+  linkedEventProviderLinkId: z.number().int().nullable().optional(),
+  linkedEventVenueLinkId: z.number().int().nullable().optional(),
 });
 
 const listTasksQuerySchema = z.object({
@@ -210,6 +212,8 @@ tasks.get(
         sortOrder: schema.tasks.sortOrder,
         createdAt: schema.tasks.createdAt,
         updatedAt: schema.tasks.updatedAt,
+        linkedEventProviderLinkId: schema.tasks.linkedEventProviderLinkId,
+        linkedEventVenueLinkId: schema.tasks.linkedEventVenueLinkId,
       })
       .from(schema.tasks)
       .where(and(...conditions))
@@ -243,6 +247,45 @@ tasks.get(
       depCountMap = Object.fromEntries(depCounts.map((r) => [r.taskId, r.count]));
     }
 
+    // Fetch linked provider data
+    const providerLinkIds = [...new Set(items.map((i) => i.linkedEventProviderLinkId).filter((id): id is number => id !== null))];
+    let providerLinkMap: Record<number, { linkId: number; name: string; category: string; bookingStatus: string }> = {};
+    if (providerLinkIds.length > 0) {
+      const providerLinks = await db
+        .select({
+          id: schema.eventServiceProviders.id,
+          status: schema.eventServiceProviders.status,
+          businessName: schema.serviceProviders.businessName,
+          category: schema.serviceProviders.category,
+        })
+        .from(schema.eventServiceProviders)
+        .innerJoin(schema.serviceProviders, eq(schema.eventServiceProviders.serviceProviderId, schema.serviceProviders.id))
+        .where(sql`${schema.eventServiceProviders.id} IN (${sql.join(providerLinkIds.map((id) => sql`${id}`), sql`, `)})`);
+      providerLinkMap = Object.fromEntries(providerLinks.map((p) => [
+        p.id,
+        { linkId: p.id, name: p.businessName, category: p.category, bookingStatus: p.status },
+      ]));
+    }
+
+    // Fetch linked venue data
+    const venueLinkIds = [...new Set(items.map((i) => i.linkedEventVenueLinkId).filter((id): id is number => id !== null))];
+    let venueLinkMap: Record<number, { linkId: number; name: string; bookingStatus: string }> = {};
+    if (venueLinkIds.length > 0) {
+      const venueLinks = await db
+        .select({
+          id: schema.eventVenues.id,
+          status: schema.eventVenues.status,
+          name: schema.venues.name,
+        })
+        .from(schema.eventVenues)
+        .innerJoin(schema.venues, eq(schema.eventVenues.venueId, schema.venues.id))
+        .where(sql`${schema.eventVenues.id} IN (${sql.join(venueLinkIds.map((id) => sql`${id}`), sql`, `)})`);
+      venueLinkMap = Object.fromEntries(venueLinks.map((v) => [
+        v.id,
+        { linkId: v.id, name: v.name, bookingStatus: v.status },
+      ]));
+    }
+
     const responseData = items.map((item) => ({
       uuid: item.uuid,
       title: item.title,
@@ -258,6 +301,8 @@ tasks.get(
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
       dependencyCount: depCountMap[item.id] ?? 0,
+      linkedProvider: item.linkedEventProviderLinkId ? (providerLinkMap[item.linkedEventProviderLinkId] ?? null) : null,
+      linkedVenue: item.linkedEventVenueLinkId ? (venueLinkMap[item.linkedEventVenueLinkId] ?? null) : null,
     }));
 
     return c.json({
@@ -337,6 +382,8 @@ tasks.post(
         sortOrder: newTask!.sortOrder,
         createdAt: newTask!.createdAt,
         updatedAt: newTask!.updatedAt,
+        linkedProvider: null,
+        linkedVenue: null,
       },
     }, 201);
   }
@@ -484,6 +531,43 @@ tasks.get('/:uuid', requireAuth, async (c) => {
     assignedToName = u?.name ?? null;
   }
 
+  // Fetch linked provider
+  let linkedProvider: { linkId: number; name: string; category: string; bookingStatus: string } | null = null;
+  if (task.linkedEventProviderLinkId) {
+    const [pl] = await db
+      .select({
+        id: schema.eventServiceProviders.id,
+        status: schema.eventServiceProviders.status,
+        businessName: schema.serviceProviders.businessName,
+        category: schema.serviceProviders.category,
+      })
+      .from(schema.eventServiceProviders)
+      .innerJoin(schema.serviceProviders, eq(schema.eventServiceProviders.serviceProviderId, schema.serviceProviders.id))
+      .where(eq(schema.eventServiceProviders.id, task.linkedEventProviderLinkId))
+      .limit(1);
+    if (pl) {
+      linkedProvider = { linkId: pl.id, name: pl.businessName, category: pl.category, bookingStatus: pl.status };
+    }
+  }
+
+  // Fetch linked venue
+  let linkedVenue: { linkId: number; name: string; bookingStatus: string } | null = null;
+  if (task.linkedEventVenueLinkId) {
+    const [vl] = await db
+      .select({
+        id: schema.eventVenues.id,
+        status: schema.eventVenues.status,
+        name: schema.venues.name,
+      })
+      .from(schema.eventVenues)
+      .innerJoin(schema.venues, eq(schema.eventVenues.venueId, schema.venues.id))
+      .where(eq(schema.eventVenues.id, task.linkedEventVenueLinkId))
+      .limit(1);
+    if (vl) {
+      linkedVenue = { linkId: vl.id, name: vl.name, bookingStatus: vl.status };
+    }
+  }
+
   return c.json({
     success: true,
     data: {
@@ -505,6 +589,8 @@ tasks.get('/:uuid', requireAuth, async (c) => {
         title: d.title,
         status: d.status,
       })),
+      linkedProvider,
+      linkedVenue,
     },
   });
 });
@@ -609,6 +695,42 @@ tasks.patch(
       }
     }
 
+    // Validate and set linked provider link
+    if (updates.linkedEventProviderLinkId !== undefined) {
+      if (updates.linkedEventProviderLinkId !== null) {
+        const [provLink] = await db
+          .select({ id: schema.eventServiceProviders.id })
+          .from(schema.eventServiceProviders)
+          .where(and(
+            eq(schema.eventServiceProviders.id, updates.linkedEventProviderLinkId),
+            eq(schema.eventServiceProviders.eventId, access.event.id)
+          ))
+          .limit(1);
+        if (!provLink) {
+          return c.json({ success: false, error: { code: 'BAD_REQUEST', message: 'Provider link does not belong to this event' } }, 400);
+        }
+      }
+      updateData.linkedEventProviderLinkId = updates.linkedEventProviderLinkId;
+    }
+
+    // Validate and set linked venue link
+    if (updates.linkedEventVenueLinkId !== undefined) {
+      if (updates.linkedEventVenueLinkId !== null) {
+        const [venueLink] = await db
+          .select({ id: schema.eventVenues.id })
+          .from(schema.eventVenues)
+          .where(and(
+            eq(schema.eventVenues.id, updates.linkedEventVenueLinkId),
+            eq(schema.eventVenues.eventId, access.event.id)
+          ))
+          .limit(1);
+        if (!venueLink) {
+          return c.json({ success: false, error: { code: 'BAD_REQUEST', message: 'Venue link does not belong to this event' } }, 400);
+        }
+      }
+      updateData.linkedEventVenueLinkId = updates.linkedEventVenueLinkId;
+    }
+
     const [freshTask] = await db
       .update(schema.tasks)
       .set(updateData)
@@ -624,6 +746,43 @@ tasks.patch(
         .where(eq(schema.user.id, freshTask!.assignedToUserId))
         .limit(1);
       assignedToName = u?.name ?? null;
+    }
+
+    // Fetch linked provider
+    let patchLinkedProvider: { linkId: number; name: string; category: string; bookingStatus: string } | null = null;
+    if (freshTask!.linkedEventProviderLinkId) {
+      const [pl] = await db
+        .select({
+          id: schema.eventServiceProviders.id,
+          status: schema.eventServiceProviders.status,
+          businessName: schema.serviceProviders.businessName,
+          category: schema.serviceProviders.category,
+        })
+        .from(schema.eventServiceProviders)
+        .innerJoin(schema.serviceProviders, eq(schema.eventServiceProviders.serviceProviderId, schema.serviceProviders.id))
+        .where(eq(schema.eventServiceProviders.id, freshTask!.linkedEventProviderLinkId))
+        .limit(1);
+      if (pl) {
+        patchLinkedProvider = { linkId: pl.id, name: pl.businessName, category: pl.category, bookingStatus: pl.status };
+      }
+    }
+
+    // Fetch linked venue
+    let patchLinkedVenue: { linkId: number; name: string; bookingStatus: string } | null = null;
+    if (freshTask!.linkedEventVenueLinkId) {
+      const [vl] = await db
+        .select({
+          id: schema.eventVenues.id,
+          status: schema.eventVenues.status,
+          name: schema.venues.name,
+        })
+        .from(schema.eventVenues)
+        .innerJoin(schema.venues, eq(schema.eventVenues.venueId, schema.venues.id))
+        .where(eq(schema.eventVenues.id, freshTask!.linkedEventVenueLinkId))
+        .limit(1);
+      if (vl) {
+        patchLinkedVenue = { linkId: vl.id, name: vl.name, bookingStatus: vl.status };
+      }
     }
 
     return c.json({
@@ -642,6 +801,8 @@ tasks.patch(
         sortOrder: freshTask!.sortOrder,
         createdAt: freshTask!.createdAt,
         updatedAt: freshTask!.updatedAt,
+        linkedProvider: patchLinkedProvider,
+        linkedVenue: patchLinkedVenue,
       },
     });
   }
