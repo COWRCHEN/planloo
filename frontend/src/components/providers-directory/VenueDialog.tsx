@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -39,6 +39,7 @@ import {
   STATE_LABELS,
   validateVenueAddress,
 } from '../../../../shared/schemas/provider';
+import { useUserLocation, type DetectedLocation } from '@/hooks/use-location';
 
 const VENUE_TYPES_ENUM = ['banquet_hall', 'outdoor', 'hotel', 'restaurant', 'conference_center', 'other'] as const;
 
@@ -79,25 +80,29 @@ const otherCountries = COUNTRIES.filter((c) => !FEATURED_COUNTRY_CODES.includes(
 interface VenueDialogProps {
   venue?: VenueResponse;
   trigger?: React.ReactNode;
-  onSuccess?: () => void;
+  onSuccess?: (venue?: VenueResponse) => void;
 }
 
 export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
   const [open, setOpen] = useState(false);
   const isEditing = !!venue;
+  const locationAppliedRef = useRef(false);
+
+  const { data: locationData } = useUserLocation();
+  const detectedLocation = locationData?.detected ? (locationData as DetectedLocation) : null;
 
   const createMutation = useCreateVenue();
   const updateMutation = useUpdateVenue(venue?.uuid ?? '');
 
-  function getDefaults(): FormData {
+  function getDefaults(loc?: DetectedLocation | null): FormData {
     return {
       name: venue?.name ?? '',
       venueType: venue?.venueType ?? null,
       address: venue?.address ?? '',
-      city: venue?.city ?? '',
-      state: venue?.state ?? null,
-      country: venue?.country ?? 'US',
-      postalCode: venue?.postalCode ?? null,
+      city: venue?.city ?? loc?.city ?? '',
+      state: venue?.state ?? loc?.state ?? null,
+      country: venue?.country ?? loc?.country ?? 'US',
+      postalCode: venue?.postalCode ?? loc?.postalCode ?? null,
       capacityMin: venue?.capacityMin ?? null,
       capacityMax: venue?.capacityMax ?? null,
       pricePerHour: venue?.pricePerHour ?? null,
@@ -131,14 +136,24 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
   const stateOptions = selectedCountry === 'CA' ? CA_PROVINCES : US_STATES;
 
   useEffect(() => {
-    if (open) reset(getDefaults());
-  }, [open, venue, reset]);
+    if (open) {
+      locationAppliedRef.current = false;
+      const loc = !isEditing ? detectedLocation : null;
+      reset(getDefaults(loc));
+      if (loc) locationAppliedRef.current = true;
+    }
+  }, [open, venue, reset]); // intentionally excludes detectedLocation to avoid resetting mid-edit
 
-  // Clear state when switching between structured and free-text countries
+  // Fill location fields if location data arrives after dialog was already opened
   useEffect(() => {
-    if (!open) return;
-    setValue('state', null);
-  }, [selectedCountry]);
+    if (!open || isEditing || locationAppliedRef.current || !detectedLocation) return;
+    setValue('city', detectedLocation.city ?? '');
+    setValue('state', detectedLocation.state ?? null);
+    setValue('country', detectedLocation.country);
+    setValue('postalCode', detectedLocation.postalCode ?? null);
+    locationAppliedRef.current = true;
+  }, [detectedLocation, open, isEditing]);
+
 
   const onSubmit = handleSubmit(async (data) => {
     const payload: CreateVenueInput = {
@@ -165,11 +180,13 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
 
     if (isEditing) {
       await updateMutation.mutateAsync(payload);
+      setOpen(false);
+      onSuccess?.();
     } else {
-      await createMutation.mutateAsync(payload);
+      const created = await createMutation.mutateAsync(payload);
+      setOpen(false);
+      onSuccess?.(created);
     }
-    setOpen(false);
-    onSuccess?.();
   });
 
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -266,7 +283,7 @@ export function VenueDialog({ venue, trigger, onSuccess }: VenueDialogProps) {
               <Label>Country <span className="text-destructive">*</span></Label>
               <Select
                 value={selectedCountry}
-                onValueChange={(val) => setValue('country', val)}
+                onValueChange={(val) => { setValue('country', val); setValue('state', null); }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select country" />

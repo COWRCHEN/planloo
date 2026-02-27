@@ -45,9 +45,13 @@ import { VenueCommentForm } from './VenueCommentForm';
 import { VenueReviewsDialog, RatingBreakdownBars as VenueRatingBreakdownBars } from './VenueReviewsDialog';
 import { LinkProviderDialog } from './LinkProviderDialog';
 import { LinkVenueDialog } from './LinkVenueDialog';
+import { ProviderDialog } from './ProviderDialog';
+import { VenueDialog } from './VenueDialog';
 import {
   useEventProviders,
   useEventVenues,
+  useLinkProvider,
+  useLinkVenue,
   useUnlinkProvider,
   useUnlinkVenue,
   useProviderLogs,
@@ -59,6 +63,8 @@ import {
   type EventServiceProviderResponse,
   type EventVenueResponse,
   type CreateLogInput,
+  type ServiceProviderResponse,
+  type VenueResponse,
 } from '@/hooks/use-providers';
 
 // ==================== CONSTANTS ====================
@@ -1137,6 +1143,8 @@ function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
   const { data: providers, isLoading: providersLoading } = useEventProviders(eventUuid);
   const { data: venues, isLoading: venuesLoading } = useEventVenues(eventUuid);
   const eventDate = event?.startDate ?? null;
+  const linkProviderMutation = useLinkProvider(eventUuid);
+  const linkVenueMutation = useLinkVenue(eventUuid);
 
   if (sessionLoading) {
     return (
@@ -1167,7 +1175,14 @@ function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Service Providers</h2>
-          <LinkProviderDialog eventUuid={eventUuid} />
+          <div className="flex items-center gap-2">
+            <ProviderDialog
+              onSuccess={(provider?: ServiceProviderResponse) => {
+                if (provider?.uuid) linkProviderMutation.mutate({ providerUuid: provider.uuid });
+              }}
+            />
+            <LinkProviderDialog eventUuid={eventUuid} />
+          </div>
         </div>
 
         {providersLoading ? (
@@ -1197,7 +1212,14 @@ function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Venues</h2>
-          <LinkVenueDialog eventUuid={eventUuid} />
+          <div className="flex items-center gap-2">
+            <VenueDialog
+              onSuccess={(venue?: VenueResponse) => {
+                if (venue?.uuid) linkVenueMutation.mutate({ venueUuid: venue.uuid });
+              }}
+            />
+            <LinkVenueDialog eventUuid={eventUuid} />
+          </div>
         </div>
 
         {venuesLoading ? (

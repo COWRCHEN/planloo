@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -40,6 +40,7 @@ import {
   STATE_LABELS,
   validateProviderAddress,
 } from '../../../../shared/schemas/provider';
+import { useUserLocation, type DetectedLocation } from '@/hooks/use-location';
 
 const PROVIDER_CATEGORIES_ENUM = ['catering', 'photography', 'videography', 'dj', 'entertainment', 'florist', 'decoration', 'transportation', 'av_technology', 'hair_makeup', 'other'] as const;
 const PRICE_RANGES_ENUM = ['$$', '$$$', '$$$$'] as const;
@@ -83,17 +84,21 @@ const otherCountries = COUNTRIES.filter((c) => !FEATURED_COUNTRY_CODES.includes(
 interface ProviderDialogProps {
   provider?: ServiceProviderResponse;
   trigger?: React.ReactNode;
-  onSuccess?: () => void;
+  onSuccess?: (provider?: ServiceProviderResponse) => void;
 }
 
 export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogProps) {
   const [open, setOpen] = useState(false);
   const isEditing = !!provider;
+  const locationAppliedRef = useRef(false);
+
+  const { data: locationData } = useUserLocation();
+  const detectedLocation = locationData?.detected ? (locationData as DetectedLocation) : null;
 
   const createMutation = useCreateProvider();
   const updateMutation = useUpdateProvider(provider?.uuid ?? '');
 
-  function getDefaults(): FormData {
+  function getDefaults(loc?: DetectedLocation | null): FormData {
     return {
       businessName: provider?.businessName ?? '',
       category: provider?.category ?? 'other',
@@ -105,10 +110,10 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
       priceRange: provider?.priceRange ?? null,
       servicesOffered: provider?.servicesOffered?.join(', ') ?? null,
       locationAddress: provider?.locationAddress ?? '',
-      locationCity: provider?.locationCity ?? '',
-      locationState: provider?.locationState ?? null,
-      locationCountry: provider?.locationCountry ?? 'US',
-      locationPostalCode: provider?.locationPostalCode ?? null,
+      locationCity: provider?.locationCity ?? loc?.city ?? '',
+      locationState: provider?.locationState ?? loc?.state ?? null,
+      locationCountry: provider?.locationCountry ?? loc?.country ?? 'US',
+      locationPostalCode: provider?.locationPostalCode ?? loc?.postalCode ?? null,
     };
   }
 
@@ -133,14 +138,24 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
   const stateOptions = selectedCountry === 'CA' ? CA_PROVINCES : US_STATES;
 
   useEffect(() => {
-    if (open) reset(getDefaults());
-  }, [open, provider, reset]);
+    if (open) {
+      locationAppliedRef.current = false;
+      const loc = !isEditing ? detectedLocation : null;
+      reset(getDefaults(loc));
+      if (loc) locationAppliedRef.current = true;
+    }
+  }, [open, provider, reset]); // intentionally excludes detectedLocation to avoid resetting mid-edit
 
-  // Clear state when switching between structured and free-text countries
+  // Fill location fields if location data arrives after dialog was already opened
   useEffect(() => {
-    if (!open) return;
-    setValue('locationState', null);
-  }, [selectedCountry]);
+    if (!open || isEditing || locationAppliedRef.current || !detectedLocation) return;
+    setValue('locationCity', detectedLocation.city ?? '');
+    setValue('locationState', detectedLocation.state ?? null);
+    setValue('locationCountry', detectedLocation.country);
+    setValue('locationPostalCode', detectedLocation.postalCode ?? null);
+    locationAppliedRef.current = true;
+  }, [detectedLocation, open, isEditing]);
+
 
   const onSubmit = handleSubmit(async (data) => {
     const payload: CreateProviderInput = {
@@ -164,11 +179,13 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
 
     if (isEditing) {
       await updateMutation.mutateAsync(payload);
+      setOpen(false);
+      onSuccess?.();
     } else {
-      await createMutation.mutateAsync(payload);
+      const created = await createMutation.mutateAsync(payload);
+      setOpen(false);
+      onSuccess?.(created);
     }
-    setOpen(false);
-    onSuccess?.();
   });
 
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -321,7 +338,7 @@ export function ProviderDialog({ provider, trigger, onSuccess }: ProviderDialogP
               <Label>Country <span className="text-destructive">*</span></Label>
               <Select
                 value={selectedCountry}
-                onValueChange={(val) => setValue('locationCountry', val)}
+                onValueChange={(val) => { setValue('locationCountry', val); setValue('locationState', null); }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select country" />
