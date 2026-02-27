@@ -837,6 +837,10 @@ const logFormSchema = z.object({
   paymentDueDate: z.date().optional().nullable(),
   bookingStartTime: z.string().optional(),
   bookingEndTime: z.string().optional(),
+  isAppointment: z.boolean().default(false),
+}).refine((d) => !d.isAppointment || !!d.bookingStartTime, {
+  message: 'Start time is required for appointments',
+  path: ['bookingStartTime'],
 });
 type LogForm = z.infer<typeof logFormSchema>;
 
@@ -853,6 +857,7 @@ const LOG_DEFAULT_VALUES: LogForm = {
   paymentDueDate: null,
   bookingStartTime: '',
   bookingEndTime: '',
+  isAppointment: false,
 };
 
 function ContactLogsAccordion({
@@ -881,6 +886,7 @@ function ContactLogsAccordion({
   });
 
   const watchedStatus = form.watch('statusChange');
+  const watchedIsAppointment = form.watch('isAppointment');
   const lastStatusChange = logs.find(l => l.statusChange)?.statusChange ?? null;
 
   const onSubmit = async (values: LogForm) => {
@@ -889,6 +895,7 @@ function ContactLogsAccordion({
         ? (values.statusChange as BookingStatus)
         : null;
     const hasFinancial = status === 'quoted' || status === 'booked';
+    const showTimePicker = status === 'booked' || values.isAppointment;
     const input: CreateLogInput = {
       contactPerson: values.contactPerson || null,
       result: values.result || null,
@@ -904,9 +911,10 @@ function ContactLogsAccordion({
       depositPaid: status === 'booked' ? values.depositPaid : null,
       paymentDueDate: status === 'booked' ? (values.paymentDueDate ?? null) : null,
       bookingStartTime:
-        status === 'booked' && values.bookingStartTime ? new Date(values.bookingStartTime) : null,
+        showTimePicker && values.bookingStartTime ? new Date(values.bookingStartTime) : null,
       bookingEndTime:
-        status === 'booked' && values.bookingEndTime ? new Date(values.bookingEndTime) : null,
+        showTimePicker && values.bookingEndTime ? new Date(values.bookingEndTime) : null,
+      isAppointment: values.isAppointment,
     };
     await createMutation.mutateAsync(input);
     form.reset(LOG_DEFAULT_VALUES);
@@ -936,6 +944,14 @@ function ContactLogsAccordion({
                   >
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="font-medium">{formatDate(log.logDate)}</span>
+                      {log.isAppointment && (
+                        <Badge
+                          variant="outline"
+                          className="h-4 border-blue-200 bg-blue-50 px-1 text-[10px] text-blue-700"
+                        >
+                          Appointment
+                        </Badge>
+                      )}
                       {log.statusChange && (
                         <Badge
                           variant="outline"
@@ -1006,6 +1022,16 @@ function ContactLogsAccordion({
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-2 rounded-md border p-2.5"
               >
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id={`appt-toggle-${linkId}`}
+                    checked={watchedIsAppointment}
+                    onCheckedChange={v => form.setValue('isAppointment', v)}
+                  />
+                  <Label htmlFor={`appt-toggle-${linkId}`} className="text-xs cursor-pointer">
+                    This is a scheduled appointment
+                  </Label>
+                </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Status Change</Label>
                   <Select
@@ -1063,27 +1089,40 @@ function ContactLogsAccordion({
                   </div>
                 )}
 
-                {/* Deposit + booking time fields — shown for booked status */}
+                {/* Appointment/booking time fields */}
+                {(watchedIsAppointment || watchedStatus === 'booked') && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        {watchedIsAppointment ? 'Appointment Start *' : 'Booking Start'}
+                      </Label>
+                      <Input
+                        className="h-7 text-xs"
+                        type="datetime-local"
+                        {...form.register('bookingStartTime')}
+                      />
+                      {form.formState.errors.bookingStartTime && (
+                        <p className="text-[10px] text-destructive">
+                          {form.formState.errors.bookingStartTime.message}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        {watchedIsAppointment ? 'Appointment End' : 'Booking End'}
+                      </Label>
+                      <Input
+                        className="h-7 text-xs"
+                        type="datetime-local"
+                        {...form.register('bookingEndTime')}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Deposit + financial fields — shown for booked status */}
                 {watchedStatus === 'booked' && (
                   <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Booking Start</Label>
-                        <Input
-                          className="h-7 text-xs"
-                          type="datetime-local"
-                          {...form.register('bookingStartTime')}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Booking End</Label>
-                        <Input
-                          className="h-7 text-xs"
-                          type="datetime-local"
-                          {...form.register('bookingEndTime')}
-                        />
-                      </div>
-                    </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Actual Cost</Label>
                       <Input

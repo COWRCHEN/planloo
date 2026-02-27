@@ -177,11 +177,13 @@ export const eventProviderLogs = sqliteTable('event_provider_logs', {
   paymentDueDate: integer('payment_due_date', { mode: 'timestamp' }),
   bookingStartTime: integer('booking_start_time', { mode: 'timestamp' }),
   bookingEndTime: integer('booking_end_time', { mode: 'timestamp' }),
+  isAppointment: integer('is_appointment', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().default(sql`(unixepoch())`),
 }, (table) => ({
   entityLinkIdx: index('idx_event_provider_logs_entity_link').on(table.entityType, table.linkId),
   logDateIdx: index('idx_event_provider_logs_date').on(table.logDate),
+  appointmentIdx: index('idx_event_provider_logs_appointment').on(table.isAppointment, table.bookingStartTime),
 }));
 
 /**

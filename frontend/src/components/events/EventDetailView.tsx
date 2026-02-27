@@ -13,6 +13,7 @@ import { EventStatusSelect } from './EventStatusSelect';
 import { DeleteEventDialog } from './DeleteEventDialog';
 import { EventRecentActivity } from './EventRecentActivity';
 import { EventUpcomingTasks } from './EventUpcomingTasks';
+import { EventUpcomingAppointments } from './EventUpcomingAppointments';
 import { useEvent } from '@/hooks/use-events';
 import { useSession } from '@/hooks/use-auth';
 
@@ -40,7 +41,10 @@ function formatTime(dateString: string | null | undefined): string {
   });
 }
 
-function formatCurrency(amount: number | null | undefined, currency: string | null | undefined): string {
+function formatCurrency(
+  amount: number | null | undefined,
+  currency: string | null | undefined
+): string {
   if (amount === null || amount === undefined) return '-';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -163,7 +167,7 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
         <div className="flex min-w-0 items-center gap-4">
           <a
             href="/dashboard/events"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary-300 text-primary-600 hover:bg-primary-50 hover:border-primary-400"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-primary-300 text-primary-600 hover:border-primary-400 hover:bg-primary-50"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -213,22 +217,14 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
           <Button variant="outline" size="sm" className="shrink-0" asChild>
             <a href={`/dashboard/events/${event.uuid}/edit`}>Edit</a>
           </Button>
-          <DeleteEventDialog
-            uuid={event.uuid}
-            eventTitle={event.title}
-            onDeleted={handleDeleted}
-          />
+          <DeleteEventDialog uuid={event.uuid} eventTitle={event.title} onDeleted={handleDeleted} />
         </div>
       </div>
 
       {/* Cover Image */}
       {event.coverImageUrl && (
         <div className="aspect-video overflow-hidden rounded-lg">
-          <img
-            src={event.coverImageUrl}
-            alt={event.title}
-            className="h-full w-full object-cover"
-          />
+          <img src={event.coverImageUrl} alt={event.title} className="h-full w-full object-cover" />
         </div>
       )}
 
@@ -398,6 +394,9 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Upcoming Appointments */}
+      <EventUpcomingAppointments eventUuid={uuid} />
 
       {/* Activity & Upcoming Tasks */}
       <div className="grid gap-6 md:grid-cols-2">

@@ -11,7 +11,7 @@ import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and, isNull, isNotNull, desc, count, inArray, sql } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, desc, count, inArray, sql, gt } from 'drizzle-orm';
 import { user as userTable } from '@/db/schema/auth';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
@@ -54,6 +54,10 @@ const createLogSchema = z.object({
   paymentDueDate: z.coerce.date().optional().nullable(),
   bookingStartTime: z.coerce.date().optional().nullable(),
   bookingEndTime: z.coerce.date().optional().nullable(),
+  isAppointment: z.boolean().default(false),
+}).refine((d) => !d.isAppointment || d.bookingStartTime != null, {
+  message: 'bookingStartTime is required for appointments',
+  path: ['bookingStartTime'],
 });
 
 const updateEventVenueSchema = z.object({
@@ -355,6 +359,129 @@ eventProviders.post(
   }
 );
 
+// ==================== APPOINTMENTS ROUTE (static — must be before /:linkId param) ====================
+
+/**
+ * GET /events/:eventUuid/providers/appointments
+ * List upcoming appointments (logs flagged as isAppointment with future bookingStartTime)
+ */
+eventProviders.get('/appointments', requireAuth, async (c) => {
+  const user = c.get('user')!;
+  const eventUuid = c.req.param('eventUuid')!;
+  const db = createDbClient(c.env.DB);
+
+  const access = await resolveEventAccess(db, eventUuid, user.id);
+  if (!access) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
+      404
+    );
+  }
+  const event = access.event;
+  const now = new Date();
+
+  const [providerAppts, venueAppts] = await Promise.all([
+    db
+      .select({
+        id: schema.eventProviderLogs.id,
+        linkId: schema.eventProviderLogs.linkId,
+        contactPerson: schema.eventProviderLogs.contactPerson,
+        notes: schema.eventProviderLogs.notes,
+        result: schema.eventProviderLogs.result,
+        statusChange: schema.eventProviderLogs.statusChange,
+        bookingStartTime: schema.eventProviderLogs.bookingStartTime,
+        bookingEndTime: schema.eventProviderLogs.bookingEndTime,
+        createdAt: schema.eventProviderLogs.createdAt,
+        entityName: schema.serviceProviders.businessName,
+        entityCategory: schema.serviceProviders.category,
+      })
+      .from(schema.eventProviderLogs)
+      .innerJoin(
+        schema.eventServiceProviders,
+        eq(schema.eventProviderLogs.linkId, schema.eventServiceProviders.id)
+      )
+      .innerJoin(
+        schema.serviceProviders,
+        eq(schema.eventServiceProviders.serviceProviderId, schema.serviceProviders.id)
+      )
+      .where(
+        and(
+          eq(schema.eventProviderLogs.entityType, 'provider'),
+          eq(schema.eventProviderLogs.isAppointment, true),
+          gt(schema.eventProviderLogs.bookingStartTime, now),
+          eq(schema.eventServiceProviders.eventId, event.id)
+        )
+      ),
+
+    db
+      .select({
+        id: schema.eventProviderLogs.id,
+        linkId: schema.eventProviderLogs.linkId,
+        contactPerson: schema.eventProviderLogs.contactPerson,
+        notes: schema.eventProviderLogs.notes,
+        result: schema.eventProviderLogs.result,
+        statusChange: schema.eventProviderLogs.statusChange,
+        bookingStartTime: schema.eventProviderLogs.bookingStartTime,
+        bookingEndTime: schema.eventProviderLogs.bookingEndTime,
+        createdAt: schema.eventProviderLogs.createdAt,
+        entityName: schema.venues.name,
+        entityCategory: schema.venues.venueType,
+      })
+      .from(schema.eventProviderLogs)
+      .innerJoin(
+        schema.eventVenues,
+        eq(schema.eventProviderLogs.linkId, schema.eventVenues.id)
+      )
+      .innerJoin(
+        schema.venues,
+        eq(schema.eventVenues.venueId, schema.venues.id)
+      )
+      .where(
+        and(
+          eq(schema.eventProviderLogs.entityType, 'venue'),
+          eq(schema.eventProviderLogs.isAppointment, true),
+          gt(schema.eventProviderLogs.bookingStartTime, now),
+          eq(schema.eventVenues.eventId, event.id)
+        )
+      ),
+  ]);
+
+  const allAppts = [
+    ...providerAppts.map((r) => ({
+      id: r.id,
+      entityType: 'provider' as const,
+      entityName: r.entityName,
+      entityCategory: r.entityCategory as string,
+      linkId: r.linkId,
+      appointmentStart: r.bookingStartTime!.toISOString(),
+      appointmentEnd: r.bookingEndTime ? r.bookingEndTime.toISOString() : null,
+      contactPerson: r.contactPerson,
+      notes: r.notes,
+      result: r.result,
+      statusChange: r.statusChange,
+      createdAt: r.createdAt.toISOString(),
+    })),
+    ...venueAppts.map((r) => ({
+      id: r.id,
+      entityType: 'venue' as const,
+      entityName: r.entityName,
+      entityCategory: r.entityCategory as string,
+      linkId: r.linkId,
+      appointmentStart: r.bookingStartTime!.toISOString(),
+      appointmentEnd: r.bookingEndTime ? r.bookingEndTime.toISOString() : null,
+      contactPerson: r.contactPerson,
+      notes: r.notes,
+      result: r.result,
+      statusChange: r.statusChange,
+      createdAt: r.createdAt.toISOString(),
+    })),
+  ]
+    .sort((a, b) => new Date(a.appointmentStart).getTime() - new Date(b.appointmentStart).getTime())
+    .slice(0, 10);
+
+  return c.json({ success: true, data: allAppts });
+});
+
 // ==================== PROVIDER LOG ROUTES (before /:linkId param) ====================
 
 /**
@@ -386,6 +513,7 @@ eventProviders.get('/:linkId/logs', requireAuth, async (c) => {
       paymentDueDate: schema.eventProviderLogs.paymentDueDate,
       bookingStartTime: schema.eventProviderLogs.bookingStartTime,
       bookingEndTime: schema.eventProviderLogs.bookingEndTime,
+      isAppointment: schema.eventProviderLogs.isAppointment,
       createdByUserId: schema.eventProviderLogs.createdByUserId,
       createdByName: userTable.name,
       createdAt: schema.eventProviderLogs.createdAt,
@@ -430,6 +558,7 @@ eventProviders.post('/:linkId/logs', requireAuth, requireVerifiedEmail, zValidat
     paymentDueDate: body.paymentDueDate ?? null,
     bookingStartTime: body.bookingStartTime ?? null,
     bookingEndTime: body.bookingEndTime ?? null,
+    isAppointment: body.isAppointment ?? false,
   };
 
   const linkUpdateData: Record<string, unknown> = { updatedAt: new Date() };
@@ -697,6 +826,7 @@ eventProviders.get('/venues/:linkId/logs', requireAuth, async (c) => {
       paymentDueDate: schema.eventProviderLogs.paymentDueDate,
       bookingStartTime: schema.eventProviderLogs.bookingStartTime,
       bookingEndTime: schema.eventProviderLogs.bookingEndTime,
+      isAppointment: schema.eventProviderLogs.isAppointment,
       createdByUserId: schema.eventProviderLogs.createdByUserId,
       createdByName: userTable.name,
       createdAt: schema.eventProviderLogs.createdAt,
@@ -741,6 +871,7 @@ eventProviders.post('/venues/:linkId/logs', requireAuth, requireVerifiedEmail, z
     paymentDueDate: body.paymentDueDate ?? null,
     bookingStartTime: body.bookingStartTime ?? null,
     bookingEndTime: body.bookingEndTime ?? null,
+    isAppointment: body.isAppointment ?? false,
   };
 
   const venueLinkUpdateData: Record<string, unknown> = { updatedAt: new Date() };

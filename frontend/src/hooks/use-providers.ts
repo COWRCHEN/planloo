@@ -332,6 +332,10 @@ export const providerLogKeys = {
   venue: (eventUuid: string, linkId: number) => ['providerLogs', 'venue', eventUuid, linkId] as const,
 };
 
+export const appointmentKeys = {
+  list: (eventUuid: string) => ['appointments', 'list', eventUuid] as const,
+};
+
 // ==================== HELPERS ====================
 
 interface ApiResponse<T> {
@@ -944,6 +948,7 @@ export interface ProviderLog {
   paymentDueDate: string | null;
   bookingStartTime: string | null;
   bookingEndTime: string | null;
+  isAppointment: boolean;
   createdByUserId: string | null;
   createdByName: string | null;
   createdAt: string;
@@ -963,6 +968,22 @@ export interface CreateLogInput {
   paymentDueDate?: Date | null;
   bookingStartTime?: Date | null;
   bookingEndTime?: Date | null;
+  isAppointment?: boolean;
+}
+
+export interface AppointmentResponse {
+  id: number;
+  entityType: 'provider' | 'venue';
+  entityName: string;
+  entityCategory: string;
+  linkId: number;
+  appointmentStart: string;
+  appointmentEnd: string | null;
+  contactPerson: string | null;
+  notes: string | null;
+  result: string | null;
+  statusChange: BookingStatus | null;
+  createdAt: string;
 }
 
 export function useProviderLogs(eventUuid: string, linkId: number) {
@@ -993,6 +1014,21 @@ export function useVenueLogs(eventUuid: string, linkId: number) {
   });
 }
 
+export function useEventAppointments(eventUuid: string) {
+  return useQuery<AppointmentResponse[]>({
+    queryKey: appointmentKeys.list(eventUuid),
+    queryFn: async (): Promise<AppointmentResponse[]> => {
+      const response = await fetch(`${API_URL}/events/${eventUuid}/providers/appointments`, {
+        credentials: 'include',
+      });
+      const result = await handleResponse<AppointmentResponse[]>(response);
+      return result.data ?? [];
+    },
+    enabled: !!eventUuid,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 export function useCreateProviderLog(eventUuid: string, linkId: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -1009,6 +1045,7 @@ export function useCreateProviderLog(eventUuid: string, linkId: number) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: providerLogKeys.provider(eventUuid, linkId) });
       queryClient.invalidateQueries({ queryKey: eventProviderKeys.list(eventUuid) });
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.list(eventUuid) });
     },
   });
 }
@@ -1029,6 +1066,7 @@ export function useCreateVenueLog(eventUuid: string, linkId: number) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: providerLogKeys.venue(eventUuid, linkId) });
       queryClient.invalidateQueries({ queryKey: eventVenueKeys.list(eventUuid) });
+      queryClient.invalidateQueries({ queryKey: appointmentKeys.list(eventUuid) });
     },
   });
 }
