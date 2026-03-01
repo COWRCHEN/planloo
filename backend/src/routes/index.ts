@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { authMiddleware, requireAuth } from '@/middleware/auth';
+import { loadSubscription } from '@/middleware/subscription';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
 import { eq, and, isNull, sql, count } from 'drizzle-orm';
@@ -30,11 +31,15 @@ import objectTemplateRoutes from './object-templates';
 import taskRoutes from './tasks';
 import dashboard from './dashboard';
 import location from './location';
+import billing from './billing';
 
 const api = new Hono<HonoEnv>();
 
 // Apply auth middleware to all routes
 api.use('*', authMiddleware);
+
+// Load subscription data for authenticated users (single DB read per request)
+api.use('*', loadSubscription);
 
 /**
  * GET /api/v1/me
@@ -444,5 +449,6 @@ api.route('/dashboard', dashboard);
 api.route('/location', location);
 api.route('/rsvp', rsvp); // Public routes (auth middleware is applied but not required)
 api.route('/admin', admin);
+api.route('/billing', billing);
 
 export default api;

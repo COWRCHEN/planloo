@@ -1,0 +1,24 @@
+---
+/**
+ * Billing Management Page
+ *
+ * Shows current subscription, usage meters, and pricing table.
+ * SSR — never prerender (needs fresh subscription data).
+ */
+
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { BillingView } from '@/components/billing/BillingView';
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Billing" description="Manage your Planloo subscription">
+  <div class="space-y-6">
+    <div>
+      <h1 class="font-heading text-3xl font-bold">Billing</h1>
+      <p class="text-muted-foreground">Manage your plan and view usage.</p>
+    </div>
+
+    <BillingView client:load />
+  </div>
+</DashboardLayout>

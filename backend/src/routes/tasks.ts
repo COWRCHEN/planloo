@@ -15,6 +15,7 @@ import { eq, and, isNull, desc, asc, sql, count, lt } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
 import { getTemplateList, resolveTemplate, resolveTemplateFromStartDate } from '@/lib/task-templates';
+import { checkFeatureAccess, getEffectivePlan } from '@/lib/billing-checks';
 
 const tasks = new Hono<HonoEnv>();
 
@@ -403,6 +404,14 @@ tasks.post(
     const eventUuid = c.req.param('eventUuid')!;
     const { templateId, startDate: startDateStr } = c.req.valid('json');
     const db = createDbClient(c.env.DB);
+
+    // Enforce task templates feature access
+    const sub = c.get('subscription');
+    const plan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
+    const featureCheck = checkFeatureAccess(plan, 'taskTemplates');
+    if (!featureCheck.ok) {
+      return c.json({ success: false, error: featureCheck.error }, 402);
+    }
 
     const access = await resolveEventAccess(db, eventUuid, user.id);
     if (!access) {

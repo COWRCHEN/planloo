@@ -14,6 +14,7 @@ import { eq, and, isNull, desc, asc, sql, count } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
 import { hashPagePassword } from '@/lib/page-password';
+import { checkEventCreationLimit, getEffectivePlan } from '@/lib/billing-checks';
 
 const events = new Hono<HonoEnv>();
 
@@ -386,6 +387,14 @@ events.post(
     const data = c.req.valid('json');
 
     const db = createDbClient(c.env.DB);
+
+    // Enforce event creation limit
+    const sub = c.get('subscription');
+    const plan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
+    const limitCheck = await checkEventCreationLimit(db, user.id, plan);
+    if (!limitCheck.ok) {
+      return c.json({ success: false, error: limitCheck.error }, 402);
+    }
 
     const uuid = crypto.randomUUID();
 

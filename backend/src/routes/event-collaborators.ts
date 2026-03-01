@@ -14,6 +14,7 @@ import { schema } from '@/db';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
+import { checkCollaboratorLimit, getEffectivePlan } from '@/lib/billing-checks';
 
 const eventCollaborators = new Hono<HonoEnv>();
 
@@ -94,6 +95,14 @@ eventCollaborators.post(
         { success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } },
         403
       );
+    }
+
+    // Enforce collaborator limit (uses event owner's plan)
+    const sub = c.get('subscription');
+    const plan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
+    const collabCheck = await checkCollaboratorLimit(db, access.event.id, plan);
+    if (!collabCheck.ok) {
+      return c.json({ success: false, error: collabCheck.error }, 402);
     }
 
     // Look up user by email

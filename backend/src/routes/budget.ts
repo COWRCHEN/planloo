@@ -14,6 +14,7 @@ import { schema } from '@/db';
 import { eq, and, isNull, desc, asc, sql, count } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
+import { checkFeatureAccess, getEffectivePlan } from '@/lib/billing-checks';
 
 const budget = new Hono<HonoEnv>();
 
@@ -388,6 +389,14 @@ budget.post(
     const data = c.req.valid('json');
 
     const db = createDbClient(c.env.DB);
+
+    // Enforce budget tracking feature access
+    const sub = c.get('subscription');
+    const plan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
+    const featureCheck = checkFeatureAccess(plan, 'budgetTracking');
+    if (!featureCheck.ok) {
+      return c.json({ success: false, error: featureCheck.error }, 402);
+    }
 
     const access = await resolveEventAccess(db, eventUuid, user.id);
     if (!access) {

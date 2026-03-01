@@ -137,6 +137,13 @@ export type NewImpersonationSession = InferInsertModel<typeof schema.impersonati
 export type EmailLog = InferSelectModel<typeof schema.emailLog>;
 export type NewEmailLog = InferInsertModel<typeof schema.emailLog>;
 
+// ==================== BILLING TYPES ====================
+
+export type Subscription = InferSelectModel<typeof schema.subscriptions>;
+export type NewSubscription = InferInsertModel<typeof schema.subscriptions>;
+export type SubscriptionPlan = 'free' | 'personal' | 'planner' | 'agency';
+export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete' | 'free';
+
 // ==================== ENUM TYPES ====================
 
 export type PlatformRole = 'super_admin' | 'operator' | 'user';

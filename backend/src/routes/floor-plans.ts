@@ -16,6 +16,7 @@ import { schema } from '@/db';
 import { eq, and, isNull, inArray, sql } from 'drizzle-orm';
 import { requireAuth } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
+import { checkFeatureAccess, getEffectivePlan } from '@/lib/billing-checks';
 
 const floorPlans = new Hono<HonoEnv>();
 
@@ -153,6 +154,14 @@ floorPlans.post('/', requireAuth, zValidator('json', createFloorPlanSchema), asy
   const user = c.get('user')!;
   const db = createDbClient(c.env.DB);
   const body = c.req.valid('json');
+
+  // Enforce floor plan feature access
+  const sub = c.get('subscription');
+  const userPlan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
+  const featureCheck = checkFeatureAccess(userPlan, 'floorPlans');
+  if (!featureCheck.ok) {
+    return c.json({ success: false, error: featureCheck.error }, 402);
+  }
 
   const access = await resolveEventAccess(db, eventUuid, user.id);
   if (!access) {

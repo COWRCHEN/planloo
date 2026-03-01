@@ -162,13 +162,24 @@ export function createAuth(env: Env) {
       user: {
         create: {
           after: async (user) => {
+            const db = createDbClient(env.DB);
+
+            // Auto-provision free subscription for every new user
+            try {
+              await db
+                .insert(schema.subscriptions)
+                .values({ userId: user.id, plan: 'free', status: 'free' })
+                .onConflictDoNothing();
+            } catch (err) {
+              console.error('Failed to create free subscription for user:', err);
+            }
+
             // Send welcome email (best-effort)
             try {
               const result = await sendWelcomeEmail(env, {
                 to: user.email,
                 userName: user.name || 'there',
               });
-              const db = createDbClient(env.DB);
               const actuallySent = Boolean(result.id);
               await logEmail({
                 db,
@@ -183,7 +194,6 @@ export function createAuth(env: Env) {
             } catch (err) {
               console.error('Failed to send welcome email:', err);
               try {
-                const db = createDbClient(env.DB);
                 await logEmail({
                   db,
                   recipientEmail: user.email,

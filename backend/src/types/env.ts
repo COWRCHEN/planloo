@@ -33,6 +33,21 @@ export interface Env {
   // R2 bucket for uploads (optional)
   UPLOADS_BUCKET?: R2Bucket;
   R2_PUBLIC_URL?: string;
+
+  // Stripe (optional until Phase 3 goes live)
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+
+  // Stripe Price IDs (monthly)
+  STRIPE_PRICE_PERSONAL_MONTHLY?: string;
+  STRIPE_PRICE_PLANNER_MONTHLY?: string;
+  STRIPE_PRICE_AGENCY_MONTHLY?: string;
+
+  // Stripe Price IDs (annual)
+  STRIPE_PRICE_PERSONAL_ANNUAL?: string;
+  STRIPE_PRICE_PLANNER_ANNUAL?: string;
+  STRIPE_PRICE_AGENCY_ANNUAL?: string;
+
 }
 
 /**
@@ -56,5 +71,12 @@ export type HonoEnv = {
       expiresAt: Date;
     };
     eventAccess?: EventAccess;
+    subscription?: {
+      plan: 'free' | 'personal' | 'planner' | 'agency';
+      status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete' | 'free';
+      currentPeriodEnd: Date | null;
+      cancelAtPeriodEnd: boolean;
+      emailsSentThisPeriod: number;
+    };
   };
 };

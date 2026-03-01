@@ -14,6 +14,8 @@ import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
 import { createAuth } from '@/lib/auth';
 import { authRateLimiters, rsvpLimiter, uploadLimiter } from '@/middleware/rate-limit';
+import { createStripeClient } from '@/lib/stripe';
+import { eq } from 'drizzle-orm';
 import api from '@/routes';
 
 const app = new Hono<HonoEnv>();
@@ -93,6 +95,156 @@ app.use('/api/v1/uploads/*', uploadLimiter);
 app.on(['GET', 'POST'], '/api/v1/auth/*', async (c) => {
   const auth = createAuth(c.env);
   return auth.handler(c.req.raw);
+});
+
+/**
+ * Stripe Webhook
+ *
+ * MUST be mounted before app.route('/api/v1', api) because:
+ * 1. It needs the raw request body for signature verification.
+ * 2. The auth middleware inside `api` would run before we can read raw body.
+ * 3. Stripe sends no cookies/auth headers, so auth middleware is not applicable.
+ */
+app.post('/api/v1/billing/webhook', async (c) => {
+  const webhookSecret = c.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    return c.json({ error: 'Webhook not configured' }, 500);
+  }
+
+  const signature = c.req.header('stripe-signature');
+  if (!signature) {
+    return c.json({ error: 'Missing stripe-signature header' }, 400);
+  }
+
+  let event;
+  try {
+    const stripe = createStripeClient(c.env);
+    const rawBody = await c.req.text();
+    event = await stripe.webhooks.constructEventAsync(rawBody, signature, webhookSecret);
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err);
+    return c.json({ error: 'Invalid signature' }, 400);
+  }
+
+  const db = createDbClient(c.env.DB);
+
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        const userId = session.metadata?.userId;
+        const plan = session.metadata?.plan ?? (session.subscription ? undefined : 'free');
+        if (!userId || !plan) break;
+
+        await db
+          .update(schema.subscriptions)
+          .set({
+            plan: plan as 'free' | 'personal' | 'planner' | 'agency',
+            status: 'active',
+            stripeCustomerId: session.customer as string,
+            stripeSubscriptionId: session.subscription as string,
+            emailsSentThisPeriod: 0,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.subscriptions.userId, userId));
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const sub = event.data.object;
+        const userId = sub.metadata?.userId;
+        const plan = sub.metadata?.plan;
+        if (!userId) break;
+
+        const isNewPeriod =
+          event.data.previous_attributes &&
+          'current_period_start' in event.data.previous_attributes;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stripeSub = sub as any;
+
+        await db
+          .update(schema.subscriptions)
+          .set({
+            plan: plan
+              ? (plan as 'free' | 'personal' | 'planner' | 'agency')
+              : undefined,
+            status: sub.status as 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete',
+            stripeSubscriptionId: sub.id,
+            stripePriceId: sub.items.data[0]?.price.id ?? undefined,
+            currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+            currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+            cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+            canceledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
+            // Reset usage counters on new billing period
+            ...(isNewPeriod ? { emailsSentThisPeriod: 0 } : {}),
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.subscriptions.userId, userId));
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const sub = event.data.object;
+        const userId = sub.metadata?.userId;
+        if (!userId) break;
+
+        await db
+          .update(schema.subscriptions)
+          .set({
+            plan: 'free',
+            status: 'free',
+            stripeSubscriptionId: null,
+            stripePriceId: null,
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
+            cancelAtPeriodEnd: false,
+            canceledAt: new Date(),
+            emailsSentThisPeriod: 0,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.subscriptions.userId, userId));
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object;
+        const customerId = invoice.customer as string;
+        if (!customerId) break;
+
+        await db
+          .update(schema.subscriptions)
+          .set({ status: 'past_due', updatedAt: new Date() })
+          .where(eq(schema.subscriptions.stripeCustomerId, customerId));
+        break;
+      }
+
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object;
+        const customerId = invoice.customer as string;
+        if (!customerId) break;
+
+        await db
+          .update(schema.subscriptions)
+          .set({
+            status: 'active',
+            emailsSentThisPeriod: 0,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.subscriptions.stripeCustomerId, customerId));
+        break;
+      }
+
+      default:
+        // Unhandled event type — ignore
+        break;
+    }
+  } catch (err) {
+    console.error(`Webhook handler error for ${event.type}:`, err);
+    return c.json({ error: 'Webhook processing failed' }, 500);
+  }
+
+  return c.json({ received: true });
 });
 
 /**

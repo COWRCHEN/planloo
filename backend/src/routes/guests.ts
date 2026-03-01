@@ -23,6 +23,7 @@ import { parseGuestsCsv, generateGuestsCsv } from '@/lib/csv';
 import type { EventType, CustomFieldDefinition } from '@/db/types';
 import { sendRsvpInvitationEmail, logEmail } from '@/lib/email';
 import { resolveEventAccess } from '@/lib/event-access';
+import { checkGuestLimit, checkEmailQuota, checkFeatureAccess, incrementEmailCount, getEffectivePlan } from '@/lib/billing-checks';
 
 const guests = new Hono<HonoEnv>();
 
@@ -892,6 +893,14 @@ guests.get('/export', requireAuth, async (c) => {
   const user = c.get('user')!;
   const eventUuid = c.req.param('eventUuid')!;
 
+  // Enforce CSV export feature access
+  const exportSub = c.get('subscription');
+  const exportPlan = getEffectivePlan(exportSub?.plan ?? 'free', exportSub?.status ?? 'free');
+  const exportCheck = checkFeatureAccess(exportPlan, 'csvImportExport');
+  if (!exportCheck.ok) {
+    return c.json({ success: false, error: exportCheck.error }, 402);
+  }
+
   const db = createDbClient(c.env.DB);
 
   // Verify event ownership
@@ -1124,6 +1133,14 @@ guests.post(
         { success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } },
         404
       );
+    }
+
+    // Enforce guest limit
+    const sub = c.get('subscription');
+    const plan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
+    const guestCheck = await checkGuestLimit(db, user.id, plan);
+    if (!guestCheck.ok) {
+      return c.json({ success: false, error: guestCheck.error }, 402);
     }
 
     // Validate custom field data if present
@@ -1414,6 +1431,14 @@ guests.post(
 guests.post('/import', requireAuth, requireVerifiedEmail, async (c) => {
   const user = c.get('user')!;
   const eventUuid = c.req.param('eventUuid')!;
+
+  // Enforce CSV import feature access
+  const sub = c.get('subscription');
+  const importPlan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
+  const featureCheck = checkFeatureAccess(importPlan, 'csvImportExport');
+  if (!featureCheck.ok) {
+    return c.json({ success: false, error: featureCheck.error }, 402);
+  }
 
   const db = createDbClient(c.env.DB);
 
@@ -2215,6 +2240,14 @@ guests.post(
       });
     }
 
+    // Enforce email quota before sending
+    const invSub = c.get('subscription');
+    const invPlan = getEffectivePlan(invSub?.plan ?? 'free', invSub?.status ?? 'free');
+    const emailCheck = checkEmailQuota(invSub?.emailsSentThisPeriod ?? 0, invPlan);
+    if (!emailCheck.ok) {
+      return c.json({ success: false, error: emailCheck.error }, 402);
+    }
+
     const shouldSendEmail = !rsvpSettings || rsvpSettings.sendRsvpInvitation !== false;
     const results: Array<{ guestUuid: string; name: string; email: string; success: boolean; error?: string }> = [];
 
@@ -2261,6 +2294,9 @@ guests.post(
           success: actuallySent,
           ...(actuallySent ? {} : { error: 'Email delivery failed' }),
         });
+        if (actuallySent) {
+          await incrementEmailCount(db, user.id, 1);
+        }
         await logEmail({
           db,
           recipientEmail: guest.email!,
