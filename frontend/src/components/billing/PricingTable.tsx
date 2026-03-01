@@ -217,7 +217,7 @@ export function PricingTable({ currentPlan = 'free' }: PricingTableProps) {
                 </Button>
               ) : (
                 <Button
-                  className={cn('w-full', isHighlighted && 'bg-primary text-primary-foreground')}
+                  className={cn('w-full', isHighlighted && 'bg-primary text-primary-foreground hover:text-white')}
                   variant={isHighlighted ? 'default' : 'outline'}
                   onClick={() => handleUpgrade(plan)}
                   disabled={checkout.isPending}
