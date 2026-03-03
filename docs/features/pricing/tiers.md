@@ -8,21 +8,24 @@ All limits are compile-time constants — no database table. Changing limits req
 
 ## Tier Comparison
 
-| | Free | Personal | Planner | Agency |
-|---|---|---|---|---|
-| **Price/mo (monthly)** | $0 | $19.99 | $39.99 | $199.99 |
-| **Price/mo (annual)** | — | $15.99 | $31.99 | $159.99 |
-| **Active events** | 1 | 3 | 25 | Unlimited |
-| **Guests (total)** | 50 | 200 | 800 | 3,000 |
-| **Email pool/mo** | — | 1,000 | 4,000 | 30,000 |
-| **Collaborators/event** | 0 | 2 | 10 | Unlimited |
-| **Custom guest fields** | 0 | 3 | 10 | 10 |
-| **Organizations** | 0 | 0 | 1 (5 members) | 3 (unlimited) |
-| **CSV import/export** | ✗ | ✓ | ✓ | ✓ |
-| **Floor plans** | ✗ | ✗ | ✓ | ✓ |
-| **Budget tracking** | ✗ | ✓ | ✓ | ✓ |
-| **Task templates** | ✗ | ✓ | ✓ | ✓ |
-| **Vendor management** | ✗ | ✓        | ✓ | ✓ |
+| | Free | Personal | Planner | Agency | Enterprise |
+|---|---|---|---|---|---|
+| **Price/mo (monthly)** | $0 | $19.99 | $39.99 | $199.99 | Contact us |
+| **Price/mo (annual)** | — | $15.99 | $31.99 | $159.99 | Contact us |
+| **Active events** | 1 | 3 | 25 | Unlimited | Unlimited |
+| **Guests (total)** | 50 | 200 | 800 | 3,000 | Unlimited |
+| **Email pool/mo** | — | 1,000 | 4,000 | 30,000 | guests × 10 |
+| **Collaborators/event** | 0 | 2 | 10 | Unlimited | Unlimited |
+| **Custom guest fields** | 0 | 3 | 10 | 10 | Unlimited |
+| **Organizations** | 0 | 0 | 1 (5 members) | 3 (unlimited) | Unlimited |
+| **CSV import/export** | ✗ | ✓ | ✓ | ✓ | ✓ |
+| **Floor plans** | ✗ | ✗ | ✓ | ✓ | ✓ |
+| **Budget tracking** | ✗ | ✓ | ✓ | ✓ | ✓ |
+| **Task templates** | ✗ | ✓ | ✓ | ✓ | ✓ |
+| **Vendor management** | ✗ | ✓ | ✓ | ✓ | ✓ |
+| **SSO / SAML** | ✗ | ✗ | ✗ | ✗ | ✓ |
+| **Dedicated support** | ✗ | ✗ | ✗ | ✗ | ✓ |
+| **Custom contract / SLA** | ✗ | ✗ | ✗ | ✗ | ✓ |
 
 > `null` in code = Unlimited. `0` = not allowed.
 
@@ -95,7 +98,7 @@ Email cost basis: $0.0004/email · SMS cost basis: $0.008/SMS (Twilio, planned) 
 ## Upgrade Path
 
 ```
-free → personal → planner → agency
+free → personal → planner → agency → enterprise
 ```
 
-`getUpgradeTier(plan)` returns the next tier. Returns `null` for `agency` (already highest).
+`getUpgradeTier(plan)` returns the next tier. Returns `null` for `enterprise` (already highest). Enterprise is sales-gated — upgrades redirect to a "contact us" flow rather than Stripe checkout.

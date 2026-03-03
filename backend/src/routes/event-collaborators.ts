@@ -14,7 +14,7 @@ import { schema } from '@/db';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
-import { checkCollaboratorLimit, getEffectivePlan } from '@/lib/billing-checks';
+import { checkCollaboratorLimit } from '@/lib/billing-checks';
 
 const eventCollaborators = new Hono<HonoEnv>();
 
@@ -98,9 +98,7 @@ eventCollaborators.post(
     }
 
     // Enforce collaborator limit (uses event owner's plan)
-    const sub = c.get('subscription');
-    const plan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
-    const collabCheck = await checkCollaboratorLimit(db, access.event.id, plan);
+    const collabCheck = await checkCollaboratorLimit(db, access.event.id, c.get('planLimits')!);
     if (!collabCheck.ok) {
       return c.json({ success: false, error: collabCheck.error }, 402);
     }

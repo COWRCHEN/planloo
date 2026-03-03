@@ -14,7 +14,8 @@ import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
 import { eq } from 'drizzle-orm';
 import { createStripeClient, getStripePriceId } from '@/lib/stripe';
-import { getPlanLimits } from '@/lib/plan-limits';
+import { getPlanLimits, resolveEnterpriseLimits } from '@/lib/plan-limits';
+import { getEffectivePlan } from '@/lib/billing-checks';
 
 const billing = new Hono<HonoEnv>();
 
@@ -41,8 +42,20 @@ billing.get('/', requireAuth, async (c) => {
     .where(eq(schema.subscriptions.userId, user.id))
     .limit(1);
 
-  const plan = sub?.plan ?? 'free';
-  const limits = getPlanLimits(plan);
+  const rawPlan = sub?.plan ?? 'free';
+  const rawStatus = sub?.status ?? 'free';
+  const effectivePlan = getEffectivePlan(rawPlan, rawStatus);
+
+  let limits;
+  let customLimits: Record<string, unknown> | null = null;
+
+  if (effectivePlan === 'enterprise') {
+    const parsed = sub?.customLimits ? JSON.parse(sub.customLimits) : null;
+    customLimits = parsed;
+    limits = resolveEnterpriseLimits(parsed);
+  } else {
+    limits = getPlanLimits(effectivePlan);
+  }
 
   return c.json({
     success: true,
@@ -58,6 +71,7 @@ billing.get('/', requireAuth, async (c) => {
             cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
             canceledAt: sub.canceledAt,
             emailsSentThisPeriod: sub.emailsSentThisPeriod,
+            ...(effectivePlan === 'enterprise' && { customLimits }),
           }
         : null,
       limits,
@@ -72,6 +86,7 @@ billing.get('/', requireAuth, async (c) => {
 /**
  * POST /billing/checkout
  * Create a Stripe Checkout session and return the redirect URL.
+ * Enterprise plans are provisioned manually — this endpoint rejects them.
  */
 billing.post(
   '/checkout',

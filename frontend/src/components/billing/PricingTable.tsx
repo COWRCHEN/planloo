@@ -1,5 +1,5 @@
 /**
- * PricingTable — 4-tier plan comparison with monthly/annual toggle.
+ * PricingTable — 5-tier plan comparison with monthly/annual toggle.
  */
 
 import { useState } from 'react';
@@ -14,12 +14,15 @@ import type { PlanId, BillingInterval } from '@/hooks/use-billing';
 
 // ==================== PLAN DATA ====================
 
+type AllPlanId = PlanId;
+
 interface PlanFeature {
   label: string;
   free: string | boolean;
   personal: string | boolean;
   planner: string | boolean;
   agency: string | boolean;
+  enterprise: string | boolean;
 }
 
 const FEATURES: PlanFeature[] = [
@@ -29,6 +32,7 @@ const FEATURES: PlanFeature[] = [
     personal: '3',
     planner: '25',
     agency: 'Unlimited',
+    enterprise: 'Contact Sales',
   },
   {
     label: 'Guests',
@@ -36,6 +40,7 @@ const FEATURES: PlanFeature[] = [
     personal: '200',
     planner: '800',
     agency: '3,000',
+    enterprise: 'Contact Sales',
   },
   {
     label: 'Email pool / mo',
@@ -43,13 +48,7 @@ const FEATURES: PlanFeature[] = [
     personal: '1,000',
     planner: '4,000',
     agency: '30,000',
-  },
-  {
-    label: 'Collaborators / event',
-    free: false,
-    personal: '2',
-    planner: '10',
-    agency: 'Unlimited',
+    enterprise: 'Contact Sales',
   },
   {
     label: 'Custom guest fields',
@@ -57,6 +56,7 @@ const FEATURES: PlanFeature[] = [
     personal: '3',
     planner: '10',
     agency: '10',
+    enterprise: 'Contact Sales',
   },
   {
     label: 'Organizations',
@@ -64,6 +64,7 @@ const FEATURES: PlanFeature[] = [
     personal: false,
     planner: '1 (5 members)',
     agency: '3 (unlimited)',
+    enterprise: 'Contact Sales',
   },
   {
     label: 'CSV import / export',
@@ -71,6 +72,7 @@ const FEATURES: PlanFeature[] = [
     personal: true,
     planner: true,
     agency: true,
+    enterprise: true,
   },
   {
     label: 'Floor plans',
@@ -78,6 +80,7 @@ const FEATURES: PlanFeature[] = [
     personal: false,
     planner: true,
     agency: true,
+    enterprise: true,
   },
   {
     label: 'Budget tracking',
@@ -85,6 +88,7 @@ const FEATURES: PlanFeature[] = [
     personal: true,
     planner: true,
     agency: true,
+    enterprise: true,
   },
   {
     label: 'Task templates',
@@ -92,6 +96,7 @@ const FEATURES: PlanFeature[] = [
     personal: true,
     planner: true,
     agency: true,
+    enterprise: true,
   },
   {
     label: 'Vendor management',
@@ -99,6 +104,23 @@ const FEATURES: PlanFeature[] = [
     personal: true,
     planner: true,
     agency: true,
+    enterprise: true,
+  },
+  // {
+  //   label: 'SSO',
+  //   free: false,
+  //   personal: false,
+  //   planner: false,
+  //   agency: false,
+  //   enterprise: true,
+  // },
+  {
+    label: 'Dedicated support',
+    free: false,
+    personal: false,
+    planner: false,
+    agency: false,
+    enterprise: true,
   },
 ];
 
@@ -107,18 +129,20 @@ const PRICES = {
   annual: { free: 0, personal: 16.99, planner: 35.99, agency: 169.99 },
 };
 
-const PLAN_NAMES: Record<PlanId, string> = {
+const PLAN_NAMES: Record<AllPlanId, string> = {
   free: 'Free',
   personal: 'Personal',
   planner: 'Planner',
   agency: 'Agency',
+  enterprise: 'Enterprise',
 };
 
-const PLAN_DESCRIPTIONS: Record<PlanId, string> = {
+const PLAN_DESCRIPTIONS: Record<AllPlanId, string> = {
   free: 'Try it out',
   personal: 'For individuals',
   planner: 'For professionals',
   agency: 'For teams',
+  enterprise: 'Custom contract',
 };
 
 // ==================== HELPERS ====================
@@ -128,7 +152,7 @@ function FeatureValue({ value }: { value: string | boolean }) {
     return <X className="mx-auto h-4 w-4 text-muted-foreground/50" />;
   }
   if (value === true) {
-    return <Check className="mx-auto h-4 w-4 text-primary" />;
+    return <Check className="text-primary mx-auto h-4 w-4" />;
   }
   return <span className="text-sm">{value}</span>;
 }
@@ -136,16 +160,17 @@ function FeatureValue({ value }: { value: string | boolean }) {
 // ==================== COMPONENT ====================
 
 interface PricingTableProps {
-  currentPlan?: PlanId;
+  currentPlan?: AllPlanId;
 }
 
 export function PricingTable({ currentPlan = 'free' }: PricingTableProps) {
   const [interval, setInterval] = useState<BillingInterval>('monthly');
   const checkout = useCreateCheckoutSession();
 
-  const plans: PlanId[] = ['free', 'personal', 'planner', 'agency'];
+  const standardPlans: PlanId[] = ['free', 'personal', 'planner', 'agency'];
+  const allPlans: AllPlanId[] = [...standardPlans, 'enterprise'];
 
-  function handleUpgrade(plan: Exclude<PlanId, 'free'>) {
+  function handleUpgrade(plan: Exclude<PlanId, 'free' | 'enterprise'>) {
     checkout.mutate({ plan, interval });
   }
 
@@ -159,21 +184,24 @@ export function PricingTable({ currentPlan = 'free' }: PricingTableProps) {
         <Switch
           id="billing-interval"
           checked={interval === 'annual'}
-          onCheckedChange={(checked) => setInterval(checked ? 'annual' : 'monthly')}
+          onCheckedChange={checked => setInterval(checked ? 'annual' : 'monthly')}
         />
         <Label htmlFor="billing-interval" className="flex items-center gap-1.5 text-sm font-medium">
           Annual
-          <Badge variant="secondary" className="text-xs">Save about 15%</Badge>
+          <Badge variant="secondary" className="text-xs">
+            Save about 15%
+          </Badge>
         </Label>
       </div>
 
       {/* Plan cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {plans.map((plan) => {
-          const price = PRICES[interval][plan];
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {allPlans.map(plan => {
           const isCurrent = plan === currentPlan;
-          const isPaid = plan !== 'free';
           const isHighlighted = plan === 'planner';
+          const isEnterprise = plan === 'enterprise';
+          const isPaidStandard = plan !== 'free' && !isEnterprise;
+          const price = isEnterprise ? null : PRICES[interval][plan as keyof typeof PRICES.monthly];
 
           return (
             <div
@@ -185,24 +213,30 @@ export function PricingTable({ currentPlan = 'free' }: PricingTableProps) {
               )}
             >
               {isHighlighted && (
-                <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs">
+                <Badge className="bg-primary text-primary-foreground absolute -top-2.5 left-1/2 -translate-x-1/2 text-xs">
                   Most Popular
                 </Badge>
               )}
 
               <div className="mb-4">
-                <h3 className="font-semibold text-lg">{PLAN_NAMES[plan]}</h3>
+                <h3 className="text-lg font-semibold">{PLAN_NAMES[plan]}</h3>
                 <p className="text-sm text-muted-foreground">{PLAN_DESCRIPTIONS[plan]}</p>
               </div>
 
               <div className="mb-6">
-                <div className="flex items-end gap-1">
-                  <span className="text-3xl font-bold tabular-nums">
-                    ${price.toFixed(2)}
-                  </span>
-                  <span className="mb-1 text-muted-foreground text-sm">/mo</span>
-                </div>
-                {interval === 'annual' && isPaid && (
+                {isEnterprise ? (
+                  <div className="flex items-end gap-1">
+                    <span className="text-2xl font-bold">Contact us</span>
+                  </div>
+                ) : (
+                  <div className="flex items-end gap-1">
+                    <span className="text-3xl font-bold tabular-nums">
+                      ${(price as number).toFixed(2)}
+                    </span>
+                    <span className="mb-1 text-sm text-muted-foreground">/mo</span>
+                  </div>
+                )}
+                {interval === 'annual' && isPaidStandard && (
                   <p className="text-xs text-muted-foreground">Billed annually</p>
                 )}
               </div>
@@ -211,15 +245,19 @@ export function PricingTable({ currentPlan = 'free' }: PricingTableProps) {
                 <Button variant="outline" disabled className="w-full">
                   Current plan
                 </Button>
+              ) : isEnterprise ? (
+                <Button className="w-full" variant="outline" asChild>
+                  <a href="mailto:sales@planloo.com">Contact sales</a>
+                </Button>
               ) : plan === 'free' ? (
                 <Button variant="outline" disabled className="w-full">
                   Free forever
                 </Button>
               ) : (
                 <Button
-                  className={cn('w-full', isHighlighted && 'bg-primary text-primary-foreground hover:text-white')}
-                  variant={isHighlighted ? 'default' : 'outline'}
-                  onClick={() => handleUpgrade(plan)}
+                  className="w-full"
+                  variant={isHighlighted ? 'destructive' : 'outline'}
+                  onClick={() => handleUpgrade(plan as Exclude<PlanId, 'free' | 'enterprise'>)}
                   disabled={checkout.isPending}
                 >
                   {checkout.isPending && checkout.variables?.plan === plan
@@ -240,7 +278,7 @@ export function PricingTable({ currentPlan = 'free' }: PricingTableProps) {
               <th className="py-3 pl-4 pr-2 text-left font-medium text-muted-foreground">
                 Feature
               </th>
-              {plans.map((plan) => (
+              {allPlans.map(plan => (
                 <th
                   key={plan}
                   className={cn(
@@ -254,10 +292,10 @@ export function PricingTable({ currentPlan = 'free' }: PricingTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {FEATURES.map((feat) => (
-              <tr key={feat.label} className="hover:bg-muted/30 transition-colors">
+            {FEATURES.map(feat => (
+              <tr key={feat.label} className="transition-colors hover:bg-muted/30">
                 <td className="py-3 pl-4 pr-2 text-muted-foreground">{feat.label}</td>
-                {plans.map((plan) => (
+                {allPlans.map(plan => (
                   <td key={plan} className="px-2 py-3 text-center">
                     <FeatureValue value={feat[plan]} />
                   </td>

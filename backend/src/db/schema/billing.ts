@@ -19,7 +19,7 @@ export const subscriptions = sqliteTable(
       .references(() => user.id, { onDelete: 'cascade' }),
 
     plan: text('plan', {
-      enum: ['free', 'personal', 'planner', 'agency'],
+      enum: ['free', 'personal', 'planner', 'agency', 'enterprise'],
     })
       .notNull()
       .default('free'),
@@ -43,6 +43,9 @@ export const subscriptions = sqliteTable(
       .default(false)
       .notNull(),
     canceledAt: integer('canceled_at', { mode: 'timestamp' }),
+
+    // Per-customer limits for enterprise plans (JSON string: Partial<PlanLimits> | null)
+    customLimits: text('custom_limits'),
 
     // Monthly usage counters — reset each billing period
     emailsSentThisPeriod: integer('emails_sent_this_period').default(0).notNull(),

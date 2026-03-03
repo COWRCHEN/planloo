@@ -8,8 +8,8 @@
 import { eq, and, isNull, count, sql } from 'drizzle-orm';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import type { PlanId, SubscriptionStatus } from '@/lib/plan-limits';
-import { getPlanLimits, getUpgradeTier, isSubscriptionActive } from '@/lib/plan-limits';
+import type { PlanId, PlanLimits, SubscriptionStatus } from '@/lib/plan-limits';
+import { isSubscriptionActive } from '@/lib/plan-limits';
 
 // ==================== ERROR RESPONSE TYPE ====================
 
@@ -56,9 +56,8 @@ function limitError(
 export async function checkEventCreationLimit(
   db: ReturnType<typeof createDbClient>,
   userId: string,
-  plan: PlanId
+  limits: PlanLimits
 ): Promise<BillingLimitResult> {
-  const limits = getPlanLimits(plan);
   if (limits.maxActiveEvents === null) return { ok: true };
 
   const rows = await db
@@ -70,12 +69,8 @@ export async function checkEventCreationLimit(
   if (total >= limits.maxActiveEvents) {
     return limitError(
       'EVENT_LIMIT_EXCEEDED',
-      `Your ${plan} plan allows up to ${limits.maxActiveEvents} active event${limits.maxActiveEvents === 1 ? '' : 's'}.`,
-      {
-        limit: limits.maxActiveEvents,
-        current: total,
-        upgradeTo: getUpgradeTier(plan),
-      }
+      `Your plan allows up to ${limits.maxActiveEvents} active event${limits.maxActiveEvents === 1 ? '' : 's'}.`,
+      { limit: limits.maxActiveEvents, current: total }
     );
   }
 
@@ -88,9 +83,8 @@ export async function checkEventCreationLimit(
 export async function checkGuestLimit(
   db: ReturnType<typeof createDbClient>,
   userId: string,
-  plan: PlanId
+  limits: PlanLimits
 ): Promise<BillingLimitResult> {
-  const limits = getPlanLimits(plan);
   if (limits.maxGuests === null) return { ok: true };
 
   // Count guests across all non-deleted events owned by this user
@@ -110,12 +104,8 @@ export async function checkGuestLimit(
   if (total >= limits.maxGuests) {
     return limitError(
       'GUEST_LIMIT_EXCEEDED',
-      `Your ${plan} plan allows up to ${limits.maxGuests} guests across all events.`,
-      {
-        limit: limits.maxGuests,
-        current: total,
-        upgradeTo: getUpgradeTier(plan),
-      }
+      `Your plan allows up to ${limits.maxGuests} guests across all events.`,
+      { limit: limits.maxGuests, current: total }
     );
   }
 
@@ -129,16 +119,15 @@ export async function checkGuestLimit(
 export async function checkCollaboratorLimit(
   db: ReturnType<typeof createDbClient>,
   eventId: number,
-  plan: PlanId
+  limits: PlanLimits
 ): Promise<BillingLimitResult> {
-  const limits = getPlanLimits(plan);
   if (limits.maxCollaboratorsPerEvent === null) return { ok: true };
 
   if (limits.maxCollaboratorsPerEvent === 0) {
     return limitError(
       'COLLABORATORS_NOT_ALLOWED',
-      `Your ${plan} plan does not support event collaborators.`,
-      { limit: 0, current: 0, upgradeTo: getUpgradeTier(plan) }
+      `Your plan does not support event collaborators.`,
+      { limit: 0, current: 0 }
     );
   }
 
@@ -151,12 +140,8 @@ export async function checkCollaboratorLimit(
   if (total >= limits.maxCollaboratorsPerEvent) {
     return limitError(
       'COLLABORATOR_LIMIT_EXCEEDED',
-      `Your ${plan} plan allows up to ${limits.maxCollaboratorsPerEvent} collaborator${limits.maxCollaboratorsPerEvent === 1 ? '' : 's'} per event.`,
-      {
-        limit: limits.maxCollaboratorsPerEvent,
-        current: total,
-        upgradeTo: getUpgradeTier(plan),
-      }
+      `Your plan allows up to ${limits.maxCollaboratorsPerEvent} collaborator${limits.maxCollaboratorsPerEvent === 1 ? '' : 's'} per event.`,
+      { limit: limits.maxCollaboratorsPerEvent, current: total }
     );
   }
 
@@ -168,15 +153,13 @@ export async function checkCollaboratorLimit(
  */
 export function checkEmailQuota(
   emailsSentThisPeriod: number,
-  plan: PlanId
+  limits: PlanLimits
 ): BillingLimitResult {
-  const limits = getPlanLimits(plan);
-
   if (limits.emailPoolPerMonth === null) {
     return limitError(
       'EMAIL_NOT_INCLUDED',
-      `Your ${plan} plan does not include email sending.`,
-      { limit: 0, current: emailsSentThisPeriod, upgradeTo: getUpgradeTier(plan) }
+      `Your plan does not include email sending.`,
+      { limit: 0, current: emailsSentThisPeriod }
     );
   }
 
@@ -184,11 +167,7 @@ export function checkEmailQuota(
     return limitError(
       'EMAIL_QUOTA_EXCEEDED',
       `You have used all ${limits.emailPoolPerMonth.toLocaleString()} email sends for this billing period.`,
-      {
-        limit: limits.emailPoolPerMonth,
-        current: emailsSentThisPeriod,
-        upgradeTo: getUpgradeTier(plan),
-      }
+      { limit: limits.emailPoolPerMonth, current: emailsSentThisPeriod }
     );
   }
 
@@ -199,11 +178,9 @@ export function checkEmailQuota(
  * Check whether the user can access a specific feature.
  */
 export function checkFeatureAccess(
-  plan: PlanId,
-  feature: 'csvImportExport' | 'floorPlans' | 'budgetTracking' | 'taskTemplates' | 'vendorManagement'
+  feature: 'csvImportExport' | 'floorPlans' | 'budgetTracking' | 'taskTemplates' | 'vendorManagement',
+  limits: PlanLimits
 ): BillingLimitResult {
-  const limits = getPlanLimits(plan);
-
   if (!limits[feature]) {
     const featureNames: Record<string, string> = {
       csvImportExport: 'CSV import/export',
@@ -214,8 +191,8 @@ export function checkFeatureAccess(
     };
     return limitError(
       'FEATURE_NOT_AVAILABLE',
-      `${featureNames[feature] ?? feature} is not available on your ${plan} plan.`,
-      { upgradeTo: getUpgradeTier(plan) }
+      `${featureNames[feature] ?? feature} is not available on your current plan.`,
+      {}
     );
   }
 
@@ -228,15 +205,13 @@ export function checkFeatureAccess(
 export async function checkOrganizationLimit(
   db: ReturnType<typeof createDbClient>,
   userId: string,
-  plan: PlanId
+  limits: PlanLimits
 ): Promise<BillingLimitResult> {
-  const limits = getPlanLimits(plan);
-
   if (limits.maxOrganizations === 0) {
     return limitError(
       'ORGANIZATIONS_NOT_ALLOWED',
-      `Your ${plan} plan does not support organizations.`,
-      { limit: 0, current: 0, upgradeTo: getUpgradeTier(plan) }
+      `Your plan does not support organizations.`,
+      { limit: 0, current: 0 }
     );
   }
 
@@ -260,12 +235,8 @@ export async function checkOrganizationLimit(
   if (total >= limits.maxOrganizations) {
     return limitError(
       'ORGANIZATION_LIMIT_EXCEEDED',
-      `Your ${plan} plan allows up to ${limits.maxOrganizations} organization${limits.maxOrganizations === 1 ? '' : 's'}.`,
-      {
-        limit: limits.maxOrganizations,
-        current: total,
-        upgradeTo: getUpgradeTier(plan),
-      }
+      `Your plan allows up to ${limits.maxOrganizations} organization${limits.maxOrganizations === 1 ? '' : 's'}.`,
+      { limit: limits.maxOrganizations, current: total }
     );
   }
 
@@ -278,9 +249,8 @@ export async function checkOrganizationLimit(
 export async function checkOrgMemberLimit(
   db: ReturnType<typeof createDbClient>,
   orgId: string,
-  plan: PlanId
+  limits: PlanLimits
 ): Promise<BillingLimitResult> {
-  const limits = getPlanLimits(plan);
   if (limits.maxOrgMembers === null) return { ok: true };
 
   const memberRows = await db
@@ -292,12 +262,8 @@ export async function checkOrgMemberLimit(
   if (total >= limits.maxOrgMembers) {
     return limitError(
       'ORG_MEMBER_LIMIT_EXCEEDED',
-      `Your ${plan} plan allows up to ${limits.maxOrgMembers} member${limits.maxOrgMembers === 1 ? '' : 's'} per organization.`,
-      {
-        limit: limits.maxOrgMembers,
-        current: total,
-        upgradeTo: getUpgradeTier(plan),
-      }
+      `Your plan allows up to ${limits.maxOrgMembers} member${limits.maxOrgMembers === 1 ? '' : 's'} per organization.`,
+      { limit: limits.maxOrgMembers, current: total }
     );
   }
 
@@ -328,11 +294,13 @@ export async function incrementEmailCount(
 /**
  * Returns the effective plan — if subscription is not active (past_due, canceled)
  * for a paid plan, returns 'free' to enforce free-tier limits.
+ * Enterprise is never downgraded — billing is managed manually.
  */
 export function getEffectivePlan(
   plan: PlanId,
   status: SubscriptionStatus
 ): PlanId {
+  if (plan === 'enterprise') return 'enterprise';
   if (isSubscriptionActive(status, plan)) return plan;
   return 'free';
 }

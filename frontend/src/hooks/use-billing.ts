@@ -10,7 +10,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1'
 
 // ==================== TYPES ====================
 
-export type PlanId = 'free' | 'personal' | 'planner' | 'agency';
+export type PlanId = 'free' | 'personal' | 'planner' | 'agency' | 'enterprise';
 export type BillingInterval = 'monthly' | 'annual';
 export type SubscriptionStatus =
   | 'active'
@@ -34,6 +34,7 @@ export interface PlanLimits {
   budgetTracking: boolean;
   taskTemplates: boolean;
   vendorManagement: boolean;
+  sso: boolean;
 }
 
 export interface SubscriptionInfo {
@@ -46,6 +47,7 @@ export interface SubscriptionInfo {
   cancelAtPeriodEnd: boolean;
   canceledAt: string | null;
   emailsSentThisPeriod: number;
+  customLimits?: Record<string, unknown>;
 }
 
 export interface BillingData {
@@ -95,7 +97,7 @@ export function useBilling() {
  */
 export function useCreateCheckoutSession() {
   return useMutation({
-    mutationFn: async (input: { plan: Exclude<PlanId, 'free'>; interval: BillingInterval }) => {
+    mutationFn: async (input: { plan: Exclude<PlanId, 'free' | 'enterprise'>; interval: BillingInterval }) => {
       const res = await fetch(`${API_URL}/billing/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

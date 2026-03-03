@@ -15,7 +15,7 @@ import { eq, and, isNull, desc, asc, sql, count, lt } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
 import { getTemplateList, resolveTemplate, resolveTemplateFromStartDate } from '@/lib/task-templates';
-import { checkFeatureAccess, getEffectivePlan } from '@/lib/billing-checks';
+import { checkFeatureAccess } from '@/lib/billing-checks';
 
 const tasks = new Hono<HonoEnv>();
 
@@ -406,9 +406,7 @@ tasks.post(
     const db = createDbClient(c.env.DB);
 
     // Enforce task templates feature access
-    const sub = c.get('subscription');
-    const plan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
-    const featureCheck = checkFeatureAccess(plan, 'taskTemplates');
+    const featureCheck = checkFeatureAccess('taskTemplates', c.get('planLimits')!);
     if (!featureCheck.ok) {
       return c.json({ success: false, error: featureCheck.error }, 402);
     }

@@ -15,7 +15,7 @@ import { eq, and, isNull, isNotNull, desc, count, inArray, sql, gt } from 'drizz
 import { user as userTable } from '@/db/schema/auth';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
-import { checkFeatureAccess, getEffectivePlan } from '@/lib/billing-checks';
+import { checkFeatureAccess } from '@/lib/billing-checks';
 
 const eventProviders = new Hono<HonoEnv>();
 
@@ -253,9 +253,7 @@ eventProviders.post(
     const db = createDbClient(c.env.DB);
 
     // Enforce vendor management feature access
-    const sub = c.get('subscription');
-    const plan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
-    const featureCheck = checkFeatureAccess(plan, 'vendorManagement');
+    const featureCheck = checkFeatureAccess('vendorManagement', c.get('planLimits')!);
     if (!featureCheck.ok) {
       return c.json({ success: false, error: featureCheck.error }, 402);
     }

@@ -3,9 +3,10 @@
  *
  * Compile-time constants for each subscription tier.
  * No database table — these are hardcoded and deployed with the app.
+ * Enterprise limits are resolved at runtime from the DB row.
  */
 
-export type PlanId = 'free' | 'personal' | 'planner' | 'agency';
+export type PlanId = 'free' | 'personal' | 'planner' | 'agency' | 'enterprise';
 
 export type SubscriptionStatus =
   | 'active'
@@ -31,6 +32,7 @@ export interface PlanLimits {
   budgetTracking: boolean;
   taskTemplates: boolean;
   vendorManagement: boolean;
+  sso: boolean; // enterprise-only (not enforced yet)
 }
 
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
@@ -48,6 +50,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     budgetTracking: false,
     taskTemplates: false,
     vendorManagement: false,
+    sso: false,
   },
 
   personal: {
@@ -64,6 +67,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     budgetTracking: true,
     taskTemplates: true,
     vendorManagement: true,
+    sso: false,
   },
 
   planner: {
@@ -80,6 +84,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     budgetTracking: true,
     taskTemplates: true,
     vendorManagement: true,
+    sso: false,
   },
 
   agency: {
@@ -96,13 +101,71 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     budgetTracking: true,
     taskTemplates: true,
     vendorManagement: true,
+    sso: false,
+  },
+
+  enterprise: {
+    maxActiveEvents: null,
+    maxGuests: null,
+    emailPoolPerMonth: null,
+    smsPoolPerMonth: null,
+    maxCollaboratorsPerEvent: null,
+    maxCustomFieldsPerEvent: 999,
+    maxOrganizations: 999,
+    maxOrgMembers: null,
+    csvImportExport: true,
+    floorPlans: true,
+    budgetTracking: true,
+    taskTemplates: true,
+    vendorManagement: true,
+    sso: true,
   },
 };
 
 /**
+ * Email and SMS pool multipliers applied per-guest when pools are not explicitly set.
+ *
+ * Based on agency tier ratios (30,000 emails / 3,000 guests = 10×; 1,500 SMS / 3,000 = 0.5×).
+ * Keeps COGS well below deal price at any guest cap.
+ *
+ * Email: 10 emails/guest/mo → ~$0.004 COGS/guest (Resend $0.0004/email)
+ * SMS:  1 SMS/guest/mo   → ~$0.008 COGS/guest (Twilio $0.008/SMS)
+ */
+export const ENTERPRISE_EMAIL_PER_GUEST = 10;
+export const ENTERPRISE_SMS_PER_GUEST = 1;
+
+/**
+ * Resolve effective limits for an enterprise subscription.
+ *
+ * Merge order:
+ *   1. Start with enterprise defaults (all nulls/true).
+ *   2. Apply explicit custom_limits overrides from the DB row.
+ *   3. If emailPoolPerMonth or smsPoolPerMonth are still null after step 2,
+ *      and the guest cap is finite, derive pools from maxGuests × multiplier.
+ *      This prevents accidental unlimited email/SMS, which has direct COGS impact.
+ *
+ * If maxGuests is also null (truly unlimited deal), pools remain null — sales must
+ * explicitly negotiate and set emailPoolPerMonth / smsPoolPerMonth for that deal.
+ */
+export function resolveEnterpriseLimits(customLimits: Partial<PlanLimits> | null): PlanLimits {
+  const limits: PlanLimits = { ...PLAN_LIMITS.enterprise, ...customLimits };
+
+  if (limits.maxGuests !== null) {
+    if (limits.emailPoolPerMonth === null) {
+      limits.emailPoolPerMonth = Math.ceil(limits.maxGuests * ENTERPRISE_EMAIL_PER_GUEST);
+    }
+    if (limits.smsPoolPerMonth === null) {
+      limits.smsPoolPerMonth = Math.ceil(limits.maxGuests * ENTERPRISE_SMS_PER_GUEST);
+    }
+  }
+
+  return limits;
+}
+
+/**
  * Monthly pricing in USD cents
  */
-export const PLAN_PRICES_MONTHLY: Record<Exclude<PlanId, 'free'>, number> = {
+export const PLAN_PRICES_MONTHLY: Record<Exclude<PlanId, 'free' | 'enterprise'>, number> = {
   personal: 1999,
   planner: 3999,
   agency: 19999,
@@ -111,7 +174,7 @@ export const PLAN_PRICES_MONTHLY: Record<Exclude<PlanId, 'free'>, number> = {
 /**
  * Annual pricing per month in USD cents (billed annually)
  */
-export const PLAN_PRICES_ANNUAL: Record<Exclude<PlanId, 'free'>, number> = {
+export const PLAN_PRICES_ANNUAL: Record<Exclude<PlanId, 'free' | 'enterprise'>, number> = {
   personal: 1599,
   planner: 3199,
   agency: 15999,
@@ -152,6 +215,8 @@ export function getUpgradeTier(plan: PlanId): Exclude<PlanId, 'free'> | null {
     case 'planner':
       return 'agency';
     case 'agency':
+      return 'enterprise';
+    case 'enterprise':
       return null;
   }
 }

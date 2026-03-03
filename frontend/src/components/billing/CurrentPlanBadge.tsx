@@ -12,6 +12,7 @@ const PLAN_STYLES: Record<PlanId, string> = {
   personal: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   planner: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
   agency: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  enterprise: 'bg-slate-800 text-slate-100 dark:bg-slate-700 dark:text-slate-100',
 };
 
 const PLAN_LABELS: Record<PlanId, string> = {
@@ -19,6 +20,7 @@ const PLAN_LABELS: Record<PlanId, string> = {
   personal: 'Personal',
   planner: 'Planner',
   agency: 'Agency',
+  enterprise: 'Enterprise',
 };
 
 interface CurrentPlanBadgeProps {

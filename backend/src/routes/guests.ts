@@ -23,7 +23,7 @@ import { parseGuestsCsv, generateGuestsCsv } from '@/lib/csv';
 import type { EventType, CustomFieldDefinition } from '@/db/types';
 import { sendRsvpInvitationEmail, logEmail } from '@/lib/email';
 import { resolveEventAccess } from '@/lib/event-access';
-import { checkGuestLimit, checkEmailQuota, checkFeatureAccess, incrementEmailCount, getEffectivePlan } from '@/lib/billing-checks';
+import { checkGuestLimit, checkEmailQuota, checkFeatureAccess, incrementEmailCount } from '@/lib/billing-checks';
 
 const guests = new Hono<HonoEnv>();
 
@@ -894,9 +894,7 @@ guests.get('/export', requireAuth, async (c) => {
   const eventUuid = c.req.param('eventUuid')!;
 
   // Enforce CSV export feature access
-  const exportSub = c.get('subscription');
-  const exportPlan = getEffectivePlan(exportSub?.plan ?? 'free', exportSub?.status ?? 'free');
-  const exportCheck = checkFeatureAccess(exportPlan, 'csvImportExport');
+  const exportCheck = checkFeatureAccess('csvImportExport', c.get('planLimits')!);
   if (!exportCheck.ok) {
     return c.json({ success: false, error: exportCheck.error }, 402);
   }
@@ -1136,9 +1134,7 @@ guests.post(
     }
 
     // Enforce guest limit
-    const sub = c.get('subscription');
-    const plan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
-    const guestCheck = await checkGuestLimit(db, user.id, plan);
+    const guestCheck = await checkGuestLimit(db, user.id, c.get('planLimits')!);
     if (!guestCheck.ok) {
       return c.json({ success: false, error: guestCheck.error }, 402);
     }
@@ -1433,9 +1429,7 @@ guests.post('/import', requireAuth, requireVerifiedEmail, async (c) => {
   const eventUuid = c.req.param('eventUuid')!;
 
   // Enforce CSV import feature access
-  const sub = c.get('subscription');
-  const importPlan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
-  const featureCheck = checkFeatureAccess(importPlan, 'csvImportExport');
+  const featureCheck = checkFeatureAccess('csvImportExport', c.get('planLimits')!);
   if (!featureCheck.ok) {
     return c.json({ success: false, error: featureCheck.error }, 402);
   }
@@ -2241,9 +2235,7 @@ guests.post(
     }
 
     // Enforce email quota before sending
-    const invSub = c.get('subscription');
-    const invPlan = getEffectivePlan(invSub?.plan ?? 'free', invSub?.status ?? 'free');
-    const emailCheck = checkEmailQuota(invSub?.emailsSentThisPeriod ?? 0, invPlan);
+    const emailCheck = checkEmailQuota(c.get('subscription')?.emailsSentThisPeriod ?? 0, c.get('planLimits')!);
     if (!emailCheck.ok) {
       return c.json({ success: false, error: emailCheck.error }, 402);
     }

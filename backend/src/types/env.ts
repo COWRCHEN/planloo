@@ -5,6 +5,7 @@
  */
 
 import type { EventAccess } from '@/lib/event-access';
+import type { PlanLimits } from '@/lib/plan-limits';
 
 export interface Env {
   // Database binding
@@ -72,11 +73,12 @@ export type HonoEnv = {
     };
     eventAccess?: EventAccess;
     subscription?: {
-      plan: 'free' | 'personal' | 'planner' | 'agency';
+      plan: 'free' | 'personal' | 'planner' | 'agency' | 'enterprise';
       status: 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete' | 'free';
       currentPeriodEnd: Date | null;
       cancelAtPeriodEnd: boolean;
       emailsSentThisPeriod: number;
     };
+    planLimits?: PlanLimits;
   };
 };

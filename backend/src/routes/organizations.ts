@@ -15,7 +15,7 @@ import { schema } from '@/db';
 import { eq, and, isNull, desc, asc, sql, count } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { sendOrgInvitationEmail } from '@/lib/email';
-import { checkOrganizationLimit, checkOrgMemberLimit, getEffectivePlan } from '@/lib/billing-checks';
+import { checkOrganizationLimit, checkOrgMemberLimit } from '@/lib/billing-checks';
 
 const organizations = new Hono<HonoEnv>();
 
@@ -229,9 +229,7 @@ organizations.post('/', requireAuth, requireVerifiedEmail, zValidator('json', cr
   const db = createDbClient(c.env.DB);
 
   // Enforce organization creation limit
-  const sub = c.get('subscription');
-  const plan = getEffectivePlan(sub?.plan ?? 'free', sub?.status ?? 'free');
-  const orgCheck = await checkOrganizationLimit(db, user.id, plan);
+  const orgCheck = await checkOrganizationLimit(db, user.id, c.get('planLimits')!);
   if (!orgCheck.ok) {
     return c.json({ success: false, error: orgCheck.error }, 402);
   }
@@ -1153,9 +1151,7 @@ organizations.post(
     }
 
     // Enforce org member limit
-    const invSub = c.get('subscription');
-    const invPlan = getEffectivePlan(invSub?.plan ?? 'free', invSub?.status ?? 'free');
-    const memberCheck = await checkOrgMemberLimit(db, orgId, invPlan);
+    const memberCheck = await checkOrgMemberLimit(db, orgId, c.get('planLimits')!);
     if (!memberCheck.ok) {
       return c.json({ success: false, error: memberCheck.error }, 402);
     }
