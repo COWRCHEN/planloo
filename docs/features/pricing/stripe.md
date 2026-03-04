@@ -2,6 +2,43 @@
 
 ---
 
+## Initial Setup
+
+### 1. Create Products & Prices in Stripe Dashboard
+
+Go to **Stripe Dashboard → Products → Add product** and create 3 products (Personal, Planner, Agency). For each product, add two prices (monthly + annual recurring).
+
+| Product | Monthly env var | Annual env var |
+|---|---|---|
+| Personal | `STRIPE_PRICE_PERSONAL_MONTHLY` | `STRIPE_PRICE_PERSONAL_ANNUAL` |
+| Planner | `STRIPE_PRICE_PLANNER_MONTHLY` | `STRIPE_PRICE_PLANNER_ANNUAL` |
+| Agency | `STRIPE_PRICE_AGENCY_MONTHLY` | `STRIPE_PRICE_AGENCY_ANNUAL` |
+
+For each price: set **Billing model** to Recurring, choose Monthly or Annual period, then copy the `price_xxx` ID.
+
+### 2. Create the Webhook Endpoint
+
+**Stripe Dashboard → Developers → Webhooks → Add endpoint**
+
+- **URL**: `https://api.planloo.com/api/v1/billing/webhook`
+- **Events to select**:
+  - `checkout.session.completed`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+  - `invoice.payment_failed`
+  - `invoice.payment_succeeded`
+
+After saving, click **Reveal signing secret** — use that value for `STRIPE_WEBHOOK_SECRET`.
+
+### 3. Configure Customer Portal
+
+**Stripe Dashboard → Settings → Billing → Customer portal** — enable:
+- Cancellation
+- Invoice history
+- Payment method updates
+
+---
+
 ## Environment Variables
 
 ### Secrets (set via `wrangler secret put`)

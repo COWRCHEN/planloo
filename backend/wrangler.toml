@@ -3,6 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+
 # Default environment (development)
 # Required: create D1 DB and set database_id below, or `npm run dev` will fail (API 10021).
 #   npx wrangler d1 create planloo-db-dev
@@ -22,6 +23,12 @@ crons = ["0 3 * * *"]
 [env.development.vars]
 ENVIRONMENT = "development"
 FRONTEND_URL = "http://localhost:4321"
+STRIPE_PRICE_PERSONAL_MONTHLY = "price_1T73nYFWgv0e5jhpU7H0I8QH"
+STRIPE_PRICE_PERSONAL_ANNUAL  = "price_1T752eFWgv0e5jhpXD7k0CgU"
+STRIPE_PRICE_PLANNER_MONTHLY  = "price_1T73waFWgv0e5jhpfpYyOHyD"
+STRIPE_PRICE_PLANNER_ANNUAL   = "price_1T7511FWgv0e5jhp1DpzZLF7"
+STRIPE_PRICE_AGENCY_MONTHLY   = "price_1T73z6FWgv0e5jhpnEYP7v8t"
+STRIPE_PRICE_AGENCY_ANNUAL    = "price_1T73zgFWgv0e5jhpWxqhdrzB"
 
 # KV namespace for rate limiting (optional in dev)
 # Create with: wrangler kv:namespace create "RATE_LIMIT" --env development --preview
@@ -84,6 +91,12 @@ crons = ["0 3 * * *"]
 [env.production.vars]
 ENVIRONMENT = "production"
 FRONTEND_URL = "https://planloo.com"
+STRIPE_PRICE_PERSONAL_MONTHLY = "prod_U5EGZea0ylRtAq"
+STRIPE_PRICE_PERSONAL_ANNUAL  = "prod_U5EGZea0ylRtAq"
+STRIPE_PRICE_PLANNER_MONTHLY  = "prod_U5EPJyWwcOaJQ9"
+STRIPE_PRICE_PLANNER_ANNUAL   = "prod_U5EPJyWwcOaJQ9"
+STRIPE_PRICE_AGENCY_MONTHLY   = "prod_U5ESjsSzQ8HCpx"
+STRIPE_PRICE_AGENCY_ANNUAL    = "prod_U5ESjsSzQ8HCpx"
 
 # KV namespace for rate limiting
 # Create with: wrangler kv:namespace create "RATE_LIMIT" --env production

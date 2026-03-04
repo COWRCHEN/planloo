@@ -32,7 +32,7 @@ const FEATURES: PlanFeature[] = [
     personal: '3',
     planner: '25',
     agency: 'Unlimited',
-    enterprise: 'Contact Sales',
+    enterprise: 'Custom',
   },
   {
     label: 'Guests',
@@ -40,7 +40,7 @@ const FEATURES: PlanFeature[] = [
     personal: '200',
     planner: '800',
     agency: '3,000',
-    enterprise: 'Contact Sales',
+    enterprise: 'Custom',
   },
   {
     label: 'Email pool / mo',
@@ -48,7 +48,7 @@ const FEATURES: PlanFeature[] = [
     personal: '1,000',
     planner: '4,000',
     agency: '30,000',
-    enterprise: 'Contact Sales',
+    enterprise: 'Custom',
   },
   {
     label: 'Custom guest fields',
@@ -56,7 +56,7 @@ const FEATURES: PlanFeature[] = [
     personal: '3',
     planner: '10',
     agency: '10',
-    enterprise: 'Contact Sales',
+    enterprise: 'Custom',
   },
   {
     label: 'Organizations',
@@ -64,7 +64,7 @@ const FEATURES: PlanFeature[] = [
     personal: false,
     planner: '1 (5 members)',
     agency: '3 (unlimited)',
-    enterprise: 'Contact Sales',
+    enterprise: 'Custom',
   },
   {
     label: 'CSV import / export',
@@ -126,7 +126,7 @@ const FEATURES: PlanFeature[] = [
 
 const PRICES = {
   monthly: { free: 0, personal: 19.99, planner: 39.99, agency: 199.99 },
-  annual: { free: 0, personal: 16.99, planner: 35.99, agency: 169.99 },
+  annual: { free: 0, personal: 17.08, planner: 34.0, agency: 170.0 },
 };
 
 const PLAN_NAMES: Record<AllPlanId, string> = {
