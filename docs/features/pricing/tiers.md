@@ -1,4 +1,4 @@
-# Pricing Tiers & Limits
+﻿# Pricing Tiers & Limits
 
 **Source of truth:** `backend/src/lib/plan-limits.ts` (`PLAN_LIMITS` constant)
 
@@ -11,13 +11,13 @@ All limits are compile-time constants — no database table. Changing limits req
 | | Free | Personal | Planner | Agency | Enterprise |
 |---|---|---|---|---|---|
 | **Price/mo (monthly)** | $0 | $19.99 | $39.99 | $199.99 | Contact us |
-| **Price/mo (annual)** | — | $15.99 | $31.99 | $159.99 | Contact us |
-| **Active events** | 1 | 3 | 25 | Unlimited | Unlimited |
-| **Guests (total)** | 50 | 200 | 800 | 3,000 | Unlimited |
-| **Email pool/mo** | — | 1,000 | 4,000 | 30,000 | guests × 10 |
-| **Collaborators/event** | 0 | 2 | 10 | Unlimited | Unlimited |
-| **Custom guest fields** | 0 | 3 | 10 | 10 | Unlimited |
-| **Organizations** | 0 | 0 | 1 (5 members) | 3 (unlimited) | Unlimited |
+| **Price/mo (annual)** | — | $205.00 | $408.0 | $2040.0 | Contact us |
+| **Active events** | 1 | 3 | 25 | Unlimited | Custom |
+| **Guests (total)** | 50 | 200 | 600 | 2,000 | Custom |
+| **Email pool/mo** | — | 1,000 | 3,000 | 20,000 | Custom |
+| **Collaborators/event** | 0 | 2 | 10 | Unlimited | Custom |
+| **Custom guest fields** | 0 | 3 | 10 | 10 | Custom |
+| **Organizations** | 0 | 0 | 1 (5 members) | 3 (unlimited) | Custom |
 | **CSV import/export** | ✗ | ✓ | ✓ | ✓ | ✓ |
 | **Floor plans** | ✗ | ✗ | ✓ | ✓ | ✓ |
 | **Budget tracking** | ✗ | ✓ | ✓ | ✓ | ✓ |
@@ -69,14 +69,29 @@ Email cost basis: $0.0004/email · SMS cost basis: $0.008/SMS (Twilio, planned) 
 
 | | Personal | Planner | Agency |
 |---|---|---|---|
-| Email cost (1,000 / 4,000 / 30,000) | $0.40 | $1.60 | $12.00 |
-| SMS cost — Twilio *(planned)* (200 / 750 / 1,500) | $1.60 | $6.00 | $12.00 |
+| Email cost (1,000 / 3,000 / 20,000) | $0.40 | $1.20 | $8.00 |
+| SMS cost — Twilio *(planned)* (200 / 600 / 2,000) | $1.60 | $4.80 | $16.00 |
 | Stripe fee (3.4% + $0.30) | $0.98 | $1.66 | $7.10 |
 | Cloudflare Workers | $0.01 | $0.01 | $0.01 |
-| **Total COGS** | **$2.99** | **$9.27** | **$31.11** |
-| **Gross margin** | **85%** | **77%** | **84%** |
+| **Total COGS** | **$2.99** | **$7.67** | **$31.11** |
+| **Gross margin** | **85%** | **81%** | **84%** |
 
 > SMS row reflects the planned Twilio integration (Phase 4). Until SMS is live, actual COGS is lower and margins are higher.
+
+### Annual Billing (Worst Case — 100% Pool Utilization)
+
+Annual totals: $205 / $408 / $2,040 · Stripe charged once on full amount · email/SMS/CF × 12
+
+| | Personal | Planner | Agency |
+|---|---|---|---|
+| Email cost (1,000 / 3,000 / 20,000 × 12) | $4.80 | $14.40 | $96.00 |
+| SMS cost — Twilio *(planned)* (200 / 600 / 2,000 × 12) | $19.20 | $57.60 | $192.00 |
+| Stripe fee on annual charge (3.4% + $0.30) | $7.27 | $14.17 | $69.66 |
+| Cloudflare Workers (× 12) | $0.12 | $0.12 | $0.12 |
+| **Total annual COGS** | **$31.39** | **$86.29** | **$357.78** |
+| **Gross margin** | **85%** | **79%** | **82%** |
+
+> Annual Stripe fee benefit: one transaction vs. 12 monthly charges saves ~$3.26 / $5.79 / $15.54 per year in Stripe fees.
 
 ---
 

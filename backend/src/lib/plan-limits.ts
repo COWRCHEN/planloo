@@ -72,8 +72,8 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
 
   planner: {
     maxActiveEvents: 25,
-    maxGuests: 800,
-    emailPoolPerMonth: 4000,
+    maxGuests: 600,
+    emailPoolPerMonth: 3000,
     smsPoolPerMonth: 750,
     maxCollaboratorsPerEvent: 10,
     maxCustomFieldsPerEvent: 10,
@@ -89,8 +89,8 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
 
   agency: {
     maxActiveEvents: null,
-    maxGuests: 3000,
-    emailPoolPerMonth: 30000,
+    maxGuests: 2000,
+    emailPoolPerMonth: 20000,
     smsPoolPerMonth: 1500,
     maxCollaboratorsPerEvent: null,
     maxCustomFieldsPerEvent: 10,
