@@ -31,7 +31,7 @@ const FEATURES: PlanFeature[] = [
     free: '1',
     personal: '3',
     planner: '25',
-    agency: 'Unlimited',
+    agency: '100',
     enterprise: 'Custom',
   },
   {
@@ -63,7 +63,7 @@ const FEATURES: PlanFeature[] = [
     free: false,
     personal: false,
     planner: '1 (5 members)',
-    agency: '3 (unlimited)',
+    agency: '3 (10 members)',
     enterprise: 'Custom',
   },
   {
