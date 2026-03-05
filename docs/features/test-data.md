@@ -1,6 +1,6 @@
 # Test Data Seed Script
 
-Generates a complete set of test data for local development: one user with login credentials, five events covering all event types, and 500 guests with randomized names.
+Generates a complete set of test data for local development: four users covering all plan tiers, with realistic events, guests, tasks, and budget items per tier.
 
 ## Quick Start
 
@@ -19,11 +19,7 @@ npx wrangler d1 execute planloo-db-dev --remote --env development --file=seed-da
 
 > **Important:** Run migrations first (`npm run db:migrate:local`) if you haven't already.
 
-
-
-Make sure you've run migrations first (npm run db:migrate:local) if it's a fresh database.
-
-Note from earlier: On your machine, node isn't on the default PATH — it's installed via conda at C:\Programs\miniconda3\envs\nodejs24\node.exe. If node isn't recognized, either activate the conda environment first or use the full path:
+Note: On some machines, node isn't on the default PATH — if installed via conda at `C:\Programs\miniconda3\envs\nodejs24\node.exe`, either activate the conda environment first or use the full path:
 
 ```bash
 C:\Programs\miniconda3\envs\nodejs24\node.exe scripts/seed-test-data.mjs
@@ -31,42 +27,118 @@ C:\Programs\miniconda3\envs\nodejs24\node.exe scripts/seed-test-data.mjs
 
 
 
-## Test User Credentials
+## Test Users
 
-| Field    | Value                  |
-|----------|------------------------|
-| Email    | `testuser@planloo.dev` |
-| Password | `password123`          |
+All users share password `password123` and have `emailVerified = true` (no verification step needed to log in).
 
-The user is created with `emailVerified = true` so no verification step is needed to log in.
+| Plan | Email | Password | Events | Guests |
+|---|---|---|---|---|
+| `free` | `free@planloo.dev` | `password123` | 1 | 25 |
+| `personal` | `personal@planloo.dev` | `password123` | 3 | 140 |
+| `agency` | `agency@planloo.dev` | `password123` | 8 | 665 |
+| `enterprise` | `enterprise@planloo.dev` | `password123` | 15 | 1,875 |
 
 ## Generated Data
 
-### User
+### Users & Auth
 
-- Inserted into `user` table with a random UUID
-- A matching `account` record is created with `providerId = 'credential'` and a PBKDF2-hashed password (same format as `backend/src/lib/password-pbkdf2.ts`)
+Each user gets:
+- A row in `user` with a random UUID
+- A matching `account` row with `providerId = 'credential'` and a PBKDF2-hashed password (same format as `backend/src/lib/password-pbkdf2.ts`)
+- A `subscriptions` row reflecting their plan tier
 
-### Events (5)
+### Subscriptions
 
-| Event                        | Type       | Status    | Start           | Location                       | Budget   |
-|------------------------------|------------|-----------|-----------------|--------------------------------|----------|
-| Annual Company Gala 2026     | corporate  | confirmed | now + 30 days   | Grand Ballroom, New York, NY   | $25,000  |
-| Sarah & Tom Wedding          | wedding    | planning  | now + 90 days   | Rosewood Gardens, Austin, TX   | $45,000  |
-| Tech Innovation Conference   | conference | draft     | now + 60 days   | Convention Center, San Francisco, CA | $15,000 |
-| Maya's 30th Birthday Bash    | birthday   | confirmed | now + 14 days   | Skyline Rooftop Lounge, Los Angeles, CA | $5,000 |
-| Community Volunteer Day      | other      | planning  | now + 45 days   | Riverside Community Center, Portland, OR | $2,000 |
+| Plan | Status | Period |
+|---|---|---|
+| `free` | `free` | NULL (no billing period) |
+| `personal` | `active` | now → now + 30 days |
+| `agency` | `active` | now → now + 30 days |
+| `enterprise` | `active` | now → now + 30 days |
 
-Each event lasts 6 hours and uses the `America/New_York` timezone.
+### Events
 
-### Guests (100 per event, 500 total)
+#### Free Fiona — 1 event
 
-Each guest has:
-- **Random first + last name** drawn from pools of 100 first names and 100 last names (unique per event)
-- **Email** in format `firstname.lastnameN@example.com`
-- **RSVP status** randomly assigned: `pending`, `invited`, `confirmed`, `declined`, or `maybe`
-- **Plus-ones allowed**: 0, 1, or 2 (random)
+| Event | Type | Status | Days Out | Guests |
+|---|---|---|---|---|
+| My Birthday Party | birthday | planning | +14 | 25 |
+
+#### Personal Pete — 3 events
+
+| Event | Type | Status | Days Out | Guests |
+|---|---|---|---|---|
+| Summer BBQ Bash | other | confirmed | +21 | 70 |
+| Office Team Retreat | corporate | planning | +60 | 40 |
+| Mom's 60th Birthday | birthday | draft | +90 | 30 |
+
+#### Agency Alice — 8 events
+
+| Event | Type | Status | Days Out | Guests |
+|---|---|---|---|---|
+| Riverside Wedding — Chen & Park | wedding | confirmed | +45 | 120 |
+| TechConf 2026 | conference | planning | +75 | 100 |
+| Martinez Quinceañera | birthday | confirmed | +30 | 90 |
+| Spring Corporate Gala | corporate | planning | +90 | 110 |
+| Startup Networking Night | other | draft | +20 | 60 |
+| Charity Fundraiser Gala | fundraiser | confirmed | +120 | 80 |
+| Johnson Baby Shower | baby_shower | planning | +25 | 35 |
+| Product Launch Party | corporate | planning | +55 | 70 |
+
+#### Enterprise Eve — 15 events
+
+| Event | Type | Status | Days Out | Guests |
+|---|---|---|---|---|
+| Grand Estate Wedding — Williams & Chen | wedding | confirmed | +30 | 150 |
+| National Leadership Summit 2026 | conference | planning | +45 | 130 |
+| Thompson Corporate Anniversary Gala | corporate | confirmed | +60 | 120 |
+| Rodriguez Quinceañera Extravaganza | birthday | planning | +25 | 140 |
+| Children's Hospital Charity Gala | fundraiser | confirmed | +75 | 110 |
+| Davis & Miller Wedding Celebration | wedding | planning | +90 | 125 |
+| Annual Tech Awards Ceremony | corporate | confirmed | +35 | 130 |
+| Grand Masquerade Ball | fundraiser | planning | +50 | 100 |
+| Executive Leadership Retreat | corporate | planning | +40 | 100 |
+| Healthcare Industry Conference | conference | draft | +85 | 120 |
+| Anderson Family Reunion | other | planning | +65 | 110 |
+| Celebrity Birthday Bash | birthday | confirmed | +15 | 150 |
+| Innovation Expo 2026 | conference | planning | +95 | 130 |
+| New Year's Eve Grand Gala | corporate | confirmed | +302 | 120 |
+| Summer Music Festival Kickoff | other | planning | +120 | 140 |
+
+### Guests
+
+Per-event count varies by tier (25–150). Each guest has:
+- Random first + last name drawn from pools of 100 first/last names (unique per event)
+- Email in format `firstname.lastnameN@example.com`
+- RSVP status randomly assigned: `pending`, `invited`, `confirmed`, `declined`, or `maybe`
+- Plus-ones allowed: 0, 1, or 2 (random)
 - Event ID resolved via subquery on the event's UUID (safe even with existing data)
+
+### Tasks
+
+Tasks are drawn from templates keyed by event type (up to 10 tasks available per type). Each tier slices a different number:
+
+| Tier | Tasks per event |
+|---|---|
+| free | 4 |
+| personal | 6 |
+| agency | 8 |
+| enterprise | 10 |
+
+Task templates cover categories: **Venue**, **Catering**, **Logistics**, **Decor**, **Admin** — with a realistic mix of `completed`, `in_progress`, and `pending` statuses and `low`/`medium`/`high` priorities.
+
+### Budget Items
+
+Budget items are drawn from templates keyed by event type. Each tier slices a different number:
+
+| Tier | Budget items per event |
+|---|---|
+| free | 2 |
+| personal | 4 |
+| agency | 5 |
+| enterprise | 6 |
+
+Categories used: `venue`, `catering`, `entertainment`, `decorations`, `photography`, `other`. Items include realistic `estimated_cost`/`actual_cost` amounts and a mix of `pending`, `partial`, and `paid` payment statuses.
 
 ## Script Details
 
@@ -75,10 +147,13 @@ Each guest has:
 **Output:** `backend/seed-data.sql` (regenerated on each run with fresh UUIDs)
 
 **Tables affected:**
-- `user` — 1 row
-- `account` — 1 row (credential provider)
-- `events` — 5 rows
-- `guests` — 500 rows
+- `user` — 4 rows
+- `account` — 4 rows (credential provider)
+- `subscriptions` — 4 rows
+- `events` — 27 rows
+- `guests` — ~2,705 rows
+- `tasks` — 236 rows
+- `budget_items` — 144 rows
 
 ### How password hashing works
 
@@ -88,18 +163,21 @@ The script uses Node.js `crypto.pbkdf2Sync` to produce a hash in the same format
 pbkdf2:<iterations>:<saltBase64>:<keyBase64>
 ```
 
-Parameters: 100,000 iterations, SHA-256, 16-byte salt, 32-byte key. This is compatible with Better Auth's custom password verifier configured in `backend/src/lib/auth.ts` for the development environment.
+Parameters: 100,000 iterations, SHA-256, 16-byte salt, 32-byte key. Compatible with Better Auth's custom password verifier in `backend/src/lib/auth.ts`.
 
 ## Re-seeding
 
 Each run generates new UUIDs and timestamps. To re-seed, either:
 
 1. **Clear existing data first** — delete the local D1 state directory (`.wrangler/state/`) and re-run migrations, then seed
-2. **Delete just the test user's data** before re-running:
+2. **Delete just the test users' data** before re-running:
 
 ```sql
-DELETE FROM guests WHERE event_id IN (SELECT id FROM events WHERE user_id IN (SELECT id FROM user WHERE email = 'testuser@planloo.dev'));
-DELETE FROM events WHERE user_id IN (SELECT id FROM user WHERE email = 'testuser@planloo.dev');
-DELETE FROM account WHERE user_id IN (SELECT id FROM user WHERE email = 'testuser@planloo.dev');
-DELETE FROM user WHERE email = 'testuser@planloo.dev';
+DELETE FROM guests WHERE event_id IN (SELECT id FROM events WHERE user_id IN (SELECT id FROM user WHERE email IN ('free@planloo.dev', 'personal@planloo.dev', 'agency@planloo.dev', 'enterprise@planloo.dev')));
+DELETE FROM tasks WHERE event_id IN (SELECT id FROM events WHERE user_id IN (SELECT id FROM user WHERE email IN ('free@planloo.dev', 'personal@planloo.dev', 'agency@planloo.dev', 'enterprise@planloo.dev')));
+DELETE FROM budget_items WHERE event_id IN (SELECT id FROM events WHERE user_id IN (SELECT id FROM user WHERE email IN ('free@planloo.dev', 'personal@planloo.dev', 'agency@planloo.dev', 'enterprise@planloo.dev')));
+DELETE FROM events WHERE user_id IN (SELECT id FROM user WHERE email IN ('free@planloo.dev', 'personal@planloo.dev', 'agency@planloo.dev', 'enterprise@planloo.dev'));
+DELETE FROM subscriptions WHERE user_id IN (SELECT id FROM user WHERE email IN ('free@planloo.dev', 'personal@planloo.dev', 'agency@planloo.dev', 'enterprise@planloo.dev'));
+DELETE FROM account WHERE user_id IN (SELECT id FROM user WHERE email IN ('free@planloo.dev', 'personal@planloo.dev', 'agency@planloo.dev', 'enterprise@planloo.dev'));
+DELETE FROM user WHERE email IN ('free@planloo.dev', 'personal@planloo.dev', 'agency@planloo.dev', 'enterprise@planloo.dev');
 ```
