@@ -16,6 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTaskTemplates, useApplyTemplate } from '@/hooks/use-tasks';
 import type { TaskTemplateInfo } from '@/hooks/use-tasks';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 
 interface TemplatePickerDialogProps {
@@ -40,6 +41,7 @@ export function TemplatePickerDialog({
   };
 
   const handleBack = () => {
+    applyTemplate.reset();
     setSelectedTemplate(null);
   };
 
@@ -53,7 +55,7 @@ export function TemplatePickerDialog({
       setSelectedTemplate(null);
       onOpenChange(false);
     } catch {
-      // Error handled by mutation
+      // Error displayed inline via applyTemplate.error
     }
   };
 
@@ -130,6 +132,14 @@ export function TemplatePickerDialog({
                   {selectedTemplate.categories.length} categories
                 </p>
               </div>
+
+              {applyTemplate.isError && (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {applyTemplate.error?.message ?? 'Failed to apply template. Please try again.'}
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="flex gap-2 justify-end">
                 <Button

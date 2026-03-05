@@ -137,7 +137,7 @@ tasks.get('/summary', requireAuth, async (c) => {
 
 /**
  * GET /events/:eventUuid/tasks/templates
- * Returns available task templates
+ * Returns available task templates (empty array if feature not available on plan)
  */
 tasks.get('/templates', requireAuth, async (c) => {
   const user = c.get('user')!;
@@ -149,7 +149,14 @@ tasks.get('/templates', requireAuth, async (c) => {
     return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Event not found' } }, 404);
   }
 
-  return c.json({ success: true, data: getTemplateList() });
+  const featureCheck = checkFeatureAccess('taskTemplates', c.get('planLimits')!);
+  if (!featureCheck.ok) {
+    return c.json({ success: true, data: [] });
+  }
+
+  const eventType = access.event.eventType;
+  const templates = getTemplateList().filter((t) => t.id === eventType);
+  return c.json({ success: true, data: templates });
 });
 
 /**

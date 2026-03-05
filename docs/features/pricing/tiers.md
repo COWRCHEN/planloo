@@ -12,12 +12,12 @@ All limits are compile-time constants — no database table. Changing limits req
 |---|---|---|---|---|---|
 | **Price/mo (monthly)** | $0 | $19.99 | $39.99 | $199.99 | Contact us |
 | **Price/mo (annual)** | — | $205.00 | $408.0 | $2040.0 | Contact us |
-| **Active events** | 1 | 3 | 25 | Unlimited | Custom |
+| **Active events** | 1 | 3 | 25 | 100 | Custom |
 | **Guests (total)** | 50 | 200 | 600 | 2,000 | Custom |
 | **Email pool/mo** | — | 1,000 | 3,000 | 20,000 | Custom |
-| **Collaborators/event** | 0 | 2 | 10 | Unlimited | Custom |
+| **Collaborators/event** | 0 | 2 | 10 | 10 | Custom |
 | **Custom guest fields** | 0 | 3 | 10 | 10 | Custom |
-| **Organizations** | 0 | 0 | 1 (5 members) | 3 (unlimited) | Custom |
+| **Organizations** | 0 | 0 | 1 (5 members) | 3 (10 members) | Custom |
 | **CSV import/export** | ✗ | ✓ | ✓ | ✓ | ✓ |
 | **Floor plans** | ✗ | ✗ | ✓ | ✓ | ✓ |
 | **Budget tracking** | ✗ | ✓ | ✓ | ✓ | ✓ |
