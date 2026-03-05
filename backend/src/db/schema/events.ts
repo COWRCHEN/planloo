@@ -15,7 +15,7 @@ export const events = sqliteTable('events', {
   organizationId: text('organization_id').references(() => organization.id, { onDelete: 'set null' }), // NULL if not assigned to an org
   title: text('title').notNull(),
   description: text('description'),
-  eventType: text('event_type', { enum: ['wedding', 'birthday', 'corporate', 'conference', 'other'] }),
+  eventType: text('event_type', { enum: ['wedding', 'birthday', 'corporate', 'conference', 'other', 'holiday_party', 'engagement_party', 'fundraiser', 'anniversary', 'graduation', 'retirement', 'baby_shower', 'bridal_shower', 'themed', 'celebration_of_life'] }),
   status: text('status', { enum: ['draft', 'planning', 'confirmed', 'completed', 'cancelled'] }).notNull().default('draft'),
   startDate: integer('start_date', { mode: 'timestamp' }).notNull(),
   endDate: integer('end_date', { mode: 'timestamp' }),

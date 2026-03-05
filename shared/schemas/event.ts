@@ -9,7 +9,23 @@ import { z } from 'zod';
 
 // ==================== ENUMS ====================
 
-export const EVENT_TYPES = ['wedding', 'birthday', 'corporate', 'conference', 'other'] as const;
+export const EVENT_TYPES = [
+  'wedding',
+  'birthday',
+  'corporate',
+  'conference',
+  'other',
+  'holiday_party',
+  'engagement_party',
+  'fundraiser',
+  'anniversary',
+  'graduation',
+  'retirement',
+  'baby_shower',
+  'bridal_shower',
+  'themed',
+  'celebration_of_life',
+] as const;
 export const EVENT_STATUSES = ['draft', 'planning', 'confirmed', 'completed', 'cancelled'] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

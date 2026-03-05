@@ -37,7 +37,7 @@ const eventFormSchema = z
   .object({
     title: z.string().min(1, 'Title is required').max(200, 'Title must be less than 200 characters'),
     description: z.string().max(5000).optional(),
-    eventType: z.enum(['wedding', 'birthday', 'corporate', 'conference', 'other']).optional(),
+    eventType: z.enum(['wedding', 'birthday', 'corporate', 'conference', 'other', 'holiday_party', 'engagement_party', 'fundraiser', 'anniversary', 'graduation', 'retirement', 'baby_shower', 'bridal_shower', 'themed', 'celebration_of_life']).optional(),
     startDate: z.string().min(1, 'Start date is required'),
     startTime: z.string().optional(),
     endDate: z.string().optional(),
@@ -84,11 +84,21 @@ const STEPS = [
 ];
 
 const EVENT_TYPES = [
-  { value: 'wedding', label: 'Wedding' },
-  { value: 'birthday', label: 'Birthday' },
-  { value: 'corporate', label: 'Corporate Event' },
-  { value: 'conference', label: 'Conference' },
-  { value: 'other', label: 'Other' },
+  { value: 'anniversary', label: 'Anniversary', description: 'Mark every milestone with a celebration as unique as your story' },
+  { value: 'baby_shower', label: 'Baby Shower', description: 'Welcome new life with warmth, gifts, and great company' },
+  { value: 'birthday', label: 'Birthday', description: 'Make every age feel like a milestone worth celebrating' },
+  { value: 'bridal_shower', label: 'Bridal Shower', description: 'Shower the bride-to-be with love before she says "I do"' },
+  { value: 'celebration_of_life', label: 'Celebration of Life', description: 'Honor a remarkable person through shared stories and remembrance' },
+  { value: 'conference', label: 'Conference', description: 'Connect leaders and ideas on the stage that matters' },
+  { value: 'corporate', label: 'Corporate Event', description: 'Bring your team together for impact and inspiration' },
+  { value: 'engagement_party', label: 'Engagement Party', description: "Toast the couple's next chapter before the big day begins" },
+  { value: 'fundraiser', label: 'Fundraiser', description: 'Rally your community around causes that matter most' },
+  { value: 'graduation', label: 'Graduation Party', description: "Send your graduate off with a party they'll never forget" },
+  { value: 'holiday_party', label: 'Holiday Party', description: 'Bring cheer to the season with perfectly timed festivities' },
+  { value: 'retirement', label: 'Retirement Party', description: "Give your honoree the farewell sendoff they've truly earned" },
+  { value: 'themed', label: 'Themed Event', description: 'Build an entire world around one unforgettable idea' },
+  { value: 'wedding', label: 'Wedding', description: 'Celebrate your love story with the perfect day' },
+  { value: 'other', label: 'Other', description: 'Every great event starts with a vision all its own' },
 ];
 
 const CURRENCIES = [
@@ -495,7 +505,10 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                   <SelectContent>
                     {EVENT_TYPES.map((type) => (
                       <SelectItem key={type.value} value={type.value}>
-                        {type.label}
+                        <div>
+                          <div>{type.label}</div>
+                          <div className="text-xs text-muted-foreground">{type.description}</div>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>

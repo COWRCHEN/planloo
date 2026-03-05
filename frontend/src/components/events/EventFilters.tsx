@@ -25,10 +25,20 @@ const EVENT_STATUSES: { value: EventStatus | 'all'; label: string }[] = [
 
 const EVENT_TYPES: { value: EventType | 'all'; label: string }[] = [
   { value: 'all', label: 'All Types' },
-  { value: 'wedding', label: 'Wedding' },
+  { value: 'anniversary', label: 'Anniversary' },
+  { value: 'baby_shower', label: 'Baby Shower' },
   { value: 'birthday', label: 'Birthday' },
-  { value: 'corporate', label: 'Corporate' },
+  { value: 'bridal_shower', label: 'Bridal Shower' },
+  { value: 'celebration_of_life', label: 'Celebration of Life' },
   { value: 'conference', label: 'Conference' },
+  { value: 'corporate', label: 'Corporate' },
+  { value: 'engagement_party', label: 'Engagement Party' },
+  { value: 'fundraiser', label: 'Fundraiser' },
+  { value: 'graduation', label: 'Graduation Party' },
+  { value: 'holiday_party', label: 'Holiday Party' },
+  { value: 'retirement', label: 'Retirement Party' },
+  { value: 'themed', label: 'Themed Event' },
+  { value: 'wedding', label: 'Wedding' },
   { value: 'other', label: 'Other' },
 ];
 
