@@ -12,7 +12,7 @@ import type { HonoEnv } from '@/types/env';
 import { requireAuth } from '@/middleware/auth';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq } from 'drizzle-orm';
+import { eq, and, isNull, count } from 'drizzle-orm';
 import { createStripeClient, getStripePriceId } from '@/lib/stripe';
 import { getPlanLimits, resolveEnterpriseLimits } from '@/lib/plan-limits';
 import { getEffectivePlan } from '@/lib/billing-checks';
@@ -57,6 +57,25 @@ billing.get('/', requireAuth, async (c) => {
     limits = getPlanLimits(effectivePlan);
   }
 
+  // Fetch current usage counts in parallel
+  const [[eventCountRow], [guestCountRow]] = await Promise.all([
+    db
+      .select({ total: count() })
+      .from(schema.events)
+      .where(and(eq(schema.events.userId, user.id), isNull(schema.events.deletedAt))),
+    db
+      .select({ total: count() })
+      .from(schema.guests)
+      .innerJoin(schema.events, eq(schema.guests.eventId, schema.events.id))
+      .where(
+        and(
+          eq(schema.events.userId, user.id),
+          isNull(schema.guests.deletedAt),
+          isNull(schema.events.deletedAt)
+        )
+      ),
+  ]);
+
   return c.json({
     success: true,
     data: {
@@ -78,6 +97,8 @@ billing.get('/', requireAuth, async (c) => {
       usage: {
         emailsSentThisPeriod: sub?.emailsSentThisPeriod ?? 0,
         emailPoolPerMonth: limits.emailPoolPerMonth,
+        totalEvents: eventCountRow?.total ?? 0,
+        totalGuests: guestCountRow?.total ?? 0,
       },
     },
   });

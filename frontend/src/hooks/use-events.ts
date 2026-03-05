@@ -6,6 +6,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { PlanLimitError } from '@/lib/api-error';
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
 
@@ -229,6 +230,16 @@ interface ApiResponse<T> {
 async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   const data = await response.json();
   if (!response.ok) {
+    if (response.status === 402) {
+      throw new PlanLimitError({
+        code: data.error?.code ?? 'PLAN_LIMIT',
+        message: data.error?.message ?? 'This feature requires a plan upgrade.',
+        limit: data.error?.limit,
+        current: data.error?.current,
+        upgradeTo: data.error?.upgradeTo,
+        upgradeUrl: data.error?.upgradeUrl ?? '/dashboard/billing',
+      });
+    }
     throw new Error(data.error?.message || 'Request failed');
   }
   return data;

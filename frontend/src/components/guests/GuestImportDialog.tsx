@@ -15,6 +15,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { UpgradePrompt } from '@/components/billing/UpgradePrompt';
+import { PlanLimitError } from '@/lib/api-error';
 
 interface GuestImportDialogProps {
   open: boolean;
@@ -32,6 +34,7 @@ export function GuestImportDialog({
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [billingError, setBillingError] = useState<PlanLimitError | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,7 +75,11 @@ export function GuestImportDialog({
         onOpenChange(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed');
+      if (err instanceof PlanLimitError) {
+        setBillingError(err);
+      } else {
+        setError(err instanceof Error ? err.message : 'Import failed');
+      }
     }
   };
 
@@ -80,6 +87,7 @@ export function GuestImportDialog({
     setFile(null);
     setPreview([]);
     setError(null);
+    setBillingError(null);
     onOpenChange(false);
   };
 
@@ -122,6 +130,9 @@ export function GuestImportDialog({
             </span>
           </div>
 
+          {billingError && (
+            <UpgradePrompt error={billingError} />
+          )}
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>

@@ -6,6 +6,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { objectTemplateKeys } from './use-object-templates';
+import { handleApiResponse } from '@/lib/api-error';
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
 
@@ -92,22 +93,6 @@ export const floorPlanKeys = {
   conflicts: (eventUuid: string, planUuid: string) => [...floorPlanKeys.all(eventUuid), 'conflicts', planUuid] as const,
 };
 
-// ==================== HELPERS ====================
-
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: { code: string; message: string };
-}
-
-async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error?.message || 'Request failed');
-  }
-  return data;
-}
-
 // ==================== HOOKS ====================
 
 /**
@@ -120,7 +105,7 @@ export function useFloorPlans(eventUuid: string) {
       const response = await fetch(`${API_URL}/events/${eventUuid}/floor-plans`, {
         credentials: 'include',
       });
-      const result = await handleResponse<FloorPlanResponse[]>(response);
+      const result = await handleApiResponse<FloorPlanResponse[]>(response);
       return result.data ?? [];
     },
     enabled: !!eventUuid,
@@ -138,7 +123,7 @@ export function useFloorPlan(eventUuid: string, planUuid: string | undefined) {
       const response = await fetch(`${API_URL}/events/${eventUuid}/floor-plans/${planUuid}`, {
         credentials: 'include',
       });
-      const result = await handleResponse<FloorPlanDetailResponse>(response);
+      const result = await handleApiResponse<FloorPlanDetailResponse>(response);
       return result.data;
     },
     enabled: !!eventUuid && !!planUuid,
@@ -160,7 +145,7 @@ export function useCreateFloorPlan(eventUuid: string) {
         credentials: 'include',
         body: JSON.stringify(data),
       });
-      const result = await handleResponse<FloorPlanResponse>(response);
+      const result = await handleApiResponse<FloorPlanResponse>(response);
       return result.data;
     },
     onSuccess: () => {
@@ -183,7 +168,7 @@ export function useUpdateFloorPlan(eventUuid: string, planUuid: string) {
         credentials: 'include',
         body: JSON.stringify(data),
       });
-      const result = await handleResponse<FloorPlanResponse>(response);
+      const result = await handleApiResponse<FloorPlanResponse>(response);
       return result.data;
     },
     onSuccess: () => {
@@ -205,7 +190,7 @@ export function useDeleteFloorPlan(eventUuid: string) {
         method: 'DELETE',
         credentials: 'include',
       });
-      await handleResponse<{ deleted: boolean }>(response);
+      await handleApiResponse<{ deleted: boolean }>(response);
       return planUuid;
     },
     onSuccess: (deletedPlanUuid) => {

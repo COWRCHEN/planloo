@@ -20,7 +20,7 @@ const events = new Hono<HonoEnv>();
 
 // ==================== ENUMS ====================
 
-const EVENT_TYPES = ['wedding', 'birthday', 'corporate', 'conference', 'other'] as const;
+const EVENT_TYPES = ['wedding', 'birthday', 'corporate', 'conference', 'other', 'holiday_party', 'engagement_party', 'fundraiser', 'anniversary', 'graduation', 'retirement', 'baby_shower', 'bridal_shower', 'themed', 'celebration_of_life'] as const;
 const EVENT_STATUSES = ['draft', 'planning', 'confirmed', 'completed', 'cancelled'] as const;
 
 // ==================== SCHEMAS ====================

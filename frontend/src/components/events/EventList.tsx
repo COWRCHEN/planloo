@@ -7,10 +7,18 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { EventCard } from './EventCard';
 import { EventFilters } from './EventFilters';
 import { EmptyEventState } from './EmptyEventState';
 import { useEvents, type EventStatus, type EventType, type EventSource } from '@/hooks/use-events';
+import { useBilling } from '@/hooks/use-billing';
+import { UpgradePrompt } from '@/components/billing/UpgradePrompt';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -54,6 +62,15 @@ export function EventList() {
     offset: page * ITEMS_PER_PAGE,
   };
   const { data, isLoading, error } = useEvents(filters);
+
+  // Billing gate for event creation
+  const { data: billingData } = useBilling();
+  const { data: totalData } = useEvents({ limit: 1 }); // lightweight count query
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
+
+  const maxEvents = billingData?.limits.maxActiveEvents ?? null;
+  const totalEvents = totalData?.meta?.total ?? 0;
+  const atEventLimit = maxEvents !== null && totalEvents >= maxEvents;
 
   const handleClearFilters = () => {
     setStatus(undefined);
@@ -107,8 +124,8 @@ export function EventList() {
           onSortChange={handleSortChange}
           onClearFilters={handleClearFilters}
         />
-        <Button asChild>
-          <a href="/dashboard/events/new">
+        {atEventLimit ? (
+          <Button onClick={() => setShowLimitDialog(true)}>
             <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
@@ -118,8 +135,22 @@ export function EventList() {
               />
             </svg>
             New Event
-          </a>
-        </Button>
+          </Button>
+        ) : (
+          <Button asChild>
+            <a href="/dashboard/events/new">
+              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              New Event
+            </a>
+          </Button>
+        )}
       </div>
 
       {/* Loading State */}
@@ -171,6 +202,24 @@ export function EventList() {
           )}
         </>
       )}
+
+      {/* Event limit upgrade dialog */}
+      <Dialog open={showLimitDialog} onOpenChange={setShowLimitDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Event limit reached</DialogTitle>
+          </DialogHeader>
+          <UpgradePrompt
+            error={{
+              code: 'EVENT_LIMIT_EXCEEDED',
+              message: `Your plan allows up to ${maxEvents} active event${maxEvents === 1 ? '' : 's'}. Upgrade to create more.`,
+              limit: maxEvents ?? undefined,
+              current: totalEvents,
+              upgradeUrl: '/dashboard/billing',
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

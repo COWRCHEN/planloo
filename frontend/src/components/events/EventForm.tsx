@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { UpgradePrompt } from '@/components/billing/UpgradePrompt';
+import { PlanLimitError } from '@/lib/api-error';
 import { useCreateEvent, useUpdateEvent, type EventResponse } from '@/hooks/use-events';
 import { useUserLocation } from '@/hooks/use-location';
 import { COUNTRIES, FEATURED_COUNTRY_CODES } from '../../../../shared/schemas/provider';
@@ -463,11 +465,13 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
         </div>
       </div>
 
-      {error && (
+      {error instanceof PlanLimitError ? (
+        <UpgradePrompt error={error} className="mb-6" />
+      ) : error ? (
         <Alert variant="destructive" className="mb-6">
           <AlertDescription>{error.message}</AlertDescription>
         </Alert>
-      )}
+      ) : null}
 
       {/* Step Content */}
       <Card>

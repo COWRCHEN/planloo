@@ -56,6 +56,8 @@ export interface BillingData {
   usage: {
     emailsSentThisPeriod: number;
     emailPoolPerMonth: number | null;
+    totalEvents: number;
+    totalGuests: number;
   };
 }
 

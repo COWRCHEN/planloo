@@ -4,11 +4,14 @@
  * Full-page add/edit guest form. Used by guests/new and guests/[guestUuid]/edit pages.
  */
 
+import { useState } from 'react';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GuestForm } from './GuestForm';
+import { UpgradePrompt } from '@/components/billing/UpgradePrompt';
+import { PlanLimitError } from '@/lib/api-error';
 import { useEvent } from '@/hooks/use-events';
 import {
   useGuest,
@@ -57,6 +60,7 @@ function GuestFormPageContent({ eventUuid, guestUuid }: GuestFormPageViewProps) 
   const { data: guestSettings, isLoading: guestSettingsLoading } = useGuestSettings(eventUuid);
   const createGuest = useCreateGuest(eventUuid);
   const updateGuest = useUpdateGuest(eventUuid, guestUuid ?? '');
+  const [planLimitError, setPlanLimitError] = useState<PlanLimitError | null>(null);
 
   const isEditMode = !!guestUuid;
   const isLoading =
@@ -72,11 +76,20 @@ function GuestFormPageContent({ eventUuid, guestUuid }: GuestFormPageViewProps) 
   };
 
   const handleSubmit = async (data: CreateGuestInput) => {
-    if (isEditMode) {
-      // Backend PATCH accepts same shape as create (weddingDetails, optional fields, etc.)
-      await updateGuest.mutateAsync(data as Parameters<typeof updateGuest.mutateAsync>[0]);
-    } else {
-      await createGuest.mutateAsync(data);
+    setPlanLimitError(null);
+    try {
+      if (isEditMode) {
+        // Backend PATCH accepts same shape as create (weddingDetails, optional fields, etc.)
+        await updateGuest.mutateAsync(data as Parameters<typeof updateGuest.mutateAsync>[0]);
+      } else {
+        await createGuest.mutateAsync(data);
+      }
+    } catch (err) {
+      if (err instanceof PlanLimitError) {
+        setPlanLimitError(err);
+        return;
+      }
+      throw err;
     }
   };
 
@@ -136,6 +149,9 @@ function GuestFormPageContent({ eventUuid, guestUuid }: GuestFormPageViewProps) 
         <p className="text-muted-foreground">{event.title}</p>
       </div>
 
+      {planLimitError && (
+        <UpgradePrompt error={planLimitError} className="mb-4" />
+      )}
       <GuestForm
         asPage
         guest={(isEditMode ? guest : null) as GuestResponse | null}

@@ -93,25 +93,21 @@ function CurrentPlanCard() {
 
         {/* Usage meters */}
         <div className="space-y-3">
+          <UsageMeter
+            label="Active events"
+            current={usage.totalEvents}
+            limit={limits.maxActiveEvents}
+          />
+          <UsageMeter
+            label="Guests"
+            current={usage.totalGuests}
+            limit={limits.maxGuests}
+          />
           {usage.emailPoolPerMonth !== null && (
             <UsageMeter
               label="Emails sent this period"
               current={usage.emailsSentThisPeriod}
               limit={usage.emailPoolPerMonth}
-            />
-          )}
-          {limits.maxGuests !== null && (
-            <UsageMeter
-              label="Guest capacity"
-              current={0}
-              limit={limits.maxGuests}
-            />
-          )}
-          {limits.maxActiveEvents !== null && (
-            <UsageMeter
-              label="Active events"
-              current={0}
-              limit={limits.maxActiveEvents}
             />
           )}
         </div>

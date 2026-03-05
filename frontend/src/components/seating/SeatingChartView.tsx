@@ -43,6 +43,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { useBilling } from '@/hooks/use-billing';
+import { FeatureGate } from '@/components/billing/FeatureGate';
+import { UpgradePrompt } from '@/components/billing/UpgradePrompt';
+import { PlanLimitError } from '@/lib/api-error';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -95,6 +99,9 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
+
+  // Billing / plan limits
+  const { data: billingData, isLoading: billingLoading } = useBilling();
 
   // Data fetching
   const { data: plans = [], isLoading: plansLoading } = useFloorPlans(eventUuid);
@@ -240,12 +247,23 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
   const uniqueGuests = [...guestMap.values()];
 
   // Loading state
-  if (plansLoading) {
+  if (billingLoading || plansLoading) {
     return (
       <div className="space-y-3">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-[400px] w-full" />
       </div>
+    );
+  }
+
+  // Feature gate: floor plans not available on this plan
+  if (billingData && !billingData.limits.floorPlans) {
+    return (
+      <FeatureGate
+        featureName="Floor Plans"
+        description="Design your venue layout and assign guests to seats with interactive floor plans."
+        requiredPlan="Planner"
+      />
     );
   }
 
@@ -277,26 +295,31 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
             </div>
           ))}
           {showNewPlanInput ? (
-            <div className="flex items-center gap-1">
-              <Input
-                value={newPlanName}
-                onChange={(e) => setNewPlanName(e.target.value)}
-                placeholder="Plan name"
-                className="h-8 text-xs w-32"
-                onKeyDown={(e) => e.key === 'Enter' && handleCreatePlan()}
-                autoFocus
-              />
-              <Button size="sm" onClick={handleCreatePlan} disabled={createPlan.isPending} className="text-xs h-8">
-                Add
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowNewPlanInput(false)}
-                className="text-xs h-8"
-              >
-                Cancel
-              </Button>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1">
+                <Input
+                  value={newPlanName}
+                  onChange={(e) => setNewPlanName(e.target.value)}
+                  placeholder="Plan name"
+                  className="h-8 text-xs w-32"
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreatePlan()}
+                  autoFocus
+                />
+                <Button size="sm" onClick={handleCreatePlan} disabled={createPlan.isPending} className="text-xs h-8">
+                  Add
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowNewPlanInput(false)}
+                  className="text-xs h-8"
+                >
+                  Cancel
+                </Button>
+              </div>
+              {createPlan.error instanceof PlanLimitError && (
+                <UpgradePrompt error={createPlan.error} className="mt-2" />
+              )}
             </div>
           ) : (
             <Button

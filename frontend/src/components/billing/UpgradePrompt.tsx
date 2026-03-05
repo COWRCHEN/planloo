@@ -23,6 +23,8 @@ interface BillingError {
 interface UpgradePromptProps {
   error: BillingError;
   className?: string;
+  title?: string;
+  variant?: 'default' | 'destructive';
 }
 
 const PLAN_LABELS: Record<string, string> = {
@@ -31,15 +33,15 @@ const PLAN_LABELS: Record<string, string> = {
   agency: 'Agency',
 };
 
-export function UpgradePrompt({ error, className }: UpgradePromptProps) {
+export function UpgradePrompt({ error, className, title = 'Plan limit reached', variant = 'destructive' }: UpgradePromptProps) {
   const upgradeLabel = error.upgradeTo
     ? `Upgrade to ${PLAN_LABELS[error.upgradeTo] ?? error.upgradeTo}`
     : 'Upgrade plan';
 
   return (
-    <Alert className={className} variant="destructive">
+    <Alert className={className} variant={variant}>
       <AlertTriangle className="h-4 w-4" />
-      <AlertTitle>Plan limit reached</AlertTitle>
+      <AlertTitle>{title}</AlertTitle>
       <AlertDescription className="mt-1 flex flex-col gap-2">
         <span>{error.message}</span>
         <div className="flex gap-2">

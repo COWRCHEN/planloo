@@ -33,6 +33,8 @@ import {
   type RsvpStatus,
   type ListGuestsQuery,
 } from '@/hooks/use-guests';
+import { useBilling } from '@/hooks/use-billing';
+import { UpgradePrompt } from '@/components/billing/UpgradePrompt';
 
 const ITEMS_PER_PAGE = 50;
 
@@ -82,6 +84,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
   const { data: guestSettings } = useGuestSettings(eventUuid);
   const { data, isLoading: isLoadingGuests } = useGuests(eventUuid, queryFilters);
   const { data: stats, isLoading: isLoadingStats } = useGuestStats(eventUuid);
+  const { data: billingData } = useBilling();
 
   // Derive event type from event data
   const eventType = event?.eventType ?? null;
@@ -176,10 +179,42 @@ export function GuestList({ eventUuid }: GuestListProps) {
   const totalPages = Math.ceil((data?.meta?.total ?? 0) / ITEMS_PER_PAGE);
   const guests = data?.guests ?? [];
 
+  const guestLimit = billingData?.limits.maxGuests ?? null;
+  const totalGuests = stats?.total ?? 0;
+  const atGuestLimit = guestLimit !== null && totalGuests >= guestLimit;
+  const nearGuestLimit = guestLimit !== null && !atGuestLimit && totalGuests >= guestLimit * 0.8;
+
   return (
     <div className="space-y-6">
       {/* Stats */}
       <GuestStats stats={stats} isLoading={isLoadingStats} />
+
+      {/* Guest limit warning */}
+      {atGuestLimit && (
+        <UpgradePrompt
+          title="Guest limit reached"
+          error={{
+            code: 'GUEST_LIMIT_EXCEEDED',
+            message: `You've reached your plan limit of ${guestLimit} guest${guestLimit === 1 ? '' : 's'}. Upgrade to add more.`,
+            limit: guestLimit,
+            current: totalGuests,
+            upgradeUrl: '/dashboard/billing',
+          }}
+        />
+      )}
+      {nearGuestLimit && (
+        <UpgradePrompt
+          title="Approaching guest limit"
+          variant="default"
+          error={{
+            code: 'GUEST_LIMIT_WARNING',
+            message: `You're using ${totalGuests} of ${guestLimit} guests on your plan. Upgrade before you hit the limit.`,
+            limit: guestLimit,
+            current: totalGuests,
+            upgradeUrl: '/dashboard/billing',
+          }}
+        />
+      )}
 
       {/* Actions and Filters */}
       <div className="flex flex-wrap items-center justify-between gap-4">
