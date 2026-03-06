@@ -3,6 +3,7 @@
  */
 
 import { cn } from '@/lib/utils';
+import { Progress } from '@/components/ui/progress';
 
 interface UsageMeterProps {
   label: string;
@@ -29,15 +30,14 @@ export function UsageMeter({ label, current, limit, unit = '', className }: Usag
         </span>
       </div>
       {!unlimited && (
-        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className={cn(
-              'h-full rounded-full transition-all',
-              atLimit ? 'bg-destructive' : nearLimit ? 'bg-yellow-500' : 'bg-primary'
-            )}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
+        <Progress
+          value={pct}
+          className={cn(
+            'h-2',
+            atLimit && '[&>div]:bg-destructive',
+            nearLimit && !atLimit && '[&>div]:bg-yellow-500',
+          )}
+        />
       )}
     </div>
   );

@@ -11,6 +11,8 @@ export default {
       colors: {
         // Primary palette (Blue)
         primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
           50: '#EFF6FF',
           100: '#DBEAFE',
           200: '#BFDBFE',
@@ -26,6 +28,8 @@ export default {
 
         // Secondary palette (Violet)
         secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
           50: '#F5F3FF',
           100: '#EDE9FE',
           200: '#DDD6FE',

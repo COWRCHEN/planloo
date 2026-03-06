@@ -113,15 +113,22 @@ function CurrentPlanCard() {
             </CardDescription>
           </div>
           {isPaid && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => portal.mutate()}
-              disabled={portal.isPending}
-            >
-              <CreditCard className="mr-2 h-4 w-4" />
-              {portal.isPending ? 'Loading…' : 'Manage subscription'}
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => portal.mutate()}
+                disabled={portal.isPending}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                {portal.isPending ? 'Loading…' : 'Manage subscription'}
+              </Button>
+              {portal.isError && (
+                <p className="text-xs text-destructive">
+                  {portal.error?.message ?? 'Failed to open billing portal.'}
+                </p>
+              )}
+            </div>
           )}
         </div>
       </CardHeader>
