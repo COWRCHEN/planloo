@@ -4,6 +4,7 @@
  */
 
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import Breadcrumb from '@/components/shared/Breadcrumb.astro';
 
 const sections = [
   { id: 'acceptance', title: 'Acceptance of Terms' },
@@ -22,7 +23,10 @@ const sections = [
 ];
 ---
 
-<BaseLayout title="Terms of Service" description="Planloo Terms of Service">
+<BaseLayout
+  title="Terms of Service"
+  description="Read the Planloo Terms of Service. Understand your rights and responsibilities when using our event planning platform."
+>
   <!-- Sticky Navigation -->
   <nav class="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -38,6 +42,16 @@ const sections = [
       </div>
     </div>
   </nav>
+
+  <!-- Breadcrumb -->
+  <div class="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
+    <Breadcrumb
+      items={[
+        { label: 'Home', href: '/' },
+        { label: 'Terms of Service', href: '/terms', current: true },
+      ]}
+    />
+  </div>
 
   <!-- Hero Section -->
   <div class="relative overflow-hidden border-b bg-gradient-to-br from-primary-50 via-background to-secondary-50 dark:from-primary-950/20 dark:via-background dark:to-secondary-950/20">

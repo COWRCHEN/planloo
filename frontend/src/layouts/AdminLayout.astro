@@ -21,7 +21,7 @@ const { title, description } = Astro.props;
 export const prerender = false;
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} robots="noindex, nofollow">
   <!-- Auth check - verifies admin role -->
   <AdminAuthCheck client:load />
 

@@ -1,0 +1,60 @@
+---
+/**
+ * Breadcrumb navigation with Schema.org BreadcrumbList markup.
+ */
+
+interface BreadcrumbItem {
+  label: string;
+  href: string;
+  current?: boolean;
+}
+
+interface Props {
+  items: BreadcrumbItem[];
+}
+
+const { items } = Astro.props;
+const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://planloo.com';
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: items.map((item, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    name: item.label,
+    item: `${siteUrl}${item.href}`,
+  })),
+};
+---
+
+<nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-sm text-muted-foreground">
+  {
+    items.map((item, index) => (
+      <>
+        {index > 0 && (
+          <svg
+            class="h-3.5 w-3.5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        )}
+        {item.current ? (
+          <span class="font-medium text-foreground" aria-current="page">
+            {item.label}
+          </span>
+        ) : (
+          <a href={item.href} class="transition-colors hover:text-foreground">
+            {item.label}
+          </a>
+        )}
+      </>
+    ))
+  }
+</nav>
+
+<script type="application/ld+json" set:html={JSON.stringify(schema)} />

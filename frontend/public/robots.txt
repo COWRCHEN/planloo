@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /rsvp/
+Disallow: /invitations/
+
+Sitemap: https://planloo.com/sitemap.xml

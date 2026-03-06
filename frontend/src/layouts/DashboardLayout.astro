@@ -28,7 +28,7 @@ function navClass(href: string, exact = false) {
 }
 ---
 
-<BaseLayout title={title} {...(description !== undefined && { description })}>
+<BaseLayout title={title} {...(description !== undefined && { description })} robots="noindex, nofollow">
   <!-- Auth check - shows loading overlay while verifying authentication -->
   <DashboardAuthCheck client:load />
   
