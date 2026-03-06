@@ -6,7 +6,10 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { exportGuests } from '@/hooks/use-guests';
+import { useBilling } from '@/hooks/use-billing';
+import { UpgradePrompt } from '@/components/billing/UpgradePrompt';
 
 interface GuestExportButtonProps {
   eventUuid: string;
@@ -15,8 +18,14 @@ interface GuestExportButtonProps {
 
 export function GuestExportButton({ eventUuid, disabled }: GuestExportButtonProps) {
   const [isExporting, setIsExporting] = useState(false);
+  const [showCsvLimitDialog, setShowCsvLimitDialog] = useState(false);
+  const { data: billingData } = useBilling();
 
   const handleExport = async () => {
+    if (billingData?.limits.csvImportExport === false) {
+      setShowCsvLimitDialog(true);
+      return;
+    }
     setIsExporting(true);
     try {
       await exportGuests(eventUuid);
@@ -28,6 +37,7 @@ export function GuestExportButton({ eventUuid, disabled }: GuestExportButtonProp
   };
 
   return (
+    <>
     <Button
       variant="outline"
       onClick={handleExport}
@@ -48,5 +58,20 @@ export function GuestExportButton({ eventUuid, disabled }: GuestExportButtonProp
       </svg>
       {isExporting ? 'Exporting...' : 'Export CSV'}
     </Button>
+    <Dialog open={showCsvLimitDialog} onOpenChange={setShowCsvLimitDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Plan limit reached</DialogTitle>
+        </DialogHeader>
+        <UpgradePrompt
+          error={{
+            code: 'CSV_EXPORT_BLOCKED',
+            message: 'CSV export requires a paid plan.',
+            upgradeUrl: '/dashboard/billing',
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

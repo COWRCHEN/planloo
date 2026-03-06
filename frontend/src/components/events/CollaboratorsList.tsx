@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -8,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CollaboratorRoleBadge } from './CollaboratorRoleBadge';
 import { InviteCollaboratorDialog } from './InviteCollaboratorDialog';
 import {
@@ -15,6 +17,8 @@ import {
   useUpdateCollaboratorRole,
   useRemoveCollaborator,
 } from '@/hooks/use-collaborators';
+import { useBilling } from '@/hooks/use-billing';
+import { UpgradePrompt } from '@/components/billing/UpgradePrompt';
 
 interface CollaboratorsListProps {
   eventUuid: string;
@@ -24,6 +28,13 @@ export function CollaboratorsList({ eventUuid }: CollaboratorsListProps) {
   const { data: collaborators, isLoading } = useCollaborators(eventUuid);
   const updateRole = useUpdateCollaboratorRole(eventUuid);
   const remove = useRemoveCollaborator(eventUuid);
+  const { data: billingData } = useBilling();
+  const [showCollabLimitDialog, setShowCollabLimitDialog] = useState(false);
+
+  const collabBlocked = billingData?.limits.maxCollaboratorsPerEvent === 0;
+  const maxCollabs = billingData?.limits.maxCollaboratorsPerEvent ?? null;
+  const atCollabLimit = maxCollabs !== null && maxCollabs > 0 && (collaborators?.length ?? 0) >= maxCollabs;
+  const collabLimitReached = collabBlocked || atCollabLimit;
 
   if (isLoading) {
     return (
@@ -40,10 +51,15 @@ export function CollaboratorsList({ eventUuid }: CollaboratorsListProps) {
   }
 
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-lg">Collaborators</CardTitle>
-        <InviteCollaboratorDialog eventUuid={eventUuid} />
+        {collabLimitReached ? (
+          <Button size="sm" onClick={() => setShowCollabLimitDialog(true)}>Invite</Button>
+        ) : (
+          <InviteCollaboratorDialog eventUuid={eventUuid} />
+        )}
       </CardHeader>
       <CardContent>
         {!collaborators || collaborators.length === 0 ? (
@@ -113,5 +129,22 @@ export function CollaboratorsList({ eventUuid }: CollaboratorsListProps) {
         )}
       </CardContent>
     </Card>
+    <Dialog open={showCollabLimitDialog} onOpenChange={setShowCollabLimitDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Plan limit reached</DialogTitle>
+        </DialogHeader>
+        <UpgradePrompt
+          error={{
+            code: 'COLLABORATOR_LIMIT_EXCEEDED',
+            message: collabBlocked
+              ? 'Your current plan does not support collaborators.'
+              : `You've reached the limit of ${maxCollabs} collaborator${maxCollabs === 1 ? '' : 's'} per event on your plan.`,
+            upgradeUrl: '/dashboard/billing',
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

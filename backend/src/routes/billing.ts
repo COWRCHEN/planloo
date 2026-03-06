@@ -58,7 +58,7 @@ billing.get('/', requireAuth, async (c) => {
   }
 
   // Fetch current usage counts in parallel
-  const [[eventCountRow], [guestCountRow]] = await Promise.all([
+  const [[eventCountRow], [guestCountRow], [orgCountRow]] = await Promise.all([
     db
       .select({ total: count() })
       .from(schema.events)
@@ -72,6 +72,17 @@ billing.get('/', requireAuth, async (c) => {
           eq(schema.events.userId, user.id),
           isNull(schema.guests.deletedAt),
           isNull(schema.events.deletedAt)
+        )
+      ),
+    db
+      .select({ total: count() })
+      .from(schema.organizationMember)
+      .innerJoin(schema.organization, eq(schema.organizationMember.organizationId, schema.organization.id))
+      .where(
+        and(
+          eq(schema.organizationMember.userId, user.id),
+          eq(schema.organizationMember.role, 'admin'),
+          isNull(schema.organization.deletedAt)
         )
       ),
   ]);
@@ -95,10 +106,13 @@ billing.get('/', requireAuth, async (c) => {
         : null,
       limits,
       usage: {
-        emailsSentThisPeriod: sub?.emailsSentThisPeriod ?? 0,
-        emailPoolPerMonth: limits.emailPoolPerMonth,
         totalEvents: eventCountRow?.total ?? 0,
         totalGuests: guestCountRow?.total ?? 0,
+        totalOrganizations: orgCountRow?.total ?? 0,
+        emailsSentThisPeriod: sub?.emailsSentThisPeriod ?? 0,
+        emailPoolPerMonth: limits.emailPoolPerMonth,
+        smsSentThisPeriod: sub?.smsSentThisPeriod ?? 0,
+        smsPoolPerMonth: limits.smsPoolPerMonth,
       },
     },
   });

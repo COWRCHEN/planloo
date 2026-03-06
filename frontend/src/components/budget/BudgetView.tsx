@@ -3,6 +3,8 @@ import { QueryProvider } from '@/components/providers/QueryProvider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useSession } from '@/hooks/use-auth';
+import { useBilling } from '@/hooks/use-billing';
+import { FeatureGate } from '@/components/billing/FeatureGate';
 import { BudgetSummary } from './BudgetSummary';
 import { BudgetCategoryBreakdown } from './BudgetCategoryBreakdown';
 import { BudgetItemList } from './BudgetItemList';
@@ -15,9 +17,10 @@ interface BudgetViewProps {
 
 function BudgetViewContent({ eventUuid }: BudgetViewProps) {
   const { data: session, isLoading: sessionLoading } = useSession();
+  const { data: billingData, isLoading: billingLoading } = useBilling();
   const [selectedItem, setSelectedItem] = useState<BudgetItemResponse | null>(null);
 
-  if (sessionLoading) {
+  if (sessionLoading || billingLoading) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -37,6 +40,16 @@ function BudgetViewContent({ eventUuid }: BudgetViewProps) {
           </Button>
         </CardContent>
       </Card>
+    );
+  }
+
+  if (billingData && !billingData.limits.budgetTracking) {
+    return (
+      <FeatureGate
+        featureName="Budget Tracking"
+        description="Track expenses, payments, and budget breakdowns across your event."
+        requiredPlan="Planner"
+      />
     );
   }
 

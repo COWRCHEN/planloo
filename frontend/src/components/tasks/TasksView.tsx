@@ -24,6 +24,7 @@ import type { TaskResponse, TaskStatus, TaskPriority } from '@/hooks/use-tasks';
 import { useCollaborators } from '@/hooks/use-collaborators';
 import { useEvent } from '@/hooks/use-events';
 import { useOrgMembers } from '@/hooks/use-organizations';
+import { useBilling } from '@/hooks/use-billing';
 import { TaskList } from './TaskList';
 import { TaskTimeline } from './TaskTimeline';
 import { TaskDialog } from './TaskDialog';
@@ -83,6 +84,7 @@ function TasksViewContent({ eventUuid }: TasksViewProps) {
 
   const { data: templates } = useTaskTemplates(eventUuid);
   const hasTemplates = (templates?.length ?? 0) > 0;
+  const { data: billingData } = useBilling();
 
   const { data: collaborators } = useCollaborators(eventUuid);
   const { data: event } = useEvent(eventUuid);
@@ -191,7 +193,7 @@ function TasksViewContent({ eventUuid }: TasksViewProps) {
           </svg>
           New Task
         </Button>
-        {hasTemplates && (
+        {hasTemplates && billingData?.limits.taskTemplates !== false && (
           <Button variant="outline" onClick={() => setTemplateDialogOpen(true)}>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
               <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />

@@ -31,6 +31,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useSession } from '@/hooks/use-auth';
 import { useEvent } from '@/hooks/use-events';
+import { useBilling } from '@/hooks/use-billing';
+import { FeatureGate } from '@/components/billing/FeatureGate';
 import { useTasks } from '@/hooks/use-tasks';
 import type { TaskResponse } from '@/hooks/use-tasks';
 import { ProviderCategoryBadge } from './ProviderCategoryBadge';
@@ -1262,6 +1264,7 @@ interface EventProvidersViewProps {
 
 function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
   const { data: session, isLoading: sessionLoading } = useSession();
+  const { data: billingData, isLoading: billingLoading } = useBilling();
   const { data: event } = useEvent(eventUuid);
   const { data: providers, isLoading: providersLoading } = useEventProviders(eventUuid);
   const { data: venues, isLoading: venuesLoading } = useEventVenues(eventUuid);
@@ -1271,7 +1274,7 @@ function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
   const linkProviderMutation = useLinkProvider(eventUuid);
   const linkVenueMutation = useLinkVenue(eventUuid);
 
-  if (sessionLoading) {
+  if (sessionLoading || billingLoading) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -1291,6 +1294,16 @@ function EventProvidersContent({ eventUuid }: EventProvidersViewProps) {
           </Button>
         </CardContent>
       </Card>
+    );
+  }
+
+  if (billingData && !billingData.limits.vendorManagement) {
+    return (
+      <FeatureGate
+        featureName="Vendor Management"
+        description="Link service providers and venues to your event with ratings and reviews."
+        requiredPlan="Planner"
+      />
     );
   }
 

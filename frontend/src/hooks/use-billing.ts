@@ -54,10 +54,13 @@ export interface BillingData {
   subscription: SubscriptionInfo | null;
   limits: PlanLimits;
   usage: {
-    emailsSentThisPeriod: number;
-    emailPoolPerMonth: number | null;
     totalEvents: number;
     totalGuests: number;
+    totalOrganizations: number;
+    emailsSentThisPeriod: number;
+    emailPoolPerMonth: number | null;
+    smsSentThisPeriod: number;
+    smsPoolPerMonth: number | null;
   };
 }
 

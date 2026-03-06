@@ -35,6 +35,7 @@ import {
 } from '@/hooks/use-guests';
 import { useBilling } from '@/hooks/use-billing';
 import { UpgradePrompt } from '@/components/billing/UpgradePrompt';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const ITEMS_PER_PAGE = 50;
 
@@ -52,6 +53,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
   const [guestToDelete, setGuestToDelete] = useState<GuestResponse | null>(null);
   const [guestForAudit, setGuestForAudit] = useState<GuestResponse | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [showImportLimitDialog, setShowImportLimitDialog] = useState(false);
   const [sendInvitationsDialogOpen, setSendInvitationsDialogOpen] = useState(false);
   const [rsvpSendFeedback, setRsvpSendFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [sendingRsvpUuid, setSendingRsvpUuid] = useState<string | null>(null);
@@ -253,7 +255,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
             </Button>
           </div>
 
-          <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+          <Button variant="outline" onClick={() => billingData?.limits.csvImportExport !== false ? setImportDialogOpen(true) : setShowImportLimitDialog(true)}>
             <svg
               className="mr-2 h-4 w-4"
               fill="none"
@@ -387,6 +389,21 @@ export function GuestList({ eventUuid }: GuestListProps) {
         onImport={handleImport}
         isImporting={importGuests.isPending}
       />
+
+      <Dialog open={showImportLimitDialog} onOpenChange={setShowImportLimitDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Plan limit reached</DialogTitle>
+          </DialogHeader>
+          <UpgradePrompt
+            error={{
+              code: 'CSV_IMPORT_BLOCKED',
+              message: 'CSV import requires a paid plan.',
+              upgradeUrl: '/dashboard/billing',
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Field Settings Dialog */}
       <GuestFieldSettingsDialog

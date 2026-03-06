@@ -30,9 +30,10 @@ Planloo monetizes through a freemium model with four tiers. Access to features a
 1. [Pricing Tiers & Limits](./tiers.md)
 2. [Database Schema](./schema.md)
 3. [API Endpoints](./api.md)
-4. [Limit Enforcement](./limits.md)
-5. [Stripe Integration](./stripe.md)
-6. [Frontend Components & Hooks](./frontend.md)
+4. [Limit Enforcement (Backend)](./limits.md)
+5. [Plan Limit Enforcement (Frontend)](./plan-limit.md)
+6. [Stripe Integration](./stripe.md)
+7. [Frontend Components & Hooks](./frontend.md)
 
 ---
 
