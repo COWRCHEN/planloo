@@ -1,0 +1,446 @@
+---
+/**
+ * Feature landing pages
+ *
+ * Generates one static page per core feature with HowTo structured data
+ * for GEO (Generative Engine Optimization).
+ */
+
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+export function getStaticPaths() {
+  const features = [
+    {
+      slug: 'guest-management',
+      title: 'Guest Management',
+      headline: 'Manage every guest with confidence',
+      description:
+        'Import guests, send personalised invitations, collect RSVPs automatically, and track dietary requirements — all without a spreadsheet.',
+      howToName: 'How to manage event guests with Planloo',
+      howToDescription:
+        'A step-by-step guide to importing guests, sending invitations, collecting RSVPs, and assigning seats in Planloo.',
+      steps: [
+        {
+          name: 'Create an event',
+          text: 'Sign in to Planloo and click "New Event". Enter a name, date, and location. Your event workspace opens immediately.',
+        },
+        {
+          name: 'Add guests',
+          text: 'Open the Guests tab. Click "Import CSV" to bulk-upload a spreadsheet, or "Add Guest" to enter names and emails manually one at a time.',
+        },
+        {
+          name: 'Customise guest fields',
+          text: 'For each guest, record dietary requirements, accessibility needs, plus-ones, and any custom notes. All fields are searchable and filterable.',
+        },
+        {
+          name: 'Send invitation links',
+          text: 'Click "Send Invitations" to generate a personalised RSVP link for each guest. Links can be copied or sent via your email client.',
+        },
+        {
+          name: 'Track RSVPs in real time',
+          text: 'The guest list updates automatically as guests respond. Filter by status (Attending, Declined, Pending) to follow up with non-responders.',
+        },
+        {
+          name: 'Assign guests to seats',
+          text: 'Once RSVPs are confirmed, switch to the Seating tab to drag guests onto tables. Planloo highlights conflicts automatically.',
+        },
+      ],
+    },
+    {
+      slug: 'budgeting',
+      title: 'Smart Budgeting',
+      headline: 'Track every pound and penny before costs spiral',
+      description:
+        'Set a budget, categorise expenses, log vendor payments, and watch real-time charts so you always know where you stand financially.',
+      howToName: 'How to track an event budget with Planloo',
+      howToDescription:
+        'A step-by-step guide to setting up a budget, logging expenses, tracking payments, and monitoring spending in Planloo.',
+      steps: [
+        {
+          name: 'Create an event and open Budget',
+          text: 'After creating your event, click the Budget tab. Enter your total budget figure — this becomes the baseline for all tracking.',
+        },
+        {
+          name: 'Create budget categories',
+          text: 'Add categories such as Venue, Catering, Entertainment, Flowers, and Photography. Assign an estimated spend to each category.',
+        },
+        {
+          name: 'Log expenses as they arise',
+          text: 'When you receive a quote or pay a deposit, click "Add Expense". Enter the vendor name, amount, category, and payment date.',
+        },
+        {
+          name: 'Record vendor payments',
+          text: 'For each payment made, mark it as paid. Planloo tracks outstanding balances so you can see what is still owed at a glance.',
+        },
+        {
+          name: 'Monitor spending with charts',
+          text: 'The budget dashboard shows a live breakdown by category, remaining budget, and a payment timeline. Charts update as you add entries.',
+        },
+        {
+          name: 'Export the budget report',
+          text: 'Before or after the event, export a full budget report as CSV for reconciliation, client billing, or your records.',
+        },
+      ],
+    },
+    {
+      slug: 'task-tracking',
+      title: 'Task Tracking',
+      headline: 'Never miss a deadline in the run-up to your event',
+      description:
+        'Create checklists, assign tasks to your team, set due dates, and track completion progress from one central view.',
+      howToName: 'How to manage event planning tasks with Planloo',
+      howToDescription:
+        'A step-by-step guide to creating tasks, assigning them to collaborators, setting deadlines, and monitoring progress in Planloo.',
+      steps: [
+        {
+          name: 'Open the Tasks tab',
+          text: 'From your event workspace, click the Tasks tab. All tasks for this event are listed here with their status and assignee.',
+        },
+        {
+          name: 'Create a task',
+          text: 'Click "Add Task". Enter a clear task name (e.g., "Confirm catering headcount"), then set a due date and priority level.',
+        },
+        {
+          name: 'Assign to a collaborator',
+          text: 'Choose an assignee from your list of event collaborators. They receive a notification and can see the task in their own view.',
+        },
+        {
+          name: 'Group tasks into sections',
+          text: 'Organise tasks into logical sections (e.g., "Six weeks out", "One week out", "Day of"). Drag and drop to reorder.',
+        },
+        {
+          name: 'Mark tasks complete',
+          text: 'As work is done, check off each task. The progress bar updates to show overall completion across the whole checklist.',
+        },
+        {
+          name: 'Review upcoming deadlines',
+          text: 'The Tasks dashboard surfaces overdue and upcoming tasks across all your events in one view, so nothing falls through the cracks.',
+        },
+      ],
+    },
+    {
+      slug: 'seating-planner',
+      title: 'Seating Planner',
+      headline: 'Seat any number of guests with drag-and-drop simplicity',
+      description:
+        'Build a floor plan, place tables, assign guests to seats, and detect conflicts in real time — whether you have 10 guests or 1,000.',
+      howToName: 'How to create an event seating plan with Planloo',
+      howToDescription:
+        'A step-by-step guide to building a floor plan, arranging tables, assigning guests, and resolving conflicts in Planloo.',
+      steps: [
+        {
+          name: 'Confirm your guest list',
+          text: 'Before seating, ensure RSVPs are collected and the guest list is finalised. Only confirmed attendees need seats.',
+        },
+        {
+          name: 'Open the Seating tab',
+          text: 'Click the Seating tab in your event. The canvas editor opens with a blank floor plan ready to build.',
+        },
+        {
+          name: 'Add tables to the floor plan',
+          text: 'Click "Add Table" and choose a shape (round, rectangular, cabaret). Set the table name and maximum seat capacity.',
+        },
+        {
+          name: 'Arrange the floor plan',
+          text: 'Drag tables into position on the canvas to mirror your venue layout. Resize and rotate as needed.',
+        },
+        {
+          name: 'Assign guests to seats',
+          text: 'From the guest panel on the right, drag names onto empty seats. Planloo immediately highlights any seating conflicts (e.g., over-capacity tables).',
+        },
+        {
+          name: 'Export or print the seating chart',
+          text: 'Once all guests are seated, export the chart as a PDF or print it directly. Guests and staff can use it on the day.',
+        },
+      ],
+    },
+    {
+      slug: 'team-collaboration',
+      title: 'Team Collaboration',
+      headline: 'Plan together without stepping on each other',
+      description:
+        'Invite co-planners, assign roles, work simultaneously, and track every change with a full audit trail.',
+      howToName: 'How to collaborate on event planning with Planloo',
+      howToDescription:
+        'A step-by-step guide to inviting co-planners, assigning roles, working simultaneously, and reviewing the change history in Planloo.',
+      steps: [
+        {
+          name: 'Create an event',
+          text: 'The person who creates the event becomes the owner. Owners can invite any number of collaborators.',
+        },
+        {
+          name: 'Invite co-planners by email',
+          text: 'Go to Event Settings → Collaborators. Enter a colleague\'s email address and click "Invite". They receive a link to join.',
+        },
+        {
+          name: 'Assign roles',
+          text: 'Set each collaborator\'s role: Editor (can edit all sections) or Viewer (read-only access). Roles can be changed at any time.',
+        },
+        {
+          name: 'Work simultaneously',
+          text: 'Multiple editors can work on the same event at the same time. Changes sync automatically — no need to refresh.',
+        },
+        {
+          name: 'See who changed what',
+          text: 'Open the Activity feed in Event Settings to see a timestamped log of every change: who edited a guest, updated a budget line, or completed a task.',
+        },
+        {
+          name: 'Remove a collaborator',
+          text: 'If someone leaves the project, remove their access in Collaborators settings. Their past activity is retained in the audit trail.',
+        },
+      ],
+    },
+    {
+      slug: 'vendor-directory',
+      title: 'Vendor Directory',
+      headline: 'Find, save, and manage every service provider in one place',
+      description:
+        'Browse caterers, venues, photographers, and more. Store contracts, add reviews, and link vendors to your budget — all within your event.',
+      howToName: 'How to manage event vendors with Planloo',
+      howToDescription:
+        'A step-by-step guide to browsing the vendor directory, saving providers, storing contracts, and linking vendors to your budget in Planloo.',
+      steps: [
+        {
+          name: 'Open the Vendors tab',
+          text: 'From your event workspace, click the Vendors tab. You will see a directory of service providers and a list of vendors already linked to this event.',
+        },
+        {
+          name: 'Browse by category',
+          text: 'Filter the directory by category — Venue, Catering, Photography, Flowers, Entertainment, or other. Search by name or location.',
+        },
+        {
+          name: 'Save a vendor to your event',
+          text: 'Click "Add to Event" on any provider profile to attach them to your event. Saved vendors appear in your event\'s vendor list.',
+        },
+        {
+          name: 'Store contact details and notes',
+          text: 'On each vendor\'s event card, save their contact name, phone, email, pricing notes, and any contract files.',
+        },
+        {
+          name: 'Write or read reviews',
+          text: 'After working with a vendor, leave a review with a star rating and notes. Reviews help you and other Planloo users make informed choices.',
+        },
+        {
+          name: 'Link vendors to budget items',
+          text: 'Connect a saved vendor to a budget line item so payments are tracked alongside the provider. Confirmed bookings and payments stay in sync.',
+        },
+      ],
+    },
+  ];
+
+  return features.map((f) => ({ params: { slug: f.slug }, props: f }));
+}
+
+interface Props {
+  slug: string;
+  title: string;
+  headline: string;
+  description: string;
+  howToName: string;
+  howToDescription: string;
+  steps: { name: string; text: string }[];
+}
+
+const { slug, title, headline, description, howToName, howToDescription, steps } = Astro.props;
+const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://planloo.com';
+
+const howToSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'HowTo',
+  name: howToName,
+  description: howToDescription,
+  image: `${siteUrl}/og-image.png`,
+  step: steps.map((s, i) => ({
+    '@type': 'HowToStep',
+    position: i + 1,
+    name: s.name,
+    text: s.text,
+  })),
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl },
+    { '@type': 'ListItem', position: 2, name: 'Features', item: `${siteUrl}/features` },
+    { '@type': 'ListItem', position: 3, name: title, item: `${siteUrl}/features/${slug}` },
+  ],
+};
+---
+
+<BaseLayout
+  title={`${title} — Event Planning Feature`}
+  description={description}
+  schema={[howToSchema, breadcrumbSchema]}
+>
+  <!-- Navigation -->
+  <header>
+    <nav
+      class="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+      aria-label="Main navigation"
+    >
+      <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <a
+          href="/"
+          class="flex items-center gap-2 transition-opacity hover:opacity-80"
+          aria-label="Planloo home"
+        >
+          <div
+            class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-600 to-secondary-600 shadow-md"
+          >
+            <span class="text-sm font-bold text-white" aria-hidden="true">P</span>
+          </div>
+          <span class="font-heading text-xl font-bold text-foreground">Planloo</span>
+        </a>
+
+        <div class="hidden items-center gap-6 text-sm md:flex">
+          <a href="/#features" class="text-muted-foreground transition-colors hover:text-foreground"
+            >Features</a
+          >
+          <a
+            href="/#how-it-works"
+            class="text-muted-foreground transition-colors hover:text-foreground">How it works</a
+          >
+          <a
+            href="/#pricing"
+            class="text-muted-foreground transition-colors hover:text-foreground">Pricing</a
+          >
+          <a href="/login" class="text-muted-foreground transition-colors hover:text-foreground"
+            >Sign in</a
+          >
+          <a
+            href="/register"
+            class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium shadow transition-colors"
+          >
+            Get started free
+          </a>
+        </div>
+
+        <a
+          href="/register"
+          class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium shadow transition-colors md:hidden"
+        >
+          Get started
+        </a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section
+      class="relative overflow-hidden bg-gradient-to-br from-primary-50 via-background to-secondary-50 dark:from-primary-950/20 dark:via-background dark:to-secondary-950/20"
+      aria-labelledby="feature-heading"
+    >
+      <div
+        class="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,black_60%,transparent_100%)] dark:bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)]"
+        aria-hidden="true"
+      >
+      </div>
+
+      <div class="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+        <nav aria-label="Breadcrumb" class="mb-8">
+          <ol class="flex items-center gap-2 text-sm text-muted-foreground">
+            <li><a href="/" class="hover:text-foreground transition-colors">Home</a></li>
+            <li aria-hidden="true">/</li>
+            <li><a href="/#features" class="hover:text-foreground transition-colors">Features</a></li>
+            <li aria-hidden="true">/</li>
+            <li class="text-foreground font-medium" aria-current="page">{title}</li>
+          </ol>
+        </nav>
+
+        <div class="mx-auto max-w-3xl">
+          <p class="text-sm font-semibold uppercase tracking-wide text-primary mb-3">Feature</p>
+          <h1
+            id="feature-heading"
+            class="font-heading text-4xl font-bold tracking-tight text-foreground sm:text-5xl"
+          >
+            {headline}
+          </h1>
+          <p class="mt-6 text-lg leading-8 text-muted-foreground">
+            {description}
+          </p>
+          <div class="mt-8 flex flex-col gap-4 sm:flex-row">
+            <a
+              href="/register"
+              class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center rounded-lg px-6 text-base font-semibold shadow-md transition-all hover:shadow-lg"
+            >
+              Try it free
+            </a>
+            <a
+              href="/"
+              class="inline-flex h-11 items-center justify-center gap-2 rounded-lg border bg-background px-6 text-base font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
+            >
+              See all features
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HowTo Steps -->
+    <section class="py-20 sm:py-28" aria-labelledby="howto-heading">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-2xl text-center mb-16">
+          <h2
+            id="howto-heading"
+            class="font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
+          >
+            {howToName}
+          </h2>
+          <p class="mt-4 text-lg text-muted-foreground">{howToDescription}</p>
+        </div>
+
+        <ol class="mx-auto max-w-3xl space-y-6">
+          {
+            steps.map((step, i) => (
+              <li class="flex gap-6 rounded-2xl border bg-card p-6 shadow-sm">
+                <div class="flex-shrink-0">
+                  <span class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-heading text-base font-bold text-primary">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-foreground text-base">{step.name}</h3>
+                  <p class="mt-1 text-muted-foreground text-sm leading-relaxed">{step.text}</p>
+                </div>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="border-t bg-muted/40 py-20">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
+        <h2 class="font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+          Ready to try {title}?
+        </h2>
+        <p class="mt-4 text-lg text-muted-foreground">
+          Start free — no credit card required. Your first event is set up in under a minute.
+        </p>
+        <a
+          href="/register"
+          class="bg-primary text-primary-foreground hover:bg-primary/90 mt-8 inline-flex h-11 items-center justify-center rounded-lg px-8 text-base font-semibold shadow-md transition-all hover:shadow-lg"
+        >
+          Get started free
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t py-8">
+    <div
+      class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col items-center gap-4 text-sm text-muted-foreground sm:flex-row sm:justify-between"
+    >
+      <p>&copy; {new Date().getFullYear()} Planloo. All rights reserved.</p>
+      <div class="flex gap-6">
+        <a href="/privacy" class="hover:text-foreground transition-colors">Privacy</a>
+        <a href="/terms" class="hover:text-foreground transition-colors">Terms</a>
+      </div>
+    </div>
+  </footer>
+</BaseLayout>

@@ -1,0 +1,70 @@
+# Planloo
+
+> Planloo is an all-in-one event planning platform for individuals and teams. It covers every stage of event organisation — from initial planning through to execution on the day.
+
+## What is Planloo?
+
+Planloo is a web-based SaaS application that helps people plan events of any size. It replaces scattered spreadsheets and email threads with a single workspace where the entire event — guests, budget, tasks, vendors, and seating — is managed in one place. A free plan is available with no credit card required.
+
+## Core Features
+
+- **Guest Management**: Import guests from CSV or add them manually. Send personalised invitation links, collect RSVPs automatically, track dietary requirements and attendance status.
+- **Budget Tracking**: Set an overall budget, log expenses against categories, record vendor payments, and monitor remaining funds with real-time charts.
+- **Task Tracking**: Create checklists, assign tasks to collaborators, set due dates, and track completion progress as the event approaches.
+- **Seating Planner**: Drag-and-drop floor plan editor with support for custom table shapes. Seat guests and detect conflicts in real time. Scales from 10 to 1,000+ guests.
+- **Team Collaboration**: Invite co-planners, assign roles, and work simultaneously on the same event. Full audit trail shows who changed what and when.
+- **Vendor Directory**: Browse and save caterers, venues, photographers, florists, and other service providers. Store contracts, reviews, pricing, and contact details.
+
+## Pricing
+
+Planloo offers a free tier with no credit card required. Paid plans unlock higher guest limits, additional events, priority support, and team collaboration features. See https://planloo.com/#pricing for current pricing.
+
+## Who is it for?
+
+- Individual event hosts planning weddings, birthday parties, corporate events, or private gatherings
+- Professional event planners managing multiple clients
+- Teams and organisations running internal or public-facing events
+
+## Technical Details
+
+- Web application, accessible from any browser on desktop or mobile
+- No software installation required
+- Data is stored securely in the cloud
+
+## Company
+
+- Product: Planloo
+- Website: https://planloo.com
+- Support: support@planloo.com
+
+## Supported Event Types
+
+Planloo supports 14 event types:
+
+- Wedding
+- Birthday Party
+- Corporate Event
+- Conference
+- Holiday Party
+- Engagement Party
+- Fundraiser
+- Anniversary
+- Graduation
+- Retirement Party
+- Baby Shower
+- Bridal Shower
+- Themed Party
+- Celebration of Life
+
+## Extended Documentation
+
+For AI assistants that need more detail, a full product reference is available at:
+https://planloo.com/llms-full.txt
+
+## Key Pages
+
+- Homepage: https://planloo.com/
+- Register (free): https://planloo.com/register
+- Login: https://planloo.com/login
+- Privacy Policy: https://planloo.com/privacy
+- Terms of Service: https://planloo.com/terms

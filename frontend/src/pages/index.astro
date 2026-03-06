@@ -26,6 +26,70 @@ const organizationSchema = {
     email: 'support@planloo.com',
     contactType: 'customer service',
   },
+  sameAs: ['https://twitter.com/planloo', 'https://www.linkedin.com/company/planloo'],
+};
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      '@type': 'Question',
+      name: 'What is Planloo?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Planloo is an all-in-one event planning platform for individuals and teams. It helps you manage guests, track your budget, coordinate tasks, plan seating arrangements, and work with vendors — all in a single workspace.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Is Planloo free to use?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes. Planloo offers a free plan with no credit card required. Paid plans are available for larger events, more collaborators, and advanced features.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What types of events can I plan with Planloo?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Planloo supports 14 event types: weddings, birthday parties, corporate events, conferences, holiday parties, engagement parties, fundraisers, anniversary celebrations, graduation parties, retirement parties, baby showers, bridal showers, themed parties, and celebrations of life. It scales from intimate gatherings to events with 1,000+ guests.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Can multiple people collaborate on an event in Planloo?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes. You can invite co-planners, assign roles, and work simultaneously on the same event. Planloo keeps a full audit trail so you can see who changed what and when.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'How does guest management work in Planloo?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'You can import guests from a CSV file or add them manually. Planloo generates personalised invitation links for each guest to collect RSVPs automatically. You can track dietary requirements, attendance status, and table assignments.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Does Planloo have a seating planner?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes. Planloo includes a drag-and-drop seating planner with real-time conflict detection. You can create custom floor plans with different table shapes and seat guests with confidence, whether you have 10 or 1,000 attendees.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Can I manage vendors and service providers in Planloo?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'Yes. Planloo includes a vendor directory where you can browse and save caterers, venues, photographers, florists, and other service providers. You can store contracts, reviews, pricing notes, and contact details alongside each provider.',
+      },
+    },
+  ],
 };
 
 const softwareSchema = {
@@ -40,8 +104,9 @@ const softwareSchema = {
     priceCurrency: 'USD',
     description: 'Free plan available',
   },
+  keywords: 'event planning, wedding planning, birthday party planning, corporate event planning, conference planning, engagement party, fundraiser planning, anniversary celebration, graduation party, retirement party, baby shower, bridal shower, themed party, celebration of life',
   description:
-    'All-in-one event planning platform with guest management, budgeting, task tracking, and seating arrangements.',
+    'All-in-one event planning platform with guest management, budgeting, task tracking, and seating arrangements. Supports 14 event types including weddings, corporate events, birthdays, conferences, and more.',
 };
 
 const features = [
@@ -109,12 +174,42 @@ const steps = [
       'Use the check-in tool on the day, print seating charts, and access everything from any device.',
   },
 ];
+
+const eventTypes = [
+  { slug: 'wedding', label: 'Wedding', description: 'Full ceremony and reception planning, from guest lists to seating charts' },
+  { slug: 'birthday', label: 'Birthday Party', description: 'Milestone and everyday celebrations, intimate or large-scale' },
+  { slug: 'corporate', label: 'Corporate Event', description: 'Company away days, product launches, and client-facing events' },
+  { slug: 'conference', label: 'Conference', description: 'Multi-session professional gatherings and symposiums' },
+  { slug: 'holiday_party', label: 'Holiday Party', description: 'Seasonal and festive celebrations for teams or families' },
+  { slug: 'engagement_party', label: 'Engagement Party', description: 'Celebrations marking the start of a wedding journey' },
+  { slug: 'fundraiser', label: 'Fundraiser', description: 'Charity galas, auctions, and donor appreciation events' },
+  { slug: 'anniversary', label: 'Anniversary', description: 'Personal and corporate milestone celebrations' },
+  { slug: 'graduation', label: 'Graduation', description: 'Academic and professional achievement celebrations' },
+  { slug: 'retirement', label: 'Retirement Party', description: 'Farewell and appreciation events for outgoing colleagues' },
+  { slug: 'baby_shower', label: 'Baby Shower', description: 'Pre-birth celebrations welcoming new arrivals' },
+  { slug: 'bridal_shower', label: 'Bridal Shower', description: 'Pre-wedding celebrations for the bride-to-be' },
+  { slug: 'themed', label: 'Themed Party', description: 'Costume parties, murder mystery nights, and themed galas' },
+  { slug: 'celebration_of_life', label: 'Celebration of Life', description: 'Meaningful gatherings to honour and remember loved ones' },
+];
+
+const eventTypesSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Event Types Supported by Planloo',
+  description: 'Planloo supports planning 14 types of events, from weddings and birthday parties to corporate conferences and celebrations of life.',
+  itemListElement: eventTypes.map(({ label, description }, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    name: label,
+    description,
+  })),
+};
 ---
 
 <BaseLayout
   title="Event Planning Made Simple"
   description="Planloo is the all-in-one event planning platform. Manage guests, budgets, tasks, and seating — all in one place. Start free today."
-  schema={[websiteSchema, organizationSchema, softwareSchema]}
+  schema={[websiteSchema, organizationSchema, softwareSchema, faqSchema, eventTypesSchema]}
 >
   <!-- Navigation -->
   <header>
@@ -379,6 +474,44 @@ const steps = [
       </div>
     </section>
 
+    <!-- Event Types -->
+    <section class="border-t py-20 sm:py-28" aria-labelledby="event-types-heading">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-2xl text-center">
+          <h2
+            id="event-types-heading"
+            class="font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
+          >
+            Works for every occasion
+          </h2>
+          <p class="mt-4 text-lg text-muted-foreground">
+            From intimate gatherings to large-scale productions, Planloo adapts to any type of event.
+          </p>
+        </div>
+
+        <ul
+          class="mt-12 flex flex-wrap justify-center gap-3"
+          aria-label="Supported event types"
+        >
+          {
+            eventTypes.map(({ label, description }) => (
+              <li>
+                <span
+                  class="flex flex-col gap-1 rounded-xl border bg-card px-5 py-3 shadow-sm transition-shadow hover:shadow-md"
+                  title={description}
+                >
+                  <span class="text-sm font-semibold text-foreground">{label}</span>
+                  <span class="max-w-[200px] text-xs leading-relaxed text-muted-foreground">
+                    {description}
+                  </span>
+                </span>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </section>
+
     <!-- How It Works -->
     <section
       id="how-it-works"
@@ -621,7 +754,7 @@ const steps = [
                 href="/register"
                 class="mt-6 flex h-9 w-full items-center justify-center rounded-lg border text-xs font-medium transition-colors hover:bg-accent"
               >
-                Start free trial
+                Start
               </a>
             </div>
 
@@ -746,7 +879,7 @@ const steps = [
                 href="/register"
                 class="bg-primary text-primary-foreground hover:bg-primary/90 mt-6 flex h-9 w-full items-center justify-center rounded-lg text-xs font-semibold shadow transition-colors"
               >
-                Start free trial
+                Start
               </a>
             </div>
 
@@ -864,7 +997,7 @@ const steps = [
                 href="/register"
                 class="mt-6 flex h-9 w-full items-center justify-center rounded-lg border text-xs font-medium transition-colors hover:bg-accent"
               >
-                Start free trial
+                Start
               </a>
             </div>
 

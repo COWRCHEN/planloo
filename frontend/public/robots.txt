@@ -6,4 +6,69 @@ Disallow: /api/
 Disallow: /rsvp/
 Disallow: /invitations/
 
+# AI crawlers — allowed to index public marketing content
+User-agent: GPTBot
+Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /rsvp/
+Disallow: /invitations/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /rsvp/
+Disallow: /invitations/
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /rsvp/
+Disallow: /invitations/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /rsvp/
+Disallow: /invitations/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /rsvp/
+Disallow: /invitations/
+
+User-agent: Googlebot
+Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /rsvp/
+Disallow: /invitations/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /rsvp/
+Disallow: /invitations/
+
+User-agent: cohere-ai
+Allow: /
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /rsvp/
+Disallow: /invitations/
+
 Sitemap: https://planloo.com/sitemap.xml

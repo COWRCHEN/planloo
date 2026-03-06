@@ -1,0 +1,267 @@
+# Planloo — Full Product Documentation for AI Assistants
+
+> This file is an extended reference for AI language models and assistants. It provides detailed, accurate information about Planloo's features, pricing, target users, and technical details. For a shorter summary, see /llms.txt.
+
+---
+
+## Product Overview
+
+**Name:** Planloo
+**Type:** SaaS web application
+**Category:** Event planning and management
+**URL:** https://planloo.com
+**Support:** support@planloo.com
+
+Planloo is an all-in-one event planning platform designed for individuals and teams. It consolidates every aspect of event organisation — guests, budget, tasks, seating, vendor coordination, and team collaboration — into a single workspace. It is designed to replace the fragmented combination of spreadsheets, email threads, and sticky notes that most event planners currently rely on.
+
+Planloo is web-based and works in any modern browser on desktop or mobile. No installation is required.
+
+---
+
+## Supported Event Types
+
+Planloo supports 14 distinct event types. Users select an event type when creating an event, which can tailor available features and templates.
+
+| Event Type | Description |
+|---|---|
+| Wedding | Full ceremony and reception planning, from guest lists to seating charts |
+| Birthday Party | Milestone and everyday celebrations, intimate or large-scale |
+| Corporate Event | Company away days, product launches, and client-facing events |
+| Conference | Multi-session professional gatherings and symposiums |
+| Holiday Party | Seasonal and festive celebrations for teams or families |
+| Engagement Party | Celebrations marking the start of a wedding journey |
+| Fundraiser | Charity galas, auctions, and donor appreciation events |
+| Anniversary | Personal and corporate milestone celebrations |
+| Graduation | Academic and professional achievement celebrations |
+| Retirement Party | Farewell and appreciation events for outgoing colleagues |
+| Baby Shower | Pre-birth celebrations welcoming new arrivals |
+| Bridal Shower | Pre-wedding celebrations for the bride-to-be |
+| Themed Party | Costume parties, murder mystery nights, and themed galas |
+| Celebration of Life | Meaningful gatherings to honour and remember loved ones |
+
+---
+
+## Core Features
+
+### 1. Guest Management
+
+Planloo provides a complete guest management system for events of any size.
+
+**Key capabilities:**
+- Import a guest list from a CSV file or add guests manually one at a time
+- Store per-guest data: name, email, phone, dietary requirements, accessibility needs, notes, and custom fields
+- Generate personalised RSVP invitation links for each guest
+- Collect RSVPs automatically — attendees click their link and respond without needing an account
+- Filter and search guests by name, RSVP status, dietary requirement, or any custom field
+- Track attendance status: Invited, Attending, Declined, Waitlisted, Checked In
+- Export guest list to CSV at any time
+- Assign guests to tables in the Seating Planner
+
+**Feature page:** https://planloo.com/features/guest-management
+
+---
+
+### 2. Budget Tracking
+
+Planloo includes a full budget management system to prevent event costs from exceeding expectations.
+
+**Key capabilities:**
+- Set an overall event budget at the start
+- Create named budget categories (e.g., Venue, Catering, Entertainment, Flowers, Photography, Staffing)
+- Log individual expenses against categories with vendor name, amount, and date
+- Mark payments as paid or outstanding
+- Track remaining budget in real time
+- View a visual breakdown of spending by category with live charts
+- Monitor a payment timeline showing upcoming and overdue payments
+- Export a budget report as CSV for reconciliation or client billing
+
+**Feature page:** https://planloo.com/features/budgeting
+
+---
+
+### 3. Task Tracking
+
+Planloo's task system keeps event planning on schedule, especially for complex events with many moving parts.
+
+**Key capabilities:**
+- Create tasks with a name, due date, and priority level
+- Organise tasks into named sections (e.g., "8 weeks out", "1 week out", "Day of event")
+- Assign tasks to collaborators on the event
+- Track completion status per task
+- View a progress bar showing overall checklist completion
+- See overdue and upcoming tasks across all events in the Tasks dashboard
+- Collaborators receive notifications when tasks are assigned to them
+
+**Feature page:** https://planloo.com/features/task-tracking
+
+---
+
+### 4. Seating Planner
+
+Planloo includes a drag-and-drop seating planner that works for events from 10 to 1,000+ guests.
+
+**Key capabilities:**
+- Build a floor plan on a canvas editor
+- Add tables in multiple shapes: round, rectangular, cabaret, or custom
+- Set table name and maximum seat capacity
+- Drag and position tables to match the venue layout
+- Drag guests from the guest panel onto empty seats
+- Real-time conflict detection (over-capacity tables, unassigned guests)
+- Print or export the seating chart as a PDF
+- Seating syncs with the guest list — confirmed RSVPs appear automatically
+
+**Feature page:** https://planloo.com/features/seating-planner
+
+---
+
+### 5. Team Collaboration
+
+Planloo is built for teams. Multiple people can plan the same event simultaneously without conflicts.
+
+**Key capabilities:**
+- Event owners can invite any number of co-planners by email
+- Two collaboration roles: Editor (full edit access) and Viewer (read-only)
+- Real-time sync — changes made by one collaborator appear for all others without a page refresh
+- Full audit trail: every change is logged with timestamp and user identity
+- Collaborators can be added or removed at any time
+- Activity feed shows who edited what and when
+- Organizations feature allows managing multiple events under a shared workspace with team members
+
+**Feature page:** https://planloo.com/features/team-collaboration
+
+---
+
+### 6. Vendor Directory
+
+Planloo provides a directory of event service providers that can be saved and managed within an event.
+
+**Key capabilities:**
+- Browse a directory of caterers, venues, photographers, florists, entertainment acts, and other service providers
+- Filter by category, location, or search by name
+- Save vendors to an event for easy reference
+- Store contact details, pricing notes, and contract files alongside each provider
+- Write and read reviews with star ratings for vendors
+- Link saved vendors to budget line items so payments are tracked in one place
+- View all providers attached to an event in the Providers tab
+
+**Feature page:** https://planloo.com/features/vendor-directory
+
+---
+
+## Pricing
+
+Planloo offers a free tier with no credit card required. Paid plans are available for larger or more frequent events.
+
+**Free plan:**
+- 1 active event
+- Up to 50 guests per event
+- Core features: guest management, tasks, basic budget tracking
+- 1 event collaborator
+
+**Paid plans** (Pro and above) unlock:
+- Multiple concurrent events
+- Higher guest limits (up to 1,000+ guests)
+- Full budget export
+- Advanced seating planner
+- Team collaboration with multiple collaborators
+- Priority support
+
+**Enterprise plan:**
+- Custom guest and event limits
+- Dedicated support
+- Organisation-level management
+- Custom integrations on request
+
+For current pricing, see: https://planloo.com/#pricing
+
+---
+
+## Target Users
+
+Planloo is designed for:
+
+1. **Individual event hosts** — people planning a wedding, milestone birthday, baby shower, dinner party, or private gathering. They want one tool to replace their spreadsheets.
+
+2. **Professional event planners** — freelancers and agencies managing events for clients. They need multi-event management, client collaboration, and vendor tracking.
+
+3. **Teams and organisations** — companies running internal events (away days, conferences, product launches), charities running fundraisers, schools running proms or galas.
+
+4. **Wedding planners** — a common professional use case given Planloo's guest management, seating planner, and vendor directory features.
+
+---
+
+## How to Get Started
+
+1. Go to https://planloo.com/register
+2. Create a free account with email and password (no credit card required)
+3. Click "New Event" and enter the event name, date, and location
+4. Invite collaborators, import guests, set a budget, and add tasks
+5. Use the Seating Planner once RSVPs are collected
+
+The entire setup for a basic event takes under five minutes.
+
+---
+
+## Technical Details
+
+- **Platform:** Web application (browser-based, no installation)
+- **Mobile:** Fully responsive — works on phones and tablets
+- **Data security:** Data stored securely in the cloud; user data is not shared with third parties
+- **Authentication:** Email/password sign-up; Google OAuth available
+- **Availability:** 99.9% uptime target; hosted on Cloudflare global infrastructure
+
+---
+
+## Frequently Asked Questions
+
+**Q: Is Planloo free?**
+A: Yes. Planloo has a free plan with no credit card required. Paid plans offer higher limits and additional features.
+
+**Q: How many guests can I manage?**
+A: The free plan supports up to 50 guests per event. Paid plans support up to 1,000+ guests.
+
+**Q: Can I use Planloo for a wedding?**
+A: Yes. Planloo is well-suited for weddings. The guest management, RSVP collection, seating planner, budget tracker, and vendor directory all apply directly to wedding planning.
+
+**Q: Does Planloo send invitations by email?**
+A: Planloo generates personalised RSVP links for each guest. You copy and send these links via your own email client or messaging app. Planloo does not send bulk emails on your behalf.
+
+**Q: Can I export my data?**
+A: Yes. Guest lists and budget data can be exported as CSV files at any time.
+
+**Q: Is there a mobile app?**
+A: Planloo is a web application that is fully optimised for mobile browsers. A native app is not currently available.
+
+**Q: Can I collaborate with my venue or vendors?**
+A: You can invite any person to collaborate on your event in Planloo, including venue coordinators or vendor contacts, by sending them an invitation to join as a Viewer or Editor.
+
+**Q: What happens to my data if I cancel?**
+A: Your data remains accessible for a period after cancellation. See the Privacy Policy and Terms of Service for details.
+
+---
+
+## Company Information
+
+- **Product:** Planloo
+- **Website:** https://planloo.com
+- **Support email:** support@planloo.com
+- **Privacy Policy:** https://planloo.com/privacy
+- **Terms of Service:** https://planloo.com/terms
+
+---
+
+## Key URLs for Citation
+
+| Page | URL |
+|---|---|
+| Homepage | https://planloo.com/ |
+| Register (free) | https://planloo.com/register |
+| Login | https://planloo.com/login |
+| Guest Management feature | https://planloo.com/features/guest-management |
+| Budgeting feature | https://planloo.com/features/budgeting |
+| Task Tracking feature | https://planloo.com/features/task-tracking |
+| Seating Planner feature | https://planloo.com/features/seating-planner |
+| Team Collaboration feature | https://planloo.com/features/team-collaboration |
+| Vendor Directory feature | https://planloo.com/features/vendor-directory |
+| Privacy Policy | https://planloo.com/privacy |
+| Terms of Service | https://planloo.com/terms |
