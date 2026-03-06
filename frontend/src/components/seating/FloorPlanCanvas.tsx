@@ -13,6 +13,7 @@ interface Props {
   onObjectDragged: (update: BulkPositionUpdate) => void;
   onSelectObject: (uuid: string | null) => void;
   onDropTemplate?: (input: CreateObjectInput) => void;
+  stageRef?: React.RefObject<Konva.Stage | null>;
 }
 
 const MIN_ZOOM = 0.25;
@@ -21,14 +22,15 @@ const ZOOM_SPEED = 1.1;
 const SCROLLBAR_SIZE = 6;
 const SCROLLBAR_MIN_THUMB = 20;
 
-export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject, onDropTemplate }: Props) {
+export function FloorPlanCanvas({ plan, onObjectDragged, onSelectObject, onDropTemplate, stageRef: externalStageRef }: Props) {
   const zoom = useStore($zoom);
   const panOffset = useStore($panOffset);
   const selectedUuids = useStore($selectedObjectUuids);
   const gridVisible = useStore($gridVisible);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const stageRef = useRef<Konva.Stage>(null);
+  const internalStageRef = useRef<Konva.Stage | null>(null);
+  const stageRef = externalStageRef ?? internalStageRef;
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
   const [isDraggingStage, setIsDraggingStage] = useState(false);
 

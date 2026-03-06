@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
+import type Konva from 'konva';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ import {
   useDeleteFloorPlan,
   type FloorPlanDetailResponse,
 } from '@/hooks/use-floor-plans';
+import { useEvent } from '@/hooks/use-events';
 import {
   useCreateObject,
   useUpdateObject,
@@ -76,7 +78,9 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [confirmDeletePlanUuid, setConfirmDeletePlanUuid] = useState<string | null>(null);
   const [confirmDeleteObjectUuid, setConfirmDeleteObjectUuid] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<Konva.Stage | null>(null);
 
   // Fullscreen toggle
   const handleToggleFullscreen = useCallback(() => {
@@ -100,6 +104,9 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
+  // Event data
+  const { data: eventData } = useEvent(eventUuid);
+
   // Billing / plan limits
   const { data: billingData, isLoading: billingLoading } = useBilling();
 
@@ -115,7 +122,10 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
   const createObject = useCreateObject(eventUuid, activePlanUuid ?? '');
   const updateObject = useUpdateObject(eventUuid, activePlanUuid ?? '');
   const deleteObject = useDeleteObject(eventUuid, activePlanUuid ?? '');
-  const { debouncedSave, isPending: isSaving } = useBulkUpdatePositions(eventUuid, activePlanUuid ?? '');
+  const { debouncedSave, isPending: isSaving } = useBulkUpdatePositions(
+    eventUuid,
+    activePlanUuid ?? ''
+  );
   const assignGuest = useAssignGuest(eventUuid, activePlanUuid ?? '');
   const unassignGuest = useUnassignGuest(eventUuid, activePlanUuid ?? '');
   const autoAssign = useAutoAssign(eventUuid, activePlanUuid ?? '');
@@ -123,13 +133,15 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
   // Auto-select first/default plan
   useEffect(() => {
     if (plans.length > 0 && !activePlanUuid) {
-      const defaultPlan = plans.find((p) => p.isDefault) ?? plans[0];
+      const defaultPlan = plans.find(p => p.isDefault) ?? plans[0];
       if (defaultPlan) setActivePlanUuid(defaultPlan.uuid);
     }
   }, [plans, activePlanUuid]);
 
   // Local optimistic position state
-  const [localPositions, setLocalPositions] = useState<Record<string, { posX: number; posY: number }>>({});
+  const [localPositions, setLocalPositions] = useState<
+    Record<string, { posX: number; posY: number }>
+  >({});
 
   // Reset local positions when plan detail changes
   useEffect(() => {
@@ -139,7 +151,7 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
   const handleObjectDragged = useCallback(
     (update: BulkPositionUpdate) => {
       // Optimistic local update
-      setLocalPositions((prev) => ({
+      setLocalPositions(prev => ({
         ...prev,
         [update.uuid]: { posX: update.posX, posY: update.posY },
       }));
@@ -187,7 +199,7 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
     createPlan.mutate(
       { name: newPlanName.trim() },
       {
-        onSuccess: (data) => {
+        onSuccess: data => {
           if (data) setActivePlanUuid(data.uuid);
           setNewPlanName('');
           setShowNewPlanInput(false);
@@ -205,7 +217,7 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
         if (activePlanUuid === planUuid) {
           handleSelectObject(null);
           setLocalPositions({});
-          const remaining = plans.filter((p) => p.uuid !== planUuid);
+          const remaining = plans.filter(p => p.uuid !== planUuid);
           setActivePlanUuid(remaining[0]?.uuid);
         }
       },
@@ -226,25 +238,132 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
   const planWithLocalPositions: FloorPlanDetailResponse | undefined = planDetail
     ? {
         ...planDetail,
-        objects: planDetail.objects.map((obj) => {
+        objects: planDetail.objects.map(obj => {
           const local = localPositions[obj.uuid];
           return local ? { ...obj, posX: local.posX, posY: local.posY } : obj;
         }),
       }
     : undefined;
 
-  const selectedObject = planWithLocalPositions?.objects.find((o) => o.uuid === selectedObjectUuid);
+  const selectedObject = planWithLocalPositions?.objects.find(o => o.uuid === selectedObjectUuid);
 
   // Collect all guests for relationships dialog (assigned + unassigned)
   const allGuests = [
-    ...(planDetail?.objects.flatMap((o) =>
-      o.assignments.map((a) => ({ uuid: a.guestUuid, firstName: a.guestFirstName, lastName: a.guestLastName }))
+    ...(planDetail?.objects.flatMap(o =>
+      o.assignments.map(a => ({
+        uuid: a.guestUuid,
+        firstName: a.guestFirstName,
+        lastName: a.guestLastName,
+      }))
     ) ?? []),
-    ...unassignedGuests.map((g) => ({ uuid: g.uuid, firstName: g.firstName, lastName: g.lastName })),
+    ...unassignedGuests.map(g => ({ uuid: g.uuid, firstName: g.firstName, lastName: g.lastName })),
   ];
   // Deduplicate
-  const guestMap = new Map(allGuests.map((g) => [g.uuid, g]));
+  const guestMap = new Map(allGuests.map(g => [g.uuid, g]));
   const uniqueGuests = [...guestMap.values()];
+
+  const handleExportPDF = async () => {
+    if (!planWithLocalPositions) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    setIsExporting(true);
+    try {
+      const [{ jsPDF }, { autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+      ]);
+
+      // Capture the full floor plan at zoom=1
+      const planW = stage.width();
+      const planH = planWithLocalPositions.heightFt * (stage.width() / planWithLocalPositions.widthFt);
+      const savedScaleX = stage.scaleX();
+      const savedScaleY = stage.scaleY();
+      const savedX = stage.x();
+      const savedY = stage.y();
+      const savedH = stage.height();
+
+      stage.height(planH);
+      stage.scale({ x: 1, y: 1 });
+      stage.position({ x: 0, y: 0 });
+      const floorPlanDataUrl = stage.toDataURL({ pixelRatio: 2 });
+      stage.height(savedH);
+      stage.scale({ x: savedScaleX, y: savedScaleY });
+      stage.position({ x: savedX, y: savedY });
+
+      // Page 1 — Floor Plan (landscape A4)
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      doc.setFontSize(13);
+      doc.text(planWithLocalPositions.name, 148.5, 9, { align: 'center' });
+
+      const availW = 277;
+      const availH = 183;
+      const imgAspect = planW / planH;
+      const pdfAspect = availW / availH;
+      const imgW = imgAspect > pdfAspect ? availW : availH * imgAspect;
+      const imgH = imgAspect > pdfAspect ? availW / imgAspect : availH;
+      doc.addImage(floorPlanDataUrl, 'PNG', (297 - imgW) / 2, 14, imgW, imgH);
+
+      // Page 2 — Guest list (portrait A4)
+      doc.addPage('a4', 'portrait');
+      doc.setFontSize(13);
+      doc.text(`Guest List — ${planWithLocalPositions.name}`, 105, 12, { align: 'center' });
+
+      const rows: (string | number)[][] = [];
+      for (const obj of planWithLocalPositions.objects) {
+        if (obj.objectType !== 'table') continue;
+        for (const a of obj.assignments) {
+          rows.push([
+            `${a.guestFirstName}${a.guestLastName ? ' ' + a.guestLastName : ''}`,
+            obj.label,
+            a.seatNumber ?? '—',
+            a.guestRsvpStatus ?? '—',
+            a.guestDietaryRestrictions ?? '—',
+          ]);
+        }
+      }
+      for (const g of unassignedGuests) {
+        rows.push([
+          `${g.firstName}${g.lastName ? ' ' + g.lastName : ''}`,
+          'Unassigned',
+          '—',
+          g.rsvpStatus ?? '—',
+          g.dietaryRestrictions ?? '—',
+        ]);
+      }
+      rows.sort((a, b) => {
+        const ta = String(a[1]);
+        const tb = String(b[1]);
+        if (ta === 'Unassigned' && tb !== 'Unassigned') return 1;
+        if (ta !== 'Unassigned' && tb === 'Unassigned') return -1;
+        if (ta !== tb) return ta.localeCompare(tb);
+        return Number(a[2]) - Number(b[2]);
+      });
+
+      autoTable(doc, {
+        startY: 18,
+        head: [['Name', 'Table', 'Seat', 'RSVP', 'Dietary']],
+        body: rows,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [59, 130, 246] },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        columnStyles: {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 20, halign: 'center' },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 'auto' },
+        },
+      });
+
+      const safePlanName = planWithLocalPositions.name.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+      const safeEventName = (eventData?.title ?? '').replace(/[^a-z0-9]/gi, '-').toLowerCase();
+      const fileName = safeEventName ? `${safeEventName}-${safePlanName}-seating.pdf` : `${safePlanName}-seating.pdf`;
+      doc.save(fileName);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Loading state
   if (billingLoading || plansLoading) {
@@ -272,23 +391,29 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
       {/* Plan tabs + actions bar */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1">
-          {plans.map((p) => (
+          {plans.map(p => (
             <div key={p.uuid} className="flex items-center">
               <Button
                 variant={p.uuid === activePlanUuid ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setActivePlanUuid(p.uuid)}
-                className="text-xs rounded-r-none"
+                className="rounded-r-none text-xs"
               >
                 {p.name}
               </Button>
               <Button
                 variant={p.uuid === activePlanUuid ? 'default' : 'outline'}
                 size="sm"
-                className="text-xs px-1 rounded-l-none border-l-0"
+                className="rounded-l-none border-l-0 px-1 text-xs"
                 onClick={() => setConfirmDeletePlanUuid(p.uuid)}
               >
-                <svg className="w-3 h-3 text-destructive" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg
+                  className="h-3 w-3 text-destructive"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
                   <path d="M4 4l8 8M12 4l-8 8" />
                 </svg>
               </Button>
@@ -299,20 +424,25 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
               <div className="flex items-center gap-1">
                 <Input
                   value={newPlanName}
-                  onChange={(e) => setNewPlanName(e.target.value)}
+                  onChange={e => setNewPlanName(e.target.value)}
                   placeholder="Plan name"
-                  className="h-8 text-xs w-32"
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreatePlan()}
+                  className="h-8 w-32 text-xs"
+                  onKeyDown={e => e.key === 'Enter' && handleCreatePlan()}
                   autoFocus
                 />
-                <Button size="sm" onClick={handleCreatePlan} disabled={createPlan.isPending} className="text-xs h-8">
+                <Button
+                  size="sm"
+                  onClick={handleCreatePlan}
+                  disabled={createPlan.isPending}
+                  className="h-8 text-xs"
+                >
                   Add
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowNewPlanInput(false)}
-                  className="text-xs h-8"
+                  className="h-8 text-xs"
                 >
                   Cancel
                 </Button>
@@ -337,10 +467,18 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
           <ArrangementPresetPicker onApplyPreset={handleApplyPreset} />
           <AutoAssignDialog
             unassignedGuests={unassignedGuests}
-            onAutoAssign={(uuids) => autoAssign.mutate(uuids)}
+            onAutoAssign={uuids => autoAssign.mutate(uuids)}
             isAutoAssigning={autoAssign.isPending}
           />
-          <GuestRelationshipsDialog eventUuid={eventUuid} allGuests={uniqueGuests} />
+          {/*<GuestRelationshipsDialog eventUuid={eventUuid} allGuests={uniqueGuests} />*/}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPDF}
+            disabled={isExporting || !planWithLocalPositions}
+          >
+            {isExporting ? 'Exporting…' : 'Export PDF'}
+          </Button>
           <a
             href={`/dashboard/events/${eventUuid}/guests`}
             className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -360,14 +498,15 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
       <SeatingChartStats plan={planWithLocalPositions} unassignedCount={unassignedGuests.length} />
 
       {/* Conflicts */}
-      <ConflictAlerts
-        conflicts={conflicts}
-        onSelectObject={(uuid) => handleSelectObject(uuid)}
-      />
+      <ConflictAlerts conflicts={conflicts} onSelectObject={uuid => handleSelectObject(uuid)} />
 
       {/* Main layout: palette + canvas + property/assignment panel */}
       {activePlanUuid && planWithLocalPositions ? (
-        <div ref={canvasContainerRef} className="border rounded-lg overflow-hidden flex bg-white" style={{ height: isFullscreen ? '100vh' : '60vh', minHeight: 400 }}>
+        <div
+          ref={canvasContainerRef}
+          className="flex overflow-hidden rounded-lg border bg-white"
+          style={{ height: isFullscreen ? '100vh' : '60vh', minHeight: 400 }}
+        >
           {/* Left: Object Palette */}
           <ObjectPalette
             eventUuid={eventUuid}
@@ -377,19 +516,25 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
           />
 
           {/* Center: Canvas + overlaid right panel */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <FloorPlanToolbar planName={planWithLocalPositions.name} isSaving={isSaving} isFullscreen={isFullscreen} onToggleFullscreen={handleToggleFullscreen} />
-            <div className="flex-1 relative flex flex-col min-h-0 overflow-hidden">
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <FloorPlanToolbar
+              planName={planWithLocalPositions.name}
+              isSaving={isSaving}
+              isFullscreen={isFullscreen}
+              onToggleFullscreen={handleToggleFullscreen}
+            />
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
               <FloorPlanCanvas
                 plan={planWithLocalPositions}
                 onObjectDragged={handleObjectDragged}
                 onSelectObject={handleSelectObject}
                 onDropTemplate={handleAddObject}
+                stageRef={stageRef}
               />
 
               {/* Right: Property or Assignment Panel (absolutely positioned so it doesn't shift layout) */}
               {selectedObject && selectedObject.objectType === 'table' ? (
-                <div className="absolute top-0 right-0 h-full z-10">
+                <div className="absolute right-0 top-0 z-10 h-full">
                   <GuestAssignmentPanel
                     object={selectedObject}
                     unassignedGuests={unassignedGuests}
@@ -399,14 +544,17 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
                         assignments: [{ guestUuid, seatNumber }],
                       })
                     }
-                    onUnassign={(guestUuid) =>
+                    onUnassign={guestUuid =>
                       unassignGuest.mutate({
                         objectUuid: selectedObject.uuid,
                         guestUuid,
                       })
                     }
-                    onRename={(newLabel) =>
-                      updateObject.mutate({ objectUuid: selectedObject.uuid, data: { label: newLabel } })
+                    onRename={newLabel =>
+                      updateObject.mutate({
+                        objectUuid: selectedObject.uuid,
+                        data: { label: newLabel },
+                      })
                     }
                     onDelete={() => handleRequestDeleteObject(selectedObject.uuid)}
                     onClose={() => handleSelectObject(null)}
@@ -415,10 +563,10 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
                   />
                 </div>
               ) : selectedObject ? (
-                <div className="absolute top-0 right-0 h-full z-10">
+                <div className="absolute right-0 top-0 z-10 h-full">
                   <ObjectPropertyPanel
                     object={selectedObject}
-                    onUpdate={(data) =>
+                    onUpdate={data =>
                       updateObject.mutate({ objectUuid: selectedObject.uuid, data })
                     }
                     onDelete={() => handleRequestDeleteObject(selectedObject.uuid)}
@@ -433,32 +581,43 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
       ) : detailLoading ? (
         <Skeleton className="h-[400px] w-full" />
       ) : plans.length === 0 ? (
-        <div className="border rounded-lg p-12 text-center text-muted-foreground">
-          <p className="text-lg font-medium mb-2">No floor plans yet</p>
-          <p className="text-sm mb-4">Create your first floor plan to start designing your seating chart.</p>
-          <Button
-            onClick={() => setShowNewPlanInput(true)}
-            className="text-sm"
-          >
+        <div className="rounded-lg border p-12 text-center text-muted-foreground">
+          <p className="mb-2 text-lg font-medium">No floor plans yet</p>
+          <p className="mb-4 text-sm">
+            Create your first floor plan to start designing your seating chart.
+          </p>
+          <Button onClick={() => setShowNewPlanInput(true)} className="text-sm">
             Create Floor Plan
           </Button>
         </div>
       ) : null}
 
       {/* Delete plan confirmation dialog */}
-      <Dialog open={!!confirmDeletePlanUuid} onOpenChange={(open) => { if (!open) setConfirmDeletePlanUuid(null); }}>
+      <Dialog
+        open={!!confirmDeletePlanUuid}
+        onOpenChange={open => {
+          if (!open) setConfirmDeletePlanUuid(null);
+        }}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Confirm Delete</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &ldquo;{plans.find((p) => p.uuid === confirmDeletePlanUuid)?.name}&rdquo;? All objects and seat assignments in this plan will be removed. This cannot be undone.
+              Are you sure you want to delete &ldquo;
+              {plans.find(p => p.uuid === confirmDeletePlanUuid)?.name}&rdquo;? All objects and seat
+              assignments in this plan will be removed. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" onClick={() => setConfirmDeletePlanUuid(null)}>
               Cancel
             </Button>
-            <Button variant="destructive" size="sm" onClick={handleDeletePlan} disabled={deletePlan.isPending}>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeletePlan}
+              disabled={deletePlan.isPending}
+            >
               {deletePlan.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>
@@ -466,16 +625,28 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
       </Dialog>
 
       {/* Delete object confirmation dialog */}
-      <Dialog open={!!confirmDeleteObjectUuid} onOpenChange={(open) => { if (!open) setConfirmDeleteObjectUuid(null); }}>
+      <Dialog
+        open={!!confirmDeleteObjectUuid}
+        onOpenChange={open => {
+          if (!open) setConfirmDeleteObjectUuid(null);
+        }}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete {(() => {
-              const obj = planWithLocalPositions?.objects.find((o) => o.uuid === confirmDeleteObjectUuid);
-              return obj?.objectType === 'table' ? 'Table' : 'Element';
-            })()}</DialogTitle>
+            <DialogTitle>
+              Delete{' '}
+              {(() => {
+                const obj = planWithLocalPositions?.objects.find(
+                  o => o.uuid === confirmDeleteObjectUuid
+                );
+                return obj?.objectType === 'table' ? 'Table' : 'Element';
+              })()}
+            </DialogTitle>
             <DialogDescription>
               {(() => {
-                const obj = planWithLocalPositions?.objects.find((o) => o.uuid === confirmDeleteObjectUuid);
+                const obj = planWithLocalPositions?.objects.find(
+                  o => o.uuid === confirmDeleteObjectUuid
+                );
                 if (!obj) return 'Are you sure?';
                 const assignedCount = obj.assignments?.length ?? 0;
                 if (assignedCount > 0) {
@@ -489,7 +660,12 @@ export function SeatingChartInner({ eventUuid }: { eventUuid: string }) {
             <Button variant="outline" size="sm" onClick={() => setConfirmDeleteObjectUuid(null)}>
               Cancel
             </Button>
-            <Button variant="destructive" size="sm" onClick={handleConfirmDeleteObject} disabled={deleteObject.isPending}>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleConfirmDeleteObject}
+              disabled={deleteObject.isPending}
+            >
               {deleteObject.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </DialogFooter>

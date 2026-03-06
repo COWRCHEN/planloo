@@ -78,6 +78,7 @@ const now = unixNow();
 
 function generateGuests(eventUuid, eventIdx, count) {
   const lines = [];
+  const guestUuids = [];
   const usedNames = new Set();
   for (let g = 0; g < count; g++) {
     let firstName, lastName, fullKey;
@@ -92,12 +93,13 @@ function generateGuests(eventUuid, eventIdx, count) {
     const rsvpStatus = pick(RSVP_STATUSES);
     const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${g}@example.com`;
 
+    guestUuids.push(guestUuid);
     lines.push(
       `INSERT INTO guests (uuid, event_id, first_name, last_name, email, rsvp_status, plus_ones_allowed, plus_ones_count, plus_ones_count_adults, plus_ones_count_children, checked_in, created_at, updated_at) ` +
       `VALUES ('${guestUuid}', (SELECT id FROM events WHERE uuid = '${eventUuid}'), '${escapeSql(firstName)}', '${escapeSql(lastName)}', '${email}', '${rsvpStatus}', ${Math.floor(Math.random() * 3)}, 0, 0, 0, 0, ${now}, ${now});`
     );
   }
-  return lines;
+  return { lines, guestUuids };
 }
 
 function generateTasks(eventUuid, startDate, taskDefs) {
@@ -272,6 +274,184 @@ const BUDGET_TEMPLATES = {
     { category: 'other', itemName: 'Miscellaneous', description: 'Other event expenses', estimatedCost: 300, actualCost: null, paymentStatus: 'pending' },
   ],
 };
+
+// ── Seating chart presets by event type ──────────────────────────────────────
+// Coordinate space: floor plan is 1000×800 units. Round tables default 60×60,
+// rectangular 160×40, dance floor 200×200, stage 160×80, bar 100×40.
+
+const SEATING_PRESETS = {
+  wedding: {
+    name: 'Reception Hall',
+    elements: [
+      { elementType: 'dance_floor', label: 'Dance Floor', posX: 380, posY: 560, widthFt: 200, heightFt: 200 },
+      { elementType: 'bar',         label: 'Bar',         posX: 860, posY: 720, widthFt: 100, heightFt: 40  },
+      { elementType: 'gift_table',  label: 'Gift Table',  posX: 40,  posY: 720, widthFt: 120, heightFt: 30  },
+      { elementType: 'entrance',    label: 'Entrance',    posX: 480, posY: 10,  widthFt: 40,  heightFt: 40  },
+    ],
+    headTable: { posX: 350, posY: 60, widthFt: 300, heightFt: 30, seatCount: 10, seatTop: 0, seatBottom: 10, seatLeft: 0, seatRight: 0 },
+    tableShape: 'round', seatsPerTable: 8, tableWidthFt: 60, tableHeightFt: 60,
+    seatTop: null, seatBottom: null, seatLeft: null, seatRight: null,
+    tableStartX: 80, tableStartY: 140, tableCols: 5, colSpacing: 140, rowSpacing: 130,
+  },
+  conference: {
+    name: 'Conference Hall',
+    elements: [
+      { elementType: 'stage',    label: 'Stage',        posX: 420, posY: 20,  widthFt: 160, heightFt: 80 },
+      { elementType: 'bar',      label: 'Refreshments', posX: 860, posY: 720, widthFt: 100, heightFt: 40 },
+      { elementType: 'entrance', label: 'Entrance',     posX: 480, posY: 740, widthFt: 40,  heightFt: 40 },
+    ],
+    headTable: null,
+    tableShape: 'rectangular', seatsPerTable: 6, tableWidthFt: 160, tableHeightFt: 40,
+    seatTop: 2, seatBottom: 2, seatLeft: 1, seatRight: 1,
+    tableStartX: 70, tableStartY: 140, tableCols: 4, colSpacing: 180, rowSpacing: 90,
+  },
+  corporate: {
+    name: 'Ballroom',
+    elements: [
+      { elementType: 'stage',      label: 'Stage',    posX: 420, posY: 20,  widthFt: 160, heightFt: 80  },
+      { elementType: 'dance_floor', label: 'Dance Floor', posX: 380, posY: 560, widthFt: 200, heightFt: 200 },
+      { elementType: 'bar',        label: 'Bar',      posX: 860, posY: 720, widthFt: 100, heightFt: 40  },
+      { elementType: 'entrance',   label: 'Entrance', posX: 480, posY: 740, widthFt: 40,  heightFt: 40  },
+    ],
+    headTable: null,
+    tableShape: 'round', seatsPerTable: 8, tableWidthFt: 60, tableHeightFt: 60,
+    seatTop: null, seatBottom: null, seatLeft: null, seatRight: null,
+    tableStartX: 80, tableStartY: 140, tableCols: 5, colSpacing: 140, rowSpacing: 130,
+  },
+  birthday: {
+    name: 'Party Hall',
+    elements: [
+      { elementType: 'dance_floor', label: 'Dance Floor', posX: 370, posY: 570, widthFt: 180, heightFt: 180 },
+      { elementType: 'dj_booth',   label: 'DJ Booth',    posX: 840, posY: 700, widthFt: 60,  heightFt: 40  },
+      { elementType: 'bar',        label: 'Bar',         posX: 40,  posY: 720, widthFt: 100, heightFt: 40  },
+      { elementType: 'gift_table', label: 'Gift Table',  posX: 40,  posY: 310, widthFt: 120, heightFt: 30  },
+      { elementType: 'entrance',   label: 'Entrance',    posX: 480, posY: 740, widthFt: 40,  heightFt: 40  },
+    ],
+    headTable: null,
+    tableShape: 'round', seatsPerTable: 8, tableWidthFt: 60, tableHeightFt: 60,
+    seatTop: null, seatBottom: null, seatLeft: null, seatRight: null,
+    tableStartX: 200, tableStartY: 80, tableCols: 4, colSpacing: 140, rowSpacing: 130,
+  },
+  fundraiser: {
+    name: 'Grand Ballroom',
+    elements: [
+      { elementType: 'stage',      label: 'Stage',    posX: 420, posY: 20,  widthFt: 160, heightFt: 80  },
+      { elementType: 'dance_floor', label: 'Dance Floor', posX: 380, posY: 550, widthFt: 200, heightFt: 200 },
+      { elementType: 'bar',        label: 'Bar',      posX: 860, posY: 720, widthFt: 100, heightFt: 40  },
+      { elementType: 'buffet',     label: 'Buffet',   posX: 40,  posY: 360, widthFt: 120, heightFt: 30  },
+      { elementType: 'entrance',   label: 'Entrance', posX: 480, posY: 740, widthFt: 40,  heightFt: 40  },
+    ],
+    headTable: null,
+    tableShape: 'round', seatsPerTable: 8, tableWidthFt: 60, tableHeightFt: 60,
+    seatTop: null, seatBottom: null, seatLeft: null, seatRight: null,
+    tableStartX: 200, tableStartY: 140, tableCols: 4, colSpacing: 140, rowSpacing: 130,
+  },
+  baby_shower: {
+    name: 'Event Space',
+    elements: [
+      { elementType: 'buffet',     label: 'Food & Beverages', posX: 810, posY: 300, widthFt: 120, heightFt: 30 },
+      { elementType: 'gift_table', label: 'Gift Table',       posX: 810, posY: 360, widthFt: 120, heightFt: 30 },
+      { elementType: 'entrance',   label: 'Entrance',         posX: 480, posY: 740, widthFt: 40,  heightFt: 40 },
+    ],
+    headTable: null,
+    tableShape: 'round', seatsPerTable: 8, tableWidthFt: 60, tableHeightFt: 60,
+    seatTop: null, seatBottom: null, seatLeft: null, seatRight: null,
+    tableStartX: 80, tableStartY: 80, tableCols: 3, colSpacing: 140, rowSpacing: 130,
+  },
+  other: {
+    name: 'Main Hall',
+    elements: [
+      { elementType: 'bar',      label: 'Bar',      posX: 860, posY: 720, widthFt: 100, heightFt: 40 },
+      { elementType: 'buffet',   label: 'Buffet',   posX: 860, posY: 620, widthFt: 120, heightFt: 30 },
+      { elementType: 'entrance', label: 'Entrance', posX: 480, posY: 740, widthFt: 40,  heightFt: 40 },
+    ],
+    headTable: null,
+    tableShape: 'round', seatsPerTable: 8, tableWidthFt: 60, tableHeightFt: 60,
+    seatTop: null, seatBottom: null, seatLeft: null, seatRight: null,
+    tableStartX: 80, tableStartY: 80, tableCols: 4, colSpacing: 140, rowSpacing: 130,
+  },
+};
+
+function generateSeatingData(eventUuid, guestUuids, eventType) {
+  const lines = [];
+  const preset = SEATING_PRESETS[eventType] ?? SEATING_PRESETS.other;
+  const floorPlanUuid = randomUUID();
+  const guestCount = guestUuids.length;
+
+  // Floor plan
+  lines.push(
+    `INSERT INTO floor_plans (uuid, event_id, name, width_ft, height_ft, grid_snap, is_default, sort_order, created_at, updated_at) ` +
+    `VALUES ('${floorPlanUuid}', (SELECT id FROM events WHERE uuid = '${eventUuid}'), '${escapeSql(preset.name)}', 1000, 800, 10, 1, 0, ${now}, ${now});`
+  );
+
+  let sortOrder = 0;
+
+  // Venue elements
+  for (const el of preset.elements) {
+    const elUuid = randomUUID();
+    lines.push(
+      `INSERT INTO floor_plan_objects (uuid, floor_plan_id, object_type, element_type, label, pos_x, pos_y, width_ft, height_ft, rotation, is_locked, sort_order, created_at, updated_at) ` +
+      `VALUES ('${elUuid}', (SELECT id FROM floor_plans WHERE uuid = '${floorPlanUuid}'), 'element', '${el.elementType}', '${escapeSql(el.label)}', ${el.posX}, ${el.posY}, ${el.widthFt}, ${el.heightFt}, 0, 0, ${sortOrder++}, ${now}, ${now});`
+    );
+  }
+
+  const tableObjects = []; // { uuid, seatCount, label }
+
+  // Head table (weddings)
+  if (preset.headTable) {
+    const ht = preset.headTable;
+    const htUuid = randomUUID();
+    lines.push(
+      `INSERT INTO floor_plan_objects (uuid, floor_plan_id, object_type, table_shape, label, pos_x, pos_y, width_ft, height_ft, rotation, seat_count, seat_top, seat_bottom, seat_left, seat_right, table_number, is_locked, sort_order, created_at, updated_at) ` +
+      `VALUES ('${htUuid}', (SELECT id FROM floor_plans WHERE uuid = '${floorPlanUuid}'), 'table', 'head_table', 'Head Table', ${ht.posX}, ${ht.posY}, ${ht.widthFt}, ${ht.heightFt}, 0, ${ht.seatCount}, ${ht.seatTop}, ${ht.seatBottom}, ${ht.seatLeft}, ${ht.seatRight}, 0, 0, ${sortOrder++}, ${now}, ${now});`
+    );
+    tableObjects.push({ uuid: htUuid, seatCount: ht.seatCount, label: 'Head Table' });
+  }
+
+  // Regular tables
+  const reservedSeats = preset.headTable ? preset.headTable.seatCount : 0;
+  const numTables = Math.max(1, Math.ceil((guestCount - reservedSeats) / preset.seatsPerTable));
+  const sT = preset.seatTop    != null ? preset.seatTop    : 'NULL';
+  const sB = preset.seatBottom != null ? preset.seatBottom : 'NULL';
+  const sL = preset.seatLeft   != null ? preset.seatLeft   : 'NULL';
+  const sR = preset.seatRight  != null ? preset.seatRight  : 'NULL';
+
+  for (let i = 0; i < numTables; i++) {
+    const tableNum = i + 1;
+    const col = i % preset.tableCols;
+    const row = Math.floor(i / preset.tableCols);
+    const posX = preset.tableStartX + col * preset.colSpacing;
+    const posY = preset.tableStartY + row * preset.rowSpacing;
+    const tableUuid = randomUUID();
+    const label = `Table ${tableNum}`;
+
+    lines.push(
+      `INSERT INTO floor_plan_objects (uuid, floor_plan_id, object_type, table_shape, label, pos_x, pos_y, width_ft, height_ft, rotation, seat_count, seat_top, seat_bottom, seat_left, seat_right, table_number, is_locked, sort_order, created_at, updated_at) ` +
+      `VALUES ('${tableUuid}', (SELECT id FROM floor_plans WHERE uuid = '${floorPlanUuid}'), 'table', '${preset.tableShape}', '${label}', ${posX}, ${posY}, ${preset.tableWidthFt}, ${preset.tableHeightFt}, 0, ${preset.seatsPerTable}, ${sT}, ${sB}, ${sL}, ${sR}, ${tableNum}, 0, ${sortOrder++}, ${now}, ${now});`
+    );
+    tableObjects.push({ uuid: tableUuid, seatCount: preset.seatsPerTable, label });
+  }
+
+  // Assign ~80% of guests to seats sequentially
+  const guestsToAssign = guestUuids.slice(0, Math.ceil(guestCount * 0.8));
+  let guestIdx = 0;
+
+  for (const tableInfo of tableObjects) {
+    for (let seat = 1; seat <= tableInfo.seatCount && guestIdx < guestsToAssign.length; seat++) {
+      const guestUuid = guestsToAssign[guestIdx++];
+      lines.push(
+        `INSERT INTO seat_assignments (floor_plan_object_id, guest_id, seat_number, created_at) ` +
+        `VALUES ((SELECT id FROM floor_plan_objects WHERE uuid = '${tableInfo.uuid}'), (SELECT id FROM guests WHERE uuid = '${guestUuid}'), ${seat}, ${now});`
+      );
+      lines.push(
+        `UPDATE guests SET table_assignment = '${escapeSql(tableInfo.label)}', updated_at = ${now} WHERE uuid = '${guestUuid}';`
+      );
+    }
+    if (guestIdx >= guestsToAssign.length) break;
+  }
+
+  return lines;
+}
 
 // ── User profiles ─────────────────────────────────────────────────────────────
 
@@ -724,8 +904,12 @@ for (const user of USERS) {
     );
 
     // Guests
-    lines.push(...generateGuests(eventUuid, globalEventIdx, event.guestCount));
+    const { lines: guestLines, guestUuids } = generateGuests(eventUuid, globalEventIdx, event.guestCount);
+    lines.push(...guestLines);
     totalGuests += event.guestCount;
+
+    // Seating chart
+    lines.push(...generateSeatingData(eventUuid, guestUuids, event.eventType));
 
     // Tasks (slice from template based on taskCount)
     const taskTemplate = TASK_TEMPLATES[event.eventType] ?? TASK_TEMPLATES.other;

@@ -1848,6 +1848,18 @@ guests.patch(
       });
     }
 
+    // Sync guestCountConfirmed on the event when rsvpStatus changed
+    if (updates.rsvpStatus !== undefined) {
+      const [confirmedResult] = await db
+        .select({ confirmedCount: count() })
+        .from(schema.guests)
+        .where(and(eq(schema.guests.eventId, event.id), eq(schema.guests.rsvpStatus, 'confirmed'), isNull(schema.guests.deletedAt)));
+      await db
+        .update(schema.events)
+        .set({ guestCountConfirmed: confirmedResult?.confirmedCount ?? 0 })
+        .where(eq(schema.events.id, event.id));
+    }
+
     // Update extension table data based on event type
     let extensionData: Record<string, unknown> | null = null;
     const detailsKey = `${event.eventType}Details`;
@@ -2118,6 +2130,16 @@ guests.delete('/:guestUuid', requireAuth, async (c) => {
       updatedAt: new Date(),
     })
     .where(eq(schema.guests.uuid, guestUuid));
+
+  // Sync guestCountConfirmed in case a confirmed guest was deleted
+  const [confirmedResult] = await db
+    .select({ confirmedCount: count() })
+    .from(schema.guests)
+    .where(and(eq(schema.guests.eventId, event.id), eq(schema.guests.rsvpStatus, 'confirmed'), isNull(schema.guests.deletedAt)));
+  await db
+    .update(schema.events)
+    .set({ guestCountConfirmed: confirmedResult?.confirmedCount ?? 0 })
+    .where(eq(schema.events.id, event.id));
 
   return c.json({
     success: true,

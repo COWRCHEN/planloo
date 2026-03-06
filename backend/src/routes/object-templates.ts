@@ -158,7 +158,14 @@ objectTemplates.get('/', requireAuth, async (c) => {
       sortOrder: t.sortOrder,
     }));
 
-    await db.insert(schema.objectTemplates).values(values);
+    // D1 limit: 100 bound parameters per statement.
+    // Each row has 14 params, so max 7 rows per batch (7×14=98).
+    const CHUNK = 7;
+    const inserts = [];
+    for (let i = 0; i < values.length; i += CHUNK) {
+      inserts.push(db.insert(schema.objectTemplates).values(values.slice(i, i + CHUNK)));
+    }
+    await db.batch(inserts);
 
     templates = await db
       .select()

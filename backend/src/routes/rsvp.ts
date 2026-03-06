@@ -11,7 +11,7 @@ import { zValidator } from '@hono/zod-validator';
 import type { HonoEnv } from '@/types/env';
 import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, count } from 'drizzle-orm';
 import { sendRsvpConfirmationEmail, logEmail } from '@/lib/email';
 
 const rsvp = new Hono<HonoEnv>();
@@ -767,6 +767,16 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
       500
     );
   }
+
+  // Sync guestCountConfirmed on the event
+  const [confirmedResult] = await db
+    .select({ confirmedCount: count() })
+    .from(schema.guests)
+    .where(and(eq(schema.guests.eventId, guest.eventId), eq(schema.guests.rsvpStatus, 'confirmed'), isNull(schema.guests.deletedAt)));
+  await db
+    .update(schema.events)
+    .set({ guestCountConfirmed: confirmedResult?.confirmedCount ?? 0 })
+    .where(eq(schema.events.id, guest.eventId));
 
   // Audit: record RSVP update (no userId = guest self-response)
   if (auditChanges.length > 0) {

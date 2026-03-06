@@ -16,6 +16,7 @@ import { EventUpcomingTasks } from './EventUpcomingTasks';
 import { EventUpcomingAppointments } from './EventUpcomingAppointments';
 import { useEvent } from '@/hooks/use-events';
 import { useSession } from '@/hooks/use-auth';
+import { useGuestStats } from '@/hooks/use-guests';
 
 interface EventDetailViewProps {
   uuid: string;
@@ -101,6 +102,7 @@ function EventDetailSkeleton() {
 function EventDetailContent({ uuid }: EventDetailViewProps) {
   const { data: session, isLoading: sessionLoading } = useSession();
   const { data: event, isLoading, error } = useEvent(uuid);
+  const { data: guestStats } = useGuestStats(uuid);
 
   const handleDeleted = () => {
     window.location.href = '/dashboard/events';
@@ -336,7 +338,7 @@ function EventDetailContent({ uuid }: EventDetailViewProps) {
               </div>
               <div>
                 <dt className="text-muted-foreground">Confirmed</dt>
-                <dd className="font-medium">{event.guestCountConfirmed ?? 0}</dd>
+                <dd className="font-medium">{guestStats?.confirmed ?? event.guestCountConfirmed ?? 0}</dd>
               </div>
             </dl>
             <div className="mt-4 flex gap-2">

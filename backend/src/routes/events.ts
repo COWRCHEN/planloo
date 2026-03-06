@@ -170,7 +170,7 @@ events.get('/', requireAuth, zValidator('query', listEventsQuerySchema), async (
       locationCity: schema.events.locationCity,
       locationCountry: schema.events.locationCountry,
       guestCountExpected: schema.events.guestCountExpected,
-      guestCountConfirmed: schema.events.guestCountConfirmed,
+      guestCountConfirmed: sql<number>`(SELECT COUNT(*) FROM guests WHERE event_id = ${schema.events.id} AND rsvp_status = 'confirmed' AND deleted_at IS NULL)`,
       budgetTotal: schema.events.budgetTotal,
       budgetCurrency: schema.events.budgetCurrency,
       isPublic: schema.events.isPublic,
@@ -246,10 +246,22 @@ events.get('/stats', requireAuth, async (c) => {
   const [guestStats] = await db
     .select({
       total: sql<number>`COALESCE(SUM(${schema.events.guestCountExpected}), 0)`,
-      confirmed: sql<number>`COALESCE(SUM(${schema.events.guestCountConfirmed}), 0)`,
     })
     .from(schema.events)
     .where(and(accessCondition, isNull(schema.events.deletedAt)));
+
+  const [confirmedGuestsResult] = await db
+    .select({ confirmed: count() })
+    .from(schema.guests)
+    .innerJoin(schema.events, eq(schema.guests.eventId, schema.events.id))
+    .where(
+      and(
+        accessCondition,
+        isNull(schema.events.deletedAt),
+        eq(schema.guests.rsvpStatus, 'confirmed'),
+        isNull(schema.guests.deletedAt)
+      )
+    );
 
   // Calculate stats
   const statsMap: Record<string, number> = {};
@@ -267,7 +279,7 @@ events.get('/stats', requireAuth, async (c) => {
       draftEvents: statsMap['draft'] ?? 0,
       completedEvents: statsMap['completed'] ?? 0,
       totalGuests: guestStats?.total ?? 0,
-      confirmedGuests: guestStats?.confirmed ?? 0,
+      confirmedGuests: confirmedGuestsResult?.confirmed ?? 0,
     },
   });
 });
@@ -355,10 +367,22 @@ events.get('/:uuid', requireAuth, async (c) => {
     .where(eq(schema.events.id, access.event.id))
     .limit(1);
 
+  const [confirmedResult] = await db
+    .select({ confirmedCount: count() })
+    .from(schema.guests)
+    .where(
+      and(
+        eq(schema.guests.eventId, access.event.id),
+        eq(schema.guests.rsvpStatus, 'confirmed'),
+        isNull(schema.guests.deletedAt)
+      )
+    );
+
   return c.json({
     success: true,
     data: {
       ...result!.event,
+      guestCountConfirmed: confirmedResult?.confirmedCount ?? 0,
       ownerName: result!.ownerName ?? null,
       ownerEmail: result!.ownerEmail ?? null,
       _access: {
