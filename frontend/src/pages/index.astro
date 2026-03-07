@@ -104,7 +104,8 @@ const softwareSchema = {
     priceCurrency: 'USD',
     description: 'Free plan available',
   },
-  keywords: 'event planning, wedding planning, birthday party planning, corporate event planning, conference planning, engagement party, fundraiser planning, anniversary celebration, graduation party, retirement party, baby shower, bridal shower, themed party, celebration of life',
+  keywords:
+    'event planning, wedding planning, birthday party planning, corporate event planning, conference planning, engagement party, fundraiser planning, anniversary celebration, graduation party, retirement party, baby shower, bridal shower, themed party, celebration of life',
   description:
     'All-in-one event planning platform with guest management, budgeting, task tracking, and seating arrangements. Supports 14 event types including weddings, corporate events, birthdays, conferences, and more.',
 };
@@ -176,27 +177,101 @@ const steps = [
 ];
 
 const eventTypes = [
-  { slug: 'wedding', label: 'Wedding', description: 'Full ceremony and reception planning, from guest lists to seating charts' },
-  { slug: 'birthday', label: 'Birthday Party', description: 'Milestone and everyday celebrations, intimate or large-scale' },
-  { slug: 'corporate', label: 'Corporate Event', description: 'Company away days, product launches, and client-facing events' },
-  { slug: 'conference', label: 'Conference', description: 'Multi-session professional gatherings and symposiums' },
-  { slug: 'holiday_party', label: 'Holiday Party', description: 'Seasonal and festive celebrations for teams or families' },
-  { slug: 'engagement_party', label: 'Engagement Party', description: 'Celebrations marking the start of a wedding journey' },
-  { slug: 'fundraiser', label: 'Fundraiser', description: 'Charity galas, auctions, and donor appreciation events' },
-  { slug: 'anniversary', label: 'Anniversary', description: 'Personal and corporate milestone celebrations' },
-  { slug: 'graduation', label: 'Graduation', description: 'Academic and professional achievement celebrations' },
-  { slug: 'retirement', label: 'Retirement Party', description: 'Farewell and appreciation events for outgoing colleagues' },
-  { slug: 'baby_shower', label: 'Baby Shower', description: 'Pre-birth celebrations welcoming new arrivals' },
-  { slug: 'bridal_shower', label: 'Bridal Shower', description: 'Pre-wedding celebrations for the bride-to-be' },
-  { slug: 'themed', label: 'Themed Party', description: 'Costume parties, murder mystery nights, and themed galas' },
-  { slug: 'celebration_of_life', label: 'Celebration of Life', description: 'Meaningful gatherings to honour and remember loved ones' },
+  {
+    slug: 'anniversary',
+    label: 'Anniversary',
+    description: 'Personal and corporate milestone celebrations',
+  },
+  {
+    slug: 'baby_shower',
+    label: 'Baby Shower',
+    description: 'Pre-birth celebrations welcoming new arrivals',
+  },
+  {
+    slug: 'birthday',
+    label: 'Birthday Party',
+    description: 'Milestone and everyday celebrations, intimate or large-scale',
+  },
+  {
+    slug: 'bridal_shower',
+    label: 'Bridal Shower',
+    description: 'Pre-wedding celebrations for the bride-to-be',
+  },
+  {
+    slug: 'celebration_of_life',
+    label: 'Celebration of Life',
+    description: 'Meaningful gatherings to honour and remember loved ones',
+  },
+  {
+    slug: 'conference',
+    label: 'Conference',
+    description: 'Multi-session professional gatherings and symposiums',
+  },
+  {
+    slug: 'corporate',
+    label: 'Corporate Event',
+    description: 'Company away days, product launches, and client-facing events',
+  },
+  {
+    slug: 'engagement_party',
+    label: 'Engagement Party',
+    description: 'Celebrations marking the start of a wedding journey',
+  },
+  {
+    slug: 'fundraiser',
+    label: 'Fundraiser',
+    description: 'Charity galas, auctions, and donor appreciation events',
+  },
+  {
+    slug: 'graduation',
+    label: 'Graduation',
+    description: 'Academic and professional achievement celebrations',
+  },
+  {
+    slug: 'holiday_party',
+    label: 'Holiday Party',
+    description: 'Seasonal and festive celebrations for teams or families',
+  },
+  {
+    slug: 'retirement',
+    label: 'Retirement Party',
+    description: 'Farewell and appreciation events for outgoing colleagues',
+  },
+  {
+    slug: 'themed',
+    label: 'Themed Party',
+    description: 'Costume parties, murder mystery nights, and themed galas',
+  },
+  {
+    slug: 'wedding',
+    label: 'Wedding',
+    description: 'Full ceremony and reception planning, from guest lists to seating charts',
+  },
 ];
+
+const eventTypeIcons: Record<string, string> = {
+  wedding: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>`,
+  birthday: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>`,
+  corporate: `<rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2" fill="none"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>`,
+  conference: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" fill="none"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>`,
+  holiday_party: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 0 0 .95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 0 0-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 0 0-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 0 0-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 0 0 .951-.69l1.519-4.674z"/>`,
+  engagement_party: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3h12l4 6-10 13L2 9l4-6z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 9h20"/>`,
+  fundraiser: `<line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>`,
+  anniversary: `<rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" fill="none"/><line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`,
+  graduation: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M22 10v6M2 10l10-5 10 5-10 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 12v5c3 3 9 3 12 0v-5"/>`,
+  retirement: `<circle cx="12" cy="8" r="6" stroke="currentColor" stroke-width="2" fill="none"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>`,
+  baby_shower: `<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><line x1="15" y1="9" x2="15.01" y2="9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>`,
+  bridal_shower: `<circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2" fill="none"/><line x1="12" y1="2" x2="12" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="20" x2="12" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="2" y1="12" x2="4" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="20" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`,
+  themed: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 3v4M22 5h-4"/>`,
+  celebration_of_life: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="1" y1="18" x2="3" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="18" x2="23" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="23" y1="22" x2="1" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`,
+};
 
 const eventTypesSchema = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
   name: 'Event Types Supported by Planloo',
-  description: 'Planloo supports planning 14 types of events, from weddings and birthday parties to corporate conferences and celebrations of life.',
+  description:
+    'Planloo supports planning 14 types of events, from weddings and birthday parties to corporate conferences and celebrations of life.',
   itemListElement: eventTypes.map(({ label, description }, i) => ({
     '@type': 'ListItem',
     position: i + 1,
@@ -236,6 +311,10 @@ const eventTypesSchema = {
             >Features</a
           >
           <a
+            href="#event-types"
+            class="text-muted-foreground transition-colors hover:text-foreground">Events</a
+          >
+          <a
             href="#how-it-works"
             class="text-muted-foreground transition-colors hover:text-foreground">How it works</a
           >
@@ -253,16 +332,73 @@ const eventTypesSchema = {
           </a>
         </div>
 
-        <!-- Mobile CTA -->
-        <a
-          href="/register"
-          class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium shadow transition-colors md:hidden"
-        >
-          Get started
-        </a>
+        <!-- Mobile controls -->
+        <div class="flex items-center gap-3 md:hidden">
+          <a
+            href="/register"
+            class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium shadow transition-colors"
+          >
+            Get started
+          </a>
+          <button
+            id="mobile-menu-toggle"
+            aria-label="Toggle mobile menu"
+            aria-expanded="false"
+            class="inline-flex h-9 w-9 items-center justify-center rounded-lg border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <svg id="hamburger-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/>
+            </svg>
+            <svg id="close-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden" aria-hidden="true">
+              <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile menu -->
+      <div id="mobile-menu" class="hidden border-t md:hidden">
+        <div class="space-y-1 px-4 py-3">
+          <a href="#features" class="block py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">Features</a>
+          <a href="#event-types" class="block py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">Events</a>
+          <a href="#how-it-works" class="block py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">How it works</a>
+          <a href="#pricing" class="block py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">Pricing</a>
+          <a href="/login" class="block py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">Sign in</a>
+        </div>
       </div>
     </nav>
   </header>
+
+  <script>
+    const toggle = document.getElementById('mobile-menu-toggle');
+    const menu = document.getElementById('mobile-menu');
+    const hamburger = document.getElementById('hamburger-icon');
+    const closeIcon = document.getElementById('close-icon');
+
+    toggle?.addEventListener('click', () => {
+      const isOpen = !menu?.classList.contains('hidden');
+      if (isOpen) {
+        menu?.classList.add('hidden');
+        hamburger?.classList.remove('hidden');
+        closeIcon?.classList.add('hidden');
+        toggle.setAttribute('aria-expanded', 'false');
+      } else {
+        menu?.classList.remove('hidden');
+        hamburger?.classList.add('hidden');
+        closeIcon?.classList.remove('hidden');
+        toggle.setAttribute('aria-expanded', 'true');
+      }
+    });
+
+    menu?.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => {
+        menu.classList.add('hidden');
+        hamburger?.classList.remove('hidden');
+        closeIcon?.classList.add('hidden');
+        toggle?.setAttribute('aria-expanded', 'false');
+      });
+    });
+  </script>
 
   <main>
     <!-- Hero -->
@@ -475,7 +611,7 @@ const eventTypesSchema = {
     </section>
 
     <!-- Event Types -->
-    <section class="border-t py-20 sm:py-28" aria-labelledby="event-types-heading">
+    <section id="event-types" class="border-t py-20 sm:py-28" aria-labelledby="event-types-heading">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="mx-auto max-w-2xl text-center">
           <h2
@@ -485,26 +621,34 @@ const eventTypesSchema = {
             Works for every occasion
           </h2>
           <p class="mt-4 text-lg text-muted-foreground">
-            From intimate gatherings to large-scale productions, Planloo adapts to any type of event.
+            From intimate gatherings to large-scale productions, Planloo adapts to any type of
+            event.
           </p>
         </div>
 
         <ul
-          class="mt-12 flex flex-wrap justify-center gap-3"
+          class="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
           aria-label="Supported event types"
         >
           {
-            eventTypes.map(({ label, description }) => (
+            eventTypes.map(({ slug, label, description }) => (
               <li>
-                <span
-                  class="flex flex-col gap-1 rounded-xl border bg-card px-5 py-3 shadow-sm transition-shadow hover:shadow-md"
-                  title={description}
-                >
-                  <span class="text-sm font-semibold text-foreground">{label}</span>
-                  <span class="max-w-[200px] text-xs leading-relaxed text-muted-foreground">
-                    {description}
-                  </span>
-                </span>
+                <article class="group h-full rounded-2xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md">
+                  <div class="mb-3 flex items-center gap-3">
+                    <div class="bg-primary/10 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+                      <svg
+                        class="text-primary h-5 w-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                        set:html={eventTypeIcons[slug] ?? ''}
+                      />
+                    </div>
+                    <h3 class="font-heading text-base font-semibold text-foreground">{label}</h3>
+                  </div>
+                  <p class="text-sm leading-relaxed text-muted-foreground">{description}</p>
+                </article>
               </li>
             ))
           }
