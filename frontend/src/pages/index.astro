@@ -266,6 +266,23 @@ const eventTypeIcons: Record<string, string> = {
   celebration_of_life: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="1" y1="18" x2="3" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="18" x2="23" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="23" y1="22" x2="1" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`,
 };
 
+const eventTypeIconColors: Record<string, string> = {
+  anniversary: 'text-rose-500',
+  baby_shower: 'text-pink-400',
+  birthday: 'text-amber-500',
+  bridal_shower: 'text-violet-500',
+  celebration_of_life: 'text-orange-500',
+  conference: 'text-blue-500',
+  corporate: 'text-indigo-500',
+  engagement_party: 'text-emerald-500',
+  fundraiser: 'text-green-500',
+  graduation: 'text-cyan-500',
+  holiday_party: 'text-red-500',
+  retirement: 'text-slate-400',
+  themed: 'text-fuchsia-500',
+  wedding: 'text-pink-500',
+};
+
 const eventTypesSchema = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
@@ -635,16 +652,14 @@ const eventTypesSchema = {
               <li>
                 <article class="group h-full rounded-2xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md">
                   <div class="mb-3 flex items-center gap-3">
-                    <div class="bg-primary/10 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
-                      <svg
-                        class="text-primary h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                        set:html={eventTypeIcons[slug] ?? ''}
-                      />
-                    </div>
+                    <svg
+                      class={`h-8 w-8 shrink-0 ${eventTypeIconColors[slug] ?? 'text-primary'}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      set:html={eventTypeIcons[slug] ?? ''}
+                    />
                     <h3 class="font-heading text-base font-semibold text-foreground">{label}</h3>
                   </div>
                   <p class="text-sm leading-relaxed text-muted-foreground">{description}</p>
