@@ -266,6 +266,15 @@ const eventTypeIcons: Record<string, string> = {
   celebration_of_life: `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="9" x2="12" y2="2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="1" y1="18" x2="3" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="18" x2="23" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="23" y1="22" x2="1" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`,
 };
 
+const featureIconColors: Record<string, string> = {
+  guests: 'text-blue-500',
+  budget: 'text-green-500',
+  tasks: 'text-violet-500',
+  seating: 'text-amber-500',
+  collab: 'text-pink-500',
+  vendors: 'text-orange-500',
+};
+
 const eventTypeIconColors: Record<string, string> = {
   anniversary: 'text-rose-500',
   baby_shower: 'text-pink-400',
@@ -509,11 +518,10 @@ const eventTypesSchema = {
         <div class="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {
             features.map(feature => (
-              <article class="group relative rounded-2xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md">
-                <div class="bg-primary/10 mb-4 flex h-12 w-12 items-center justify-center rounded-xl">
+              <article class="group relative cursor-default overflow-hidden rounded-2xl border bg-card p-6 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-foreground/20 hover:shadow-xl">
                   {feature.icon === 'guests' && (
                     <svg
-                      class="text-primary h-6 w-6"
+                      class={`mb-4 h-7 w-7 shrink-0 transition-transform duration-300 group-hover:scale-110 ${featureIconColors['guests']}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -529,7 +537,7 @@ const eventTypesSchema = {
                   )}
                   {feature.icon === 'budget' && (
                     <svg
-                      class="text-primary h-6 w-6"
+                      class={`mb-4 h-7 w-7 shrink-0 transition-transform duration-300 group-hover:scale-110 ${featureIconColors['budget']}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -545,7 +553,7 @@ const eventTypesSchema = {
                   )}
                   {feature.icon === 'tasks' && (
                     <svg
-                      class="text-primary h-6 w-6"
+                      class={`mb-4 h-7 w-7 shrink-0 transition-transform duration-300 group-hover:scale-110 ${featureIconColors['tasks']}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -561,7 +569,7 @@ const eventTypesSchema = {
                   )}
                   {feature.icon === 'seating' && (
                     <svg
-                      class="text-primary h-6 w-6"
+                      class={`mb-4 h-7 w-7 shrink-0 transition-transform duration-300 group-hover:scale-110 ${featureIconColors['seating']}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -585,7 +593,7 @@ const eventTypesSchema = {
                   )}
                   {feature.icon === 'collab' && (
                     <svg
-                      class="text-primary h-6 w-6"
+                      class={`mb-4 h-7 w-7 shrink-0 transition-transform duration-300 group-hover:scale-110 ${featureIconColors['collab']}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -601,7 +609,7 @@ const eventTypesSchema = {
                   )}
                   {feature.icon === 'vendors' && (
                     <svg
-                      class="text-primary h-6 w-6"
+                      class={`mb-4 h-7 w-7 shrink-0 transition-transform duration-300 group-hover:scale-110 ${featureIconColors['vendors']}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -615,7 +623,6 @@ const eventTypesSchema = {
                       />
                     </svg>
                   )}
-                </div>
                 <h3 class="font-heading text-lg font-semibold text-foreground">{feature.title}</h3>
                 <p class="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {feature.description}
@@ -650,17 +657,17 @@ const eventTypesSchema = {
           {
             eventTypes.map(({ slug, label, description }) => (
               <li>
-                <article class="group h-full rounded-2xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md">
+                <article class="group relative h-full cursor-default overflow-hidden rounded-2xl border bg-card p-6 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-foreground/20 hover:shadow-xl">
                   <div class="mb-3 flex items-center gap-3">
                     <svg
-                      class={`h-8 w-8 shrink-0 ${eventTypeIconColors[slug] ?? 'text-primary'}`}
+                      class={`h-8 w-8 shrink-0 transition-transform duration-300 group-hover:scale-110 ${eventTypeIconColors[slug] ?? 'text-primary'}`}
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                       aria-hidden="true"
                       set:html={eventTypeIcons[slug] ?? ''}
                     />
-                    <h3 class="font-heading text-base font-semibold text-foreground">{label}</h3>
+                    <h3 class="font-heading text-base font-semibold text-foreground transition-colors duration-300 group-hover:text-foreground/90">{label}</h3>
                   </div>
                   <p class="text-sm leading-relaxed text-muted-foreground">{description}</p>
                 </article>
