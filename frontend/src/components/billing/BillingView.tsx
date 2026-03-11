@@ -223,6 +223,7 @@ function CurrentPlanCard() {
             <FeatureRow label="Floor Plans" enabled={limits.floorPlans} />
             <FeatureRow label="Budget Tracking" enabled={limits.budgetTracking} />
             <FeatureRow label="Task Templates" enabled={limits.taskTemplates} />
+            <FeatureRow label="Guest Audit History" enabled={limits.guestAuditHistory} />
             {/*<FeatureRow label="Vendor Management" enabled={limits.vendorManagement} />
             <FeatureRow label="Single Sign-On (SSO)" enabled={limits.sso} />*/}
           </div>

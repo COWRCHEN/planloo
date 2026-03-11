@@ -936,6 +936,11 @@ guests.get('/export', requireAuth, async (c) => {
  * List audit history for a guest (who created/updated and when, with field changes)
  */
 guests.get('/:guestUuid/audit', requireAuth, async (c) => {
+  const auditCheck = checkFeatureAccess('guestAuditHistory', c.get('planLimits')!);
+  if (!auditCheck.ok) {
+    return c.json({ success: false, error: { code: auditCheck.error!.code, message: auditCheck.error!.message } }, 403);
+  }
+
   const user = c.get('user')!;
   const eventUuid = c.req.param('eventUuid')!;
   const guestUuid = c.req.param('guestUuid')!;

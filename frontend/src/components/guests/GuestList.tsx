@@ -333,7 +333,7 @@ export function GuestList({ eventUuid }: GuestListProps) {
             onCheckIn={handleCheckIn}
             onResendRsvp={handleResendRsvp}
             onUpdateRsvpStatus={handleUpdateRsvpStatus}
-            onAudit={handleAuditGuest}
+            onAudit={billingData?.limits.guestAuditHistory ? handleAuditGuest : undefined}
             eventType={eventType}
             guestSettings={guestSettings}
             sendingRsvpUuid={sendingRsvpUuid ?? undefined}
@@ -375,13 +375,15 @@ export function GuestList({ eventUuid }: GuestListProps) {
         isDeleting={deleteGuest.isPending}
       />
 
-      <GuestAuditDialog
-        eventUuid={eventUuid}
-        guest={guestForAudit}
-        guestSettings={guestSettings}
-        open={!!guestForAudit}
-        onOpenChange={(open) => !open && setGuestForAudit(null)}
-      />
+      {billingData?.limits.guestAuditHistory && (
+        <GuestAuditDialog
+          eventUuid={eventUuid}
+          guest={guestForAudit}
+          guestSettings={guestSettings}
+          open={!!guestForAudit}
+          onOpenChange={(open) => !open && setGuestForAudit(null)}
+        />
+      )}
 
       <GuestImportDialog
         open={importDialogOpen}

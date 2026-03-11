@@ -178,7 +178,7 @@ export function checkEmailQuota(
  * Check whether the user can access a specific feature.
  */
 export function checkFeatureAccess(
-  feature: 'csvImportExport' | 'floorPlans' | 'budgetTracking' | 'taskTemplates' | 'vendorManagement',
+  feature: 'csvImportExport' | 'floorPlans' | 'budgetTracking' | 'taskTemplates' | 'vendorManagement' | 'guestAuditHistory',
   limits: PlanLimits
 ): BillingLimitResult {
   if (!limits[feature]) {
@@ -188,6 +188,7 @@ export function checkFeatureAccess(
       budgetTracking: 'budget tracking',
       taskTemplates: 'task templates',
       vendorManagement: 'vendor management',
+      guestAuditHistory: 'guest audit history',
     };
     return limitError(
       'FEATURE_NOT_AVAILABLE',

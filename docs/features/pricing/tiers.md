@@ -23,6 +23,7 @@ All limits are compile-time constants — no database table. Changing limits req
 | **Budget tracking** | ✗ | ✓ | ✓ | ✓ | ✓ |
 | **Task templates** | ✗ | ✓ | ✓ | ✓ | ✓ |
 | **Vendor management** | ✗ | ✓ | ✓ | ✓ | ✓ |
+| **Guest audit history** | ✗ | ✗ | ✗ | ✓ | ✓ |
 | **SSO / SAML** | ✗ | ✗ | ✗ | ✗ | ✓ |
 | **Dedicated support** | ✗ | ✗ | ✗ | ✗ | ✓ |
 | **Custom contract / SLA** | ✗ | ✗ | ✗ | ✗ | ✓ |

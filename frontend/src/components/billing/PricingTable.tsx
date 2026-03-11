@@ -106,6 +106,14 @@ const FEATURES: PlanFeature[] = [
     agency: true,
     enterprise: true,
   },
+  {
+    label: 'Guest audit history',
+    free: false,
+    personal: false,
+    planner: false,
+    agency: true,
+    enterprise: true,
+  },
   // {
   //   label: 'SSO',
   //   free: false,

@@ -34,6 +34,7 @@ export interface PlanLimits {
   budgetTracking: boolean;
   taskTemplates: boolean;
   vendorManagement: boolean;
+  guestAuditHistory: boolean;
   sso: boolean;
 }
 

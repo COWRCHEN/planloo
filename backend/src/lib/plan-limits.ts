@@ -32,6 +32,7 @@ export interface PlanLimits {
   budgetTracking: boolean;
   taskTemplates: boolean;
   vendorManagement: boolean;
+  guestAuditHistory: boolean; // agency+ only
   sso: boolean; // enterprise-only (not enforced yet)
 }
 
@@ -50,6 +51,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     budgetTracking: false,
     taskTemplates: false,
     vendorManagement: false,
+    guestAuditHistory: false,
     sso: false,
   },
 
@@ -67,6 +69,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     budgetTracking: true,
     taskTemplates: true,
     vendorManagement: true,
+    guestAuditHistory: false,
     sso: false,
   },
 
@@ -84,6 +87,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     budgetTracking: true,
     taskTemplates: true,
     vendorManagement: true,
+    guestAuditHistory: false,
     sso: false,
   },
 
@@ -101,6 +105,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     budgetTracking: true,
     taskTemplates: true,
     vendorManagement: true,
+    guestAuditHistory: true,
     sso: false,
   },
 
@@ -118,6 +123,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     budgetTracking: true,
     taskTemplates: true,
     vendorManagement: true,
+    guestAuditHistory: true,
     sso: true,
   },
 };
