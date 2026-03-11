@@ -167,7 +167,7 @@ export function RegisterForm({ onSuccess, returnUrl = '/dashboard' }: RegisterFo
         </Button>
       </form>
 
-      <div className="relative">
+      {/* <div className="relative">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t" />
         </div>
@@ -204,7 +204,7 @@ export function RegisterForm({ onSuccess, returnUrl = '/dashboard' }: RegisterFo
           />
         </svg>
         Google
-      </Button>
+      </Button> */}
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{' '}
