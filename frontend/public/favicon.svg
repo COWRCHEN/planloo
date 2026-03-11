@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Infinity symbol: two overlapping rings -->
+  <!-- Left ring (painted first) -->
+  <circle cx="58" cy="65" r="38" fill="none" stroke="#d63031" stroke-width="20"/>
+  <!-- Right ring -->
+  <circle cx="142" cy="65" r="38" fill="none" stroke="#d63031" stroke-width="20"/>
+
+  <!-- Smile arc -->
+  <path d="M 20,135 Q 100,217 180,135" fill="none" stroke="#d63031" stroke-width="20" stroke-linecap="round"/>
+</svg>
