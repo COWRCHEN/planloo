@@ -68,6 +68,24 @@ const eventFormSchema = z
         });
       }
     }
+    if (data.locationCountry === 'US' && data.locationPostalCode) {
+      if (!/^\d{5}(-\d{4})?$/.test(data.locationPostalCode)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Enter a valid US ZIP code (e.g. 12345 or 12345-6789)',
+          path: ['locationPostalCode'],
+        });
+      }
+    }
+    if (data.locationCountry === 'CA' && data.locationPostalCode) {
+      if (!/^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/.test(data.locationPostalCode)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Enter a valid Canadian postal code (e.g. A1A 1A1)',
+          path: ['locationPostalCode'],
+        });
+      }
+    }
   });
 
 type EventFormData = z.infer<typeof eventFormSchema>;
@@ -289,6 +307,7 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
     handleSubmit,
     watch,
     setValue,
+    trigger,
     formState: { errors },
   } = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
@@ -372,12 +391,23 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
     return end > start;
   };
 
+  const isPostalCodeValid = () => {
+    const country = formData.locationCountry;
+    const postal = formData.locationPostalCode;
+    if (!postal) return true;
+    if (country === 'US') return /^\d{5}(-\d{4})?$/.test(postal);
+    if (country === 'CA') return /^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/.test(postal);
+    return true;
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 0:
         return !!formData.title;
       case 1:
         return !!formData.startDate && isEndDateValid();
+      case 2:
+        return isPostalCodeValid();
       default:
         return true;
     }
@@ -417,7 +447,7 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                   title={step.description}
                   className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium transition-colors ${
                     index < currentStep
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/80 cursor-pointer'
+                      ? 'border-2 border-primary bg-background cursor-pointer'
                       : index === currentStep
                         ? 'border-2 border-primary bg-background text-primary cursor-default'
                         : canGoToStep(index)
@@ -664,6 +694,7 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                       setValue('locationCountry', detectedLocation.country ?? '');
                       setValue('locationPostalCode', detectedLocation.postalCode ?? '');
                       setLocationAutoDetected(true);
+                      trigger('locationPostalCode');
                     }}
                   >
                     Detect my location
@@ -709,7 +740,10 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                   <Label>Country <span className="text-destructive">*</span></Label>
                   <Select
                     value={formData.locationCountry ?? ''}
-                    onValueChange={(val) => setValue('locationCountry', val, { shouldValidate: true })}
+                    onValueChange={(val) => {
+                      setValue('locationCountry', val, { shouldValidate: true });
+                      trigger('locationPostalCode');
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select country" />
@@ -739,8 +773,13 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                   <Input
                     id="locationPostalCode"
                     placeholder="Postal code"
-                    {...register('locationPostalCode')}
+                    {...register('locationPostalCode', {
+                      onChange: () => trigger('locationPostalCode'),
+                    })}
                   />
+                  {errors.locationPostalCode && (
+                    <p className="text-sm text-destructive">{errors.locationPostalCode.message}</p>
+                  )}
                 </div>
               </div>
 
