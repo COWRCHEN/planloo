@@ -447,7 +447,7 @@ export function EventForm({ event, onSuccess }: EventFormProps) {
                   title={step.description}
                   className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-medium transition-colors ${
                     index < currentStep
-                      ? 'border-2 border-primary bg-background cursor-pointer'
+                      ? 'border-2 border-green-500 bg-background cursor-pointer'
                       : index === currentStep
                         ? 'border-2 border-primary bg-background text-primary cursor-default'
                         : canGoToStep(index)
