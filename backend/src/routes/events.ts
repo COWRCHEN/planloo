@@ -14,7 +14,7 @@ import { eq, and, isNull, desc, asc, sql, count } from 'drizzle-orm';
 import { requireAuth, requireVerifiedEmail } from '@/middleware/auth';
 import { resolveEventAccess } from '@/lib/event-access';
 import { hashPagePassword } from '@/lib/page-password';
-import { checkEventCreationLimit } from '@/lib/billing-checks';
+import { checkEventCreationLimit, getEffectivePlan } from '@/lib/billing-checks';
 
 const events = new Hono<HonoEnv>();
 
@@ -1134,9 +1134,12 @@ events.get('/:uuid/rsvp-settings', requireAuth, async (c) => {
     .limit(1);
 
   if (!settings) {
+    const sub = c.get('subscription');
+    const effectivePlan = sub ? getEffectivePlan(sub.plan, sub.status) : 'free';
+    const enableRsvpByDefault = effectivePlan !== 'free';
     const [newSettings] = await db
       .insert(schema.eventRsvpSettings)
-      .values({ eventId: event.id })
+      .values({ eventId: event.id, enableRsvp: enableRsvpByDefault })
       .returning();
     settings = newSettings!;
   }
