@@ -54,7 +54,7 @@ export function GuestTable({
   guestSettings,
   sendingRsvpUuid,
 }: GuestTableProps) {
-  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  // const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const rsvpStatusLabels: Record<RsvpStatus, string> = {
     pending: 'Pending',
@@ -64,12 +64,12 @@ export function GuestTable({
     maybe: 'Maybe',
   };
 
-  const handleCopyRsvpLink = async (guest: GuestResponse) => {
-    const url = buildRsvpUrl(guest.rsvpToken);
-    await navigator.clipboard.writeText(url);
-    setCopiedToken(guest.rsvpToken);
-    setTimeout(() => setCopiedToken(null), 2000);
-  };
+  // const handleCopyRsvpLink = async (guest: GuestResponse) => {
+  //   const url = buildRsvpUrl(guest.rsvpToken);
+  //   await navigator.clipboard.writeText(url);
+  //   setCopiedToken(guest.rsvpToken);
+  //   setTimeout(() => setCopiedToken(null), 2000);
+  // };
 
   const formatName = (guest: GuestResponse) => {
     return guest.lastName
@@ -92,9 +92,9 @@ export function GuestTable({
         {onAudit && (
           <DropdownMenuItem onClick={() => onAudit(guest)}>Audit</DropdownMenuItem>
         )}
-        <DropdownMenuItem onClick={() => handleCopyRsvpLink(guest)}>
-          {copiedToken === guest.rsvpToken ? 'Copied!' : 'Copy RSVP Link'}
-        </DropdownMenuItem>
+        {/* <DropdownMenuItem onClick={() => handleCopyRsvpLink(guest)}>
+          Copy RSVP Link
+        </DropdownMenuItem> */}
         {guest.email && (
           <DropdownMenuItem onClick={() => onResendRsvp(guest)} disabled={sendingRsvpUuid === guest.uuid}>
             {sendingRsvpUuid === guest.uuid ? 'Sending...' : 'Send RSVP Invitation'}
