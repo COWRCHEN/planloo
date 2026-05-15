@@ -789,60 +789,60 @@ rsvp.post('/:token', zValidator('json', rsvpSubmitSchema), async (c) => {
   }
 
   // Send confirmation email (best-effort) — respect sendRsvpConfirmation toggle
-  const shouldSendConfirmation = !rsvpSettings || rsvpSettings.sendRsvpConfirmation !== false;
-  if (shouldSendConfirmation && guest.email) {
-    const [eventInfo] = await db
-      .select({
-        title: schema.events.title,
-        startDate: schema.events.startDate,
-        locationName: schema.events.locationName,
-      })
-      .from(schema.events)
-      .where(and(eq(schema.events.id, guest.eventId), isNull(schema.events.deletedAt)))
-      .limit(1);
+  // const shouldSendConfirmation = !rsvpSettings || rsvpSettings.sendRsvpConfirmation !== false;
+  // if (shouldSendConfirmation && guest.email) {
+  //   const [eventInfo] = await db
+  //     .select({
+  //       title: schema.events.title,
+  //       startDate: schema.events.startDate,
+  //       locationName: schema.events.locationName,
+  //     })
+  //     .from(schema.events)
+  //     .where(and(eq(schema.events.id, guest.eventId), isNull(schema.events.deletedAt)))
+  //     .limit(1);
 
-    if (eventInfo) {
-      const guestName = [updatedGuest.firstName, updatedGuest.lastName].filter(Boolean).join(' ');
-      const eventDate = eventInfo.startDate
-        ? new Date(eventInfo.startDate).toLocaleDateString('en-US', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-          })
-        : 'TBD';
+  //   if (eventInfo) {
+  //     const guestName = [updatedGuest.firstName, updatedGuest.lastName].filter(Boolean).join(' ');
+  //     const eventDate = eventInfo.startDate
+  //       ? new Date(eventInfo.startDate).toLocaleDateString('en-US', {
+  //           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  //         })
+  //       : 'TBD';
 
-      try {
-        const result = await sendRsvpConfirmationEmail(c.env, {
-          to: guest.email,
-          guestName,
-          eventTitle: eventInfo.title,
-          eventDate,
-          eventLocation: eventInfo.locationName ?? null,
-          rsvpStatus: data.rsvpStatus,
-        });
-        const actuallySent = Boolean(result.id);
-        await logEmail({
-          db,
-          recipientEmail: guest.email,
-          emailType: 'rsvp_confirmation',
-          subject: `RSVP ${data.rsvpStatus === 'confirmed' ? 'Confirmed' : data.rsvpStatus === 'declined' ? 'Declined' : 'Maybe'}: ${eventInfo.title}`,
-          status: actuallySent ? 'sent' : 'failed',
-          resendId: result.id ?? undefined,
-          errorMessage: actuallySent ? undefined : 'Email not sent (development mode or EMAIL_API_KEY not configured)',
-          eventId: guest.eventId,
-        });
-      } catch (err) {
-        console.error('Failed to send RSVP confirmation email:', err);
-        await logEmail({
-          db,
-          recipientEmail: guest.email,
-          emailType: 'rsvp_confirmation',
-          subject: `RSVP confirmation: ${eventInfo.title}`,
-          status: 'failed',
-          errorMessage: err instanceof Error ? err.message : 'Unknown error',
-          eventId: guest.eventId,
-        });
-      }
-    }
-  }
+  //     try {
+  //       const result = await sendRsvpConfirmationEmail(c.env, {
+  //         to: guest.email,
+  //         guestName,
+  //         eventTitle: eventInfo.title,
+  //         eventDate,
+  //         eventLocation: eventInfo.locationName ?? null,
+  //         rsvpStatus: data.rsvpStatus,
+  //       });
+  //       const actuallySent = Boolean(result.id);
+  //       await logEmail({
+  //         db,
+  //         recipientEmail: guest.email,
+  //         emailType: 'rsvp_confirmation',
+  //         subject: `RSVP ${data.rsvpStatus === 'confirmed' ? 'Confirmed' : data.rsvpStatus === 'declined' ? 'Declined' : 'Maybe'}: ${eventInfo.title}`,
+  //         status: actuallySent ? 'sent' : 'failed',
+  //         resendId: result.id ?? undefined,
+  //         errorMessage: actuallySent ? undefined : 'Email not sent (development mode or EMAIL_API_KEY not configured)',
+  //         eventId: guest.eventId,
+  //       });
+  //     } catch (err) {
+  //       console.error('Failed to send RSVP confirmation email:', err);
+  //       await logEmail({
+  //         db,
+  //         recipientEmail: guest.email,
+  //         emailType: 'rsvp_confirmation',
+  //         subject: `RSVP confirmation: ${eventInfo.title}`,
+  //         status: 'failed',
+  //         errorMessage: err instanceof Error ? err.message : 'Unknown error',
+  //         eventId: guest.eventId,
+  //       });
+  //     }
+  //   }
+  // }
 
   return c.json({
     success: true,

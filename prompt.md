@@ -28,3 +28,10 @@ devops - The Developer has implemented the event planner features. Please review
  Developer,   Please implement ### Week 5: Budget Management in @roadmap. 
  
  Developer,   Please implement ### Week 6: Service Provider & Venue Listings in @roadmap.
+ 
+ 
+ Product-manager. could you desgin 3. **RSVP System** in ### Week 4: Guest Management in @docs/roadmap.md
+ now it distributes in everywhere.
+ http://localhost:4321/dashboard/events/2b3c3ed7-6c55-4362-a519-028cba4aa07f/settings
+ http://localhost:4321/dashboard/events/2b3c3ed7-6c55-4362-a519-028cba4aa07f/guests (sent RSVP, but status wasn't changed)
+ Guest should be able to submit some information by the link in RSVP email
