@@ -14,8 +14,9 @@ import { createDbClient } from '@/db/client';
 import { schema } from '@/db';
 import { createAuth } from '@/lib/auth';
 import { authRateLimiters, rsvpLimiter, uploadLimiter } from '@/middleware/rate-limit';
-import { createStripeClient } from '@/lib/stripe';
-import { eq } from 'drizzle-orm';
+import { createStripeClient, getPriceIdItemType } from '@/lib/stripe';
+import { eq, and, isNull } from 'drizzle-orm';
+import type Stripe from 'stripe';
 import api from '@/routes';
 
 const app = new Hono<HonoEnv>();
@@ -47,7 +48,8 @@ app.use(
       if (
         c.env.ENVIRONMENT === 'development' &&
         (origin?.startsWith('http://localhost:') ||
-          origin?.startsWith('http://127.0.0.1:'))
+          origin?.startsWith('http://127.0.0.1:')||
+          origin?.startsWith('http://10.0.48.174:'))
       ) {
         return origin;
       }
@@ -98,6 +100,40 @@ app.on(['GET', 'POST'], '/api/v1/auth/*', async (c) => {
 });
 
 /**
+ * Sync Stripe subscription items → user_subscription_items table.
+ * Deactivates all current active items, then inserts fresh rows from Stripe.
+ */
+async function syncSubscriptionItems(
+  db: ReturnType<typeof createDbClient>,
+  env: Env,
+  userId: string,
+  stripeItems: Stripe.SubscriptionItem[]
+): Promise<void> {
+  await db
+    .update(schema.userSubscriptionItems)
+    .set({ activeTo: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(schema.userSubscriptionItems.userId, userId),
+        isNull(schema.userSubscriptionItems.activeTo)
+      )
+    );
+
+  for (const item of stripeItems) {
+    const itemType = getPriceIdItemType(env, item.price.id);
+    if (!itemType) continue;
+    await db.insert(schema.userSubscriptionItems).values({
+      userId,
+      itemType,
+      quantity: item.quantity ?? 1,
+      stripeItemId: item.id,
+      activeFrom: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+}
+
+/**
  * Stripe Webhook
  *
  * MUST be mounted before app.route('/api/v1', api) because:
@@ -133,13 +169,15 @@ app.post('/api/v1/billing/webhook', async (c) => {
       case 'checkout.session.completed': {
         const session = event.data.object;
         const userId = session.metadata?.userId;
-        const plan = session.metadata?.plan ?? (session.subscription ? undefined : 'free');
-        if (!userId || !plan) break;
+        if (!userId) break;
+
+        // For legacy tier checkouts, plan may be in metadata
+        const legacyPlan = session.metadata?.plan as 'free' | 'personal' | 'planner' | 'agency' | undefined;
 
         await db
           .update(schema.subscriptions)
           .set({
-            plan: plan as 'free' | 'personal' | 'planner' | 'agency',
+            ...(legacyPlan ? { plan: legacyPlan } : {}),
             status: 'active',
             stripeCustomerId: session.customer as string,
             stripeSubscriptionId: session.subscription as string,
@@ -150,10 +188,34 @@ app.post('/api/v1/billing/webhook', async (c) => {
         break;
       }
 
+      case 'customer.subscription.created': {
+        const sub = event.data.object;
+        const userId = sub.metadata?.userId;
+        if (!userId) break;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stripeSub = sub as any;
+
+        await db
+          .update(schema.subscriptions)
+          .set({
+            status: sub.status as 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete',
+            stripeSubscriptionId: sub.id,
+            currentPeriodStart: new Date(stripeSub.current_period_start * 1000),
+            currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
+            cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.subscriptions.userId, userId));
+
+        await syncSubscriptionItems(db, c.env, userId, sub.items.data);
+        break;
+      }
+
       case 'customer.subscription.updated': {
         const sub = event.data.object;
         const userId = sub.metadata?.userId;
-        const plan = sub.metadata?.plan;
+        const legacyPlan = sub.metadata?.plan as 'free' | 'personal' | 'planner' | 'agency' | undefined;
         if (!userId) break;
 
         const isNewPeriod =
@@ -166,9 +228,7 @@ app.post('/api/v1/billing/webhook', async (c) => {
         await db
           .update(schema.subscriptions)
           .set({
-            plan: plan
-              ? (plan as 'free' | 'personal' | 'planner' | 'agency')
-              : undefined,
+            ...(legacyPlan ? { plan: legacyPlan } : {}),
             status: sub.status as 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete',
             stripeSubscriptionId: sub.id,
             stripePriceId: sub.items.data[0]?.price.id ?? undefined,
@@ -176,11 +236,12 @@ app.post('/api/v1/billing/webhook', async (c) => {
             currentPeriodEnd: new Date(stripeSub.current_period_end * 1000),
             cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
             canceledAt: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000) : null,
-            // Reset usage counters on new billing period
             ...(isNewPeriod ? { emailsSentThisPeriod: 0 } : {}),
             updatedAt: new Date(),
           })
           .where(eq(schema.subscriptions.userId, userId));
+
+        await syncSubscriptionItems(db, c.env, userId, sub.items.data);
         break;
       }
 
@@ -204,6 +265,17 @@ app.post('/api/v1/billing/webhook', async (c) => {
             updatedAt: new Date(),
           })
           .where(eq(schema.subscriptions.userId, userId));
+
+        // Deactivate all items
+        await db
+          .update(schema.userSubscriptionItems)
+          .set({ activeTo: new Date(), updatedAt: new Date() })
+          .where(
+            and(
+              eq(schema.userSubscriptionItems.userId, userId),
+              isNull(schema.userSubscriptionItems.activeTo)
+            )
+          );
         break;
       }
 

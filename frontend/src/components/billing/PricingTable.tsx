@@ -1,5 +1,9 @@
 /**
- * PricingTable — 5-tier plan comparison with monthly/annual toggle.
+ * Unit Price Builder — replaces the old tier-based PricingTable.
+ *
+ * Customers pick exactly the units they need. The total updates live.
+ * For new subscribers: creates a Stripe Checkout session.
+ * For existing subscribers: shows a "Manage subscription" link to the portal.
  */
 
 import { useState } from 'react';
@@ -7,311 +11,350 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Check, X } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Check, Minus, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useCreateCheckoutSession } from '@/hooks/use-billing';
-import type { PlanId, BillingInterval } from '@/hooks/use-billing';
+import {
+  useBilling,
+  useCreateCheckoutSession,
+  useCreatePortalSession,
+} from '@/hooks/use-billing';
+import type { BillingInterval, ItemType } from '@/hooks/use-billing';
 
-// ==================== PLAN DATA ====================
+// ==================== PRICING DATA ====================
 
-type AllPlanId = PlanId;
+const MONTHLY_PRICES: Record<string, number> = {
+  events: 3,
+  guests: 2,
+  emails: 2,
+  sms: 5,
+  collaborators: 1,
+  custom_fields: 3,
+  org_members: 5,
+  floor_plans: 10,
+  organizations: 10,
+  audit_history: 8,
+};
 
-interface PlanFeature {
-  label: string;
-  free: string | boolean;
-  personal: string | boolean;
-  planner: string | boolean;
-  agency: string | boolean;
-  enterprise: string | boolean;
-}
+const UNIT_LABELS: Record<string, { label: string; unitDesc: string }> = {
+  events: { label: 'Events', unitDesc: '+1 event per unit' },
+  guests: { label: 'Guests', unitDesc: '+100 guests per unit' },
+  emails: { label: 'Emails', unitDesc: '+1,000 emails/mo per unit' },
+  sms: { label: 'SMS', unitDesc: '+100 SMS/mo per unit' },
+  collaborators: { label: 'Collaborators', unitDesc: '+1 slot per event' },
+  custom_fields: { label: 'Custom guest fields', unitDesc: '+1 field' },
+  org_members: { label: 'Extra org members', unitDesc: '+1 member (beyond 2 included)' },
+  floor_plans: { label: 'Floor Plans', unitDesc: 'Seating charts & floor plan builder' },
+  organizations: { label: 'Organizations', unitDesc: '1 org with 2 members included' },
+  audit_history: { label: 'Guest Audit History', unitDesc: 'Full change log for guest records' },
+};
 
-const FEATURES: PlanFeature[] = [
-  {
-    label: 'Active events',
-    free: '1',
-    personal: '3',
-    planner: '25',
-    agency: '100',
-    enterprise: 'Custom',
-  },
-  {
-    label: 'Guests',
-    free: '50',
-    personal: '200',
-    planner: '600',
-    agency: '2,000',
-    enterprise: 'Custom',
-  },
-  {
-    label: 'Email pool / mo',
-    free: false,
-    personal: '1,000',
-    planner: '3,000',
-    agency: '20,000',
-    enterprise: 'Custom',
-  },
-  {
-    label: 'Custom guest fields',
-    free: false,
-    personal: '3',
-    planner: '10',
-    agency: '10',
-    enterprise: 'Custom',
-  },
-  {
-    label: 'Organizations',
-    free: false,
-    personal: false,
-    planner: '1 (5 members)',
-    agency: '3 (10 members)',
-    enterprise: 'Custom',
-  },
-  {
-    label: 'CSV import / export',
-    free: false,
-    personal: true,
-    planner: true,
-    agency: true,
-    enterprise: true,
-  },
-  {
-    label: 'Floor plans',
-    free: false,
-    personal: false,
-    planner: true,
-    agency: true,
-    enterprise: true,
-  },
-  {
-    label: 'Budget tracking',
-    free: false,
-    personal: true,
-    planner: true,
-    agency: true,
-    enterprise: true,
-  },
-  {
-    label: 'Task templates',
-    free: false,
-    personal: true,
-    planner: true,
-    agency: true,
-    enterprise: true,
-  },
-  {
-    label: 'Vendor management',
-    free: false,
-    personal: true,
-    planner: true,
-    agency: true,
-    enterprise: true,
-  },
-  {
-    label: 'Guest audit history',
-    free: false,
-    personal: false,
-    planner: false,
-    agency: true,
-    enterprise: true,
-  },
-  // {
-  //   label: 'SSO',
-  //   free: false,
-  //   personal: false,
-  //   planner: false,
-  //   agency: false,
-  //   enterprise: true,
-  // },
-  {
-    label: 'Dedicated support',
-    free: false,
-    personal: false,
-    planner: false,
-    agency: false,
-    enterprise: true,
-  },
+const QUANTITY_ITEMS: ItemType[] = [
+  'events', 'guests', 'emails', 'sms', 'collaborators', 'custom_fields', 'org_members',
 ];
 
-const PRICES = {
-  monthly: { free: 0, personal: 19.99, planner: 39.99, agency: 199.99 },
-  annual: { free: 0, personal: 17.08, planner: 34.0, agency: 170.0 },
-};
+const TOGGLE_ITEMS: ItemType[] = ['floor_plans', 'organizations', 'audit_history'];
 
-const PLAN_NAMES: Record<AllPlanId, string> = {
-  free: 'Free',
-  personal: 'Personal',
-  planner: 'Planner',
-  agency: 'Agency',
-  enterprise: 'Enterprise',
-};
-
-const PLAN_DESCRIPTIONS: Record<AllPlanId, string> = {
-  free: 'Try it out',
-  personal: 'For individuals',
-  planner: 'For professionals',
-  agency: 'For teams',
-  enterprise: 'Custom contract',
-};
+const FREE_FEATURES = [
+  '1 active event',
+  '50 guests',
+  'CSV import / export',
+  'Budget tracking',
+  'Task templates',
+  'Vendor management',
+];
 
 // ==================== HELPERS ====================
 
-function FeatureValue({ value }: { value: string | boolean }) {
-  if (value === false) {
-    return <X className="mx-auto h-4 w-4 text-muted-foreground/50" />;
-  }
-  if (value === true) {
-    return <Check className="text-primary mx-auto h-4 w-4" />;
-  }
-  return <span className="text-sm">{value}</span>;
+type UnitConfig = Partial<Record<ItemType, number>>;
+
+function computeTotal(config: UnitConfig, interval: BillingInterval): number {
+  const subtotal = (Object.entries(config) as [ItemType, number][]).reduce((sum, [itemType, qty]) => {
+    return sum + (MONTHLY_PRICES[itemType] ?? 0) * qty;
+  }, 0);
+  return interval === 'annual' ? Math.round(subtotal * 0.85 * 100) / 100 : subtotal;
 }
 
-// ==================== COMPONENT ====================
-
-interface PricingTableProps {
-  currentPlan?: AllPlanId;
+function toLineItems(config: UnitConfig): { itemType: ItemType; quantity: number }[] {
+  return (Object.entries(config) as [ItemType, number][])
+    .filter(([, qty]) => qty > 0)
+    .map(([itemType, quantity]) => ({ itemType, quantity }));
 }
 
-export function PricingTable({ currentPlan = 'free' }: PricingTableProps) {
+// ==================== SUB-COMPONENTS ====================
+
+function QuantityRow({
+  itemType,
+  qty,
+  interval,
+  onChange,
+}: {
+  itemType: ItemType;
+  qty: number;
+  interval: BillingInterval;
+  onChange: (v: number) => void;
+}) {
+  const { label, unitDesc } = UNIT_LABELS[itemType]!;
+  const monthly = MONTHLY_PRICES[itemType]!;
+  const displayPrice = interval === 'annual'
+    ? `$${(monthly * 0.85).toFixed(2)}`
+    : `$${monthly}`;
+  const lineTotal = qty * monthly * (interval === 'annual' ? 0.85 : 1);
+
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{unitDesc}</p>
+      </div>
+      <div className="text-right text-xs text-muted-foreground w-24 hidden sm:block">
+        {displayPrice}/unit
+      </div>
+      <div className="flex items-center gap-1.5">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-7 w-7"
+          onClick={() => onChange(Math.max(0, qty - 1))}
+          disabled={qty === 0}
+        >
+          <Minus className="h-3 w-3" />
+        </Button>
+        <span className="w-6 text-center text-sm tabular-nums">{qty}</span>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-7 w-7"
+          onClick={() => onChange(qty + 1)}
+        >
+          <Plus className="h-3 w-3" />
+        </Button>
+      </div>
+      <div className="text-right text-sm font-medium tabular-nums w-14">
+        {qty > 0 ? `$${lineTotal % 1 === 0 ? lineTotal : lineTotal.toFixed(2)}` : '—'}
+      </div>
+    </div>
+  );
+}
+
+function ToggleRow({
+  itemType,
+  enabled,
+  interval,
+  onChange,
+}: {
+  itemType: ItemType;
+  enabled: boolean;
+  interval: BillingInterval;
+  onChange: (v: boolean) => void;
+}) {
+  const { label, unitDesc } = UNIT_LABELS[itemType]!;
+  const monthly = MONTHLY_PRICES[itemType]!;
+  const displayPrice = interval === 'annual'
+    ? `$${(monthly * 0.85).toFixed(2)}`
+    : `$${monthly}`;
+
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <Switch checked={enabled} onCheckedChange={onChange} id={`toggle-${itemType}`} />
+      <Label htmlFor={`toggle-${itemType}`} className="flex-1 min-w-0 cursor-pointer">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{unitDesc}</p>
+      </Label>
+      <div className="text-right text-sm font-medium tabular-nums w-14">
+        {enabled ? displayPrice : '—'}
+      </div>
+    </div>
+  );
+}
+
+// ==================== MAIN COMPONENT ====================
+
+export function PricingTable() {
   const [interval, setInterval] = useState<BillingInterval>('monthly');
+  const [config, setConfig] = useState<UnitConfig>({});
+  const { data: billing } = useBilling();
   const checkout = useCreateCheckoutSession();
+  const portal = useCreatePortalSession();
 
-  const standardPlans: PlanId[] = ['free', 'personal', 'planner', 'agency'];
-  const allPlans: AllPlanId[] = [...standardPlans, 'enterprise'];
+  const hasSubscription = !!(
+    billing?.subscription?.stripeSubscriptionId &&
+    (billing.subscription.status === 'active' || billing.subscription.status === 'trialing')
+  );
+  const hasUnitItems = (billing?.items?.length ?? 0) > 0;
 
-  function handleUpgrade(plan: Exclude<PlanId, 'free' | 'enterprise'>) {
-    checkout.mutate({ plan, interval });
+  const total = computeTotal(config, interval);
+  const lineItems = toLineItems(config);
+
+  function setQty(itemType: ItemType, qty: number) {
+    setConfig(prev => ({ ...prev, [itemType]: qty }));
+  }
+
+  function setEnabled(itemType: ItemType, enabled: boolean) {
+    setConfig(prev => ({ ...prev, [itemType]: enabled ? 1 : 0 }));
+  }
+
+  function handleSubscribe() {
+    if (lineItems.length === 0) return;
+    checkout.mutate({ items: lineItems, interval });
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Monthly / Annual toggle */}
       <div className="flex items-center justify-center gap-3">
-        <Label htmlFor="billing-interval" className="text-sm font-medium">
-          Monthly
-        </Label>
+        <Label className="text-sm font-medium">Monthly</Label>
         <Switch
-          id="billing-interval"
           checked={interval === 'annual'}
           onCheckedChange={checked => setInterval(checked ? 'annual' : 'monthly')}
         />
-        <Label htmlFor="billing-interval" className="flex items-center gap-1.5 text-sm font-medium">
+        <Label className="flex items-center gap-1.5 text-sm font-medium">
           Annual
-          <Badge variant="secondary" className="text-xs">
-            Save about 15%
-          </Badge>
+          <Badge variant="secondary" className="text-xs">Save 15%</Badge>
         </Label>
       </div>
 
-      {/* Plan cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {allPlans.map(plan => {
-          const isCurrent = plan === currentPlan;
-          const isHighlighted = plan === 'planner';
-          const isEnterprise = plan === 'enterprise';
-          const isPaidStandard = plan !== 'free' && !isEnterprise;
-          const price = isEnterprise ? null : PRICES[interval][plan as keyof typeof PRICES.monthly];
+      <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+        {/* ── Left: builder ── */}
+        <div className="space-y-4">
+          {/* Free base */}
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Always included — free
+            </p>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+              {FREE_FEATURES.map(f => (
+                <div key={f} className="flex items-center gap-1.5 text-sm">
+                  <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                  <span>{f}</span>
+                </div>
+              ))}
+            </div>
+          </div>
 
-          return (
-            <div
-              key={plan}
-              className={cn(
-                'relative flex flex-col rounded-xl border p-6',
-                isHighlighted && 'border-primary shadow-md',
-                isCurrent && 'bg-muted/40'
-              )}
-            >
-              {isHighlighted && (
-                <Badge className="bg-primary text-primary-foreground absolute -top-2.5 left-1/2 -translate-x-1/2 text-xs">
-                  Most Popular
-                </Badge>
-              )}
+          {/* Resource units */}
+          <div className="rounded-lg border p-4 space-y-0.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Resource units
+            </p>
+            {QUANTITY_ITEMS.map(itemType => (
+              <QuantityRow
+                key={itemType}
+                itemType={itemType}
+                qty={config[itemType] ?? 0}
+                interval={interval}
+                onChange={qty => setQty(itemType, qty)}
+              />
+            ))}
+          </div>
 
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold">{PLAN_NAMES[plan]}</h3>
-                <p className="text-sm text-muted-foreground">{PLAN_DESCRIPTIONS[plan]}</p>
+          {/* Feature unlocks */}
+          <div className="rounded-lg border p-4 space-y-0.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Feature unlocks
+            </p>
+            {TOGGLE_ITEMS.map(itemType => (
+              <ToggleRow
+                key={itemType}
+                itemType={itemType}
+                enabled={(config[itemType] ?? 0) > 0}
+                interval={interval}
+                onChange={v => setEnabled(itemType, v)}
+              />
+            ))}
+          </div>
+
+          {/* Enterprise */}
+          <div className="rounded-lg border border-dashed p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Enterprise</p>
+              <p className="text-xs text-muted-foreground">
+                SSO / SAML, dedicated support, custom contract &amp; SLA
+              </p>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <a href="mailto:sales@planloo.com">Contact sales</a>
+            </Button>
+          </div>
+        </div>
+
+        {/* ── Right: summary ── */}
+        <div className="space-y-4">
+          <div className="rounded-lg border p-5 space-y-4 sticky top-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Your plan
+            </p>
+
+            {lineItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Select units above to build your plan.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {lineItems.map(({ itemType, quantity }) => {
+                  const monthly = MONTHLY_PRICES[itemType]!;
+                  const price = monthly * quantity * (interval === 'annual' ? 0.85 : 1);
+                  return (
+                    <div key={itemType} className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {UNIT_LABELS[itemType]!.label}
+                        {quantity > 1 ? ` ×${quantity}` : ''}
+                      </span>
+                      <span className="tabular-nums">
+                        ${price % 1 === 0 ? price : price.toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
+            )}
 
-              <div className="mb-6">
-                {isEnterprise ? (
-                  <div className="flex items-end gap-1">
-                    <span className="text-2xl font-bold">Contact us</span>
-                  </div>
-                ) : (
-                  <div className="flex items-end gap-1">
-                    <span className="text-3xl font-bold tabular-nums">
-                      ${(price as number).toFixed(2)}
-                    </span>
-                    <span className="mb-1 text-sm text-muted-foreground">/mo</span>
-                  </div>
-                )}
-                {interval === 'annual' && isPaidStandard && (
-                  <p className="text-xs text-muted-foreground">Billed annually</p>
-                )}
+            <Separator />
+
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-medium">Total</span>
+              <div className="text-right">
+                <span className="text-2xl font-bold tabular-nums">
+                  ${total % 1 === 0 ? total : total.toFixed(2)}
+                </span>
+                <span className="text-sm text-muted-foreground">/mo</span>
               </div>
+            </div>
+            {interval === 'annual' && total > 0 && (
+              <p className="text-xs text-muted-foreground text-right">
+                Billed ${(total * 12).toFixed(2)}/year
+              </p>
+            )}
 
-              {isCurrent ? (
-                <Button variant="outline" disabled className="w-full">
-                  Current plan
-                </Button>
-              ) : isEnterprise ? (
-                <Button className="w-full" variant="outline" asChild>
-                  <a href="mailto:sales@planloo.com">Contact sales</a>
-                </Button>
-              ) : plan === 'free' ? (
-                <Button variant="outline" disabled className="w-full">
-                  Free forever
-                </Button>
-              ) : (
+            {hasSubscription ? (
+              <div className="space-y-2">
                 <Button
                   className="w-full"
-                  variant={isHighlighted ? 'destructive' : 'outline'}
-                  onClick={() => handleUpgrade(plan as Exclude<PlanId, 'free' | 'enterprise'>)}
-                  disabled={checkout.isPending}
+                  variant="outline"
+                  onClick={() => portal.mutate()}
+                  disabled={portal.isPending}
                 >
-                  {checkout.isPending && checkout.variables?.plan === plan
-                    ? 'Redirecting…'
-                    : 'Upgrade'}
+                  {portal.isPending ? 'Loading…' : 'Manage subscription'}
                 </Button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Feature comparison table */}
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="py-3 pl-4 pr-2 text-left font-medium text-muted-foreground">
-                Feature
-              </th>
-              {allPlans.map(plan => (
-                <th
-                  key={plan}
-                  className={cn(
-                    'px-2 py-3 text-center font-medium',
-                    plan === currentPlan && 'text-primary'
-                  )}
-                >
-                  {PLAN_NAMES[plan]}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {FEATURES.map(feat => (
-              <tr key={feat.label} className="transition-colors hover:bg-muted/30">
-                <td className="py-3 pl-4 pr-2 text-muted-foreground">{feat.label}</td>
-                {allPlans.map(plan => (
-                  <td key={plan} className="px-2 py-3 text-center">
-                    <FeatureValue value={feat[plan]} />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                {hasUnitItems && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    Modify units via the billing portal or by contacting support.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <Button
+                className={cn('w-full', lineItems.length === 0 && 'opacity-50')}
+                onClick={handleSubscribe}
+                disabled={lineItems.length === 0 || checkout.isPending}
+              >
+                {checkout.isPending
+                  ? 'Redirecting…'
+                  : lineItems.length === 0
+                  ? 'Select units to continue'
+                  : `Subscribe for $${total % 1 === 0 ? total : total.toFixed(2)}/mo`}
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -36,7 +36,96 @@ export interface PlanLimits {
   sso: boolean; // enterprise-only (not enforced yet)
 }
 
+/**
+ * Free base limits — the foundation for unit-based pricing.
+ * CSV, budget, tasks, and vendor management are free for all users.
+ */
+export const FREE_BASE_LIMITS: PlanLimits = {
+  maxActiveEvents: 1,
+  maxGuests: 50,
+  emailPoolPerMonth: null, // null = no email sending
+  smsPoolPerMonth: 0,
+  maxCollaboratorsPerEvent: 0,
+  maxCustomFieldsPerEvent: 0,
+  maxOrganizations: 0,
+  maxOrgMembers: 2, // included per org when org unlock is purchased
+  csvImportExport: true,
+  floorPlans: false,
+  budgetTracking: true,
+  taskTemplates: true,
+  vendorManagement: true,
+  guestAuditHistory: false,
+  sso: false,
+};
+
+export interface SubscriptionItem {
+  itemType: string;
+  quantity: number;
+}
+
+/**
+ * Compute plan limits from a user's active subscription items.
+ * Starts from FREE_BASE_LIMITS and adds each purchased unit.
+ *
+ * Unit sizes:
+ *   events:        +1 event per unit
+ *   guests:        +100 guests per unit
+ *   emails:        +1,000 emails/mo per unit
+ *   sms:           +100 SMS/mo per unit
+ *   collaborators: +1 collaborator slot/event per unit
+ *   custom_fields: +1 custom field per unit
+ *   org_members:   +1 org member (beyond the 2 included) per unit
+ *   floor_plans:   unlocks floor plan feature
+ *   organizations: +1 organization per unit
+ *   audit_history: unlocks guest audit history
+ *   sso:           unlocks SSO
+ */
+export function computeLimits(items: SubscriptionItem[]): PlanLimits {
+  const limits: PlanLimits = { ...FREE_BASE_LIMITS };
+
+  for (const { itemType, quantity: q } of items) {
+    switch (itemType) {
+      case 'events':
+        limits.maxActiveEvents = (limits.maxActiveEvents ?? 0) + q;
+        break;
+      case 'guests':
+        limits.maxGuests = (limits.maxGuests ?? 0) + q * 100;
+        break;
+      case 'emails':
+        limits.emailPoolPerMonth = (limits.emailPoolPerMonth ?? 0) + q * 1000;
+        break;
+      case 'sms':
+        limits.smsPoolPerMonth = (limits.smsPoolPerMonth ?? 0) + q * 100;
+        break;
+      case 'collaborators':
+        limits.maxCollaboratorsPerEvent = (limits.maxCollaboratorsPerEvent ?? 0) + q;
+        break;
+      case 'custom_fields':
+        limits.maxCustomFieldsPerEvent += q;
+        break;
+      case 'org_members':
+        limits.maxOrgMembers = (limits.maxOrgMembers ?? 2) + q;
+        break;
+      case 'floor_plans':
+        limits.floorPlans = true;
+        break;
+      case 'organizations':
+        limits.maxOrganizations += q;
+        break;
+      case 'audit_history':
+        limits.guestAuditHistory = true;
+        break;
+      case 'sso':
+        limits.sso = true;
+        break;
+    }
+  }
+
+  return limits;
+}
+
 export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
+  // Free tier now matches FREE_BASE_LIMITS (CSV/budget/tasks/vendors are free)
   free: {
     maxActiveEvents: 1,
     maxGuests: 50,
@@ -46,11 +135,11 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxCustomFieldsPerEvent: 0,
     maxOrganizations: 0,
     maxOrgMembers: null,
-    csvImportExport: false,
+    csvImportExport: true,
     floorPlans: false,
-    budgetTracking: false,
-    taskTemplates: false,
-    vendorManagement: false,
+    budgetTracking: true,
+    taskTemplates: true,
+    vendorManagement: true,
     guestAuditHistory: false,
     sso: false,
   },

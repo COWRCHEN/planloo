@@ -22,13 +22,35 @@ crons = ["0 3 * * *"]
 
 [env.development.vars]
 ENVIRONMENT = "development"
-FRONTEND_URL = "http://localhost:4321"
+FRONTEND_URL = "http://10.0.48.174:4321"
 STRIPE_PRICE_PERSONAL_MONTHLY = "price_1T73nYFWgv0e5jhpU7H0I8QH"
 STRIPE_PRICE_PERSONAL_ANNUAL  = "price_1T752eFWgv0e5jhpXD7k0CgU"
 STRIPE_PRICE_PLANNER_MONTHLY  = "price_1T73waFWgv0e5jhpfpYyOHyD"
 STRIPE_PRICE_PLANNER_ANNUAL   = "price_1T7511FWgv0e5jhp1DpzZLF7"
 STRIPE_PRICE_AGENCY_MONTHLY   = "price_1T73z6FWgv0e5jhpnEYP7v8t"
 STRIPE_PRICE_AGENCY_ANNUAL    = "price_1T73zgFWgv0e5jhpWxqhdrzB"
+
+# Unit-based prices — create these in Stripe and paste IDs here
+STRIPE_PRICE_EVENTS_MONTHLY        = ""
+STRIPE_PRICE_EVENTS_ANNUAL         = ""
+STRIPE_PRICE_GUESTS_MONTHLY        = ""
+STRIPE_PRICE_GUESTS_ANNUAL         = ""
+STRIPE_PRICE_EMAILS_MONTHLY        = ""
+STRIPE_PRICE_EMAILS_ANNUAL         = ""
+STRIPE_PRICE_SMS_MONTHLY           = ""
+STRIPE_PRICE_SMS_ANNUAL            = ""
+STRIPE_PRICE_COLLABORATORS_MONTHLY = ""
+STRIPE_PRICE_COLLABORATORS_ANNUAL  = ""
+STRIPE_PRICE_CUSTOM_FIELDS_MONTHLY = ""
+STRIPE_PRICE_CUSTOM_FIELDS_ANNUAL  = ""
+STRIPE_PRICE_ORG_MEMBERS_MONTHLY   = ""
+STRIPE_PRICE_ORG_MEMBERS_ANNUAL    = ""
+STRIPE_PRICE_FLOOR_PLANS_MONTHLY   = ""
+STRIPE_PRICE_FLOOR_PLANS_ANNUAL    = ""
+STRIPE_PRICE_ORGANIZATIONS_MONTHLY = ""
+STRIPE_PRICE_ORGANIZATIONS_ANNUAL  = ""
+STRIPE_PRICE_AUDIT_HISTORY_MONTHLY = ""
+STRIPE_PRICE_AUDIT_HISTORY_ANNUAL  = ""
 
 # KV namespace for rate limiting (optional in dev)
 # Create with: wrangler kv:namespace create "RATE_LIMIT" --env development --preview
@@ -120,3 +142,4 @@ bucket_name = "planloo-uploads"
 [dev]
 port = 8787
 local_protocol = "http"
+ip = "0.0.0.0"

@@ -35,7 +35,7 @@ export * from './admin';
 // Email log (1 table)
 export * from './notifications';
 
-// Billing schemas (1 table: subscriptions)
+// Billing schemas (2 tables: subscriptions, user_subscription_items)
 export * from './billing';
 
 // All relations

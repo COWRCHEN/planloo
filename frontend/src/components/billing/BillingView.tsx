@@ -60,6 +60,34 @@ function FeatureRow({ label, enabled }: { label: string; enabled: boolean }) {
 
 // ==================== CURRENT PLAN CARD ====================
 
+const ITEM_LABELS: Record<string, string> = {
+  events: 'Events',
+  guests: 'Guests',
+  emails: 'Emails',
+  sms: 'SMS',
+  collaborators: 'Collaborators',
+  custom_fields: 'Custom fields',
+  org_members: 'Extra org members',
+  floor_plans: 'Floor Plans',
+  organizations: 'Organizations',
+  audit_history: 'Guest Audit History',
+  sso: 'SSO',
+};
+
+const ITEM_UNIT_SUFFIX: Record<string, string> = {
+  events: 'event',
+  guests: '×100 guests',
+  emails: '×1,000 emails/mo',
+  sms: '×100 SMS/mo',
+  collaborators: 'collab slot/event',
+  custom_fields: 'field',
+  org_members: 'extra member',
+  floor_plans: 'unlock',
+  organizations: 'org',
+  audit_history: 'unlock',
+  sso: 'unlock',
+};
+
 function CurrentPlanCard() {
   const { data, isLoading, error } = useBilling();
   const portal = useCreatePortalSession();
@@ -89,9 +117,10 @@ function CurrentPlanCard() {
     );
   }
 
-  const { subscription, limits, usage } = data;
+  const { subscription, items, limits, usage } = data;
   const plan = subscription?.plan ?? 'free';
-  const isPaid = plan !== 'free';
+  const hasUnitItems = items.length > 0;
+  const isPaid = hasUnitItems || (plan !== 'free' && subscription?.status === 'active');
 
   return (
     <Card>
@@ -100,7 +129,13 @@ function CurrentPlanCard() {
           <div>
             <CardTitle className="flex items-center gap-2">
               Current Plan
-              <CurrentPlanBadge plan={plan} />
+              {hasUnitItems ? (
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                  Custom
+                </span>
+              ) : (
+                <CurrentPlanBadge plan={plan} />
+              )}
             </CardTitle>
             <CardDescription>
               {isPaid && subscription?.currentPeriodEnd
@@ -140,6 +175,28 @@ function CurrentPlanCard() {
               Your subscription will be canceled at the end of this billing period.
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* ── Active items (unit subscribers) ── */}
+        {hasUnitItems && (
+          <>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Subscribed units
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {items.map(item => (
+                  <div key={item.itemType} className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{ITEM_LABELS[item.itemType] ?? item.itemType}</span>
+                    <span className="font-medium tabular-nums">
+                      {item.quantity} {ITEM_UNIT_SUFFIX[item.itemType] ?? ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Separator />
+          </>
         )}
 
         {/* ── Usage ── */}
@@ -236,19 +293,16 @@ function CurrentPlanCard() {
 // ==================== MAIN VIEW ====================
 
 function BillingContent() {
-  const { data } = useBilling();
-  const plan = data?.subscription?.plan ?? 'free';
-
   return (
     <div className="space-y-8">
       <CurrentPlanCard />
 
       <div>
-        <h2 className="mb-1 text-xl font-semibold">Plans</h2>
+        <h2 className="mb-1 text-xl font-semibold">Customize your plan</h2>
         <p className="mb-6 text-sm text-muted-foreground">
-          Upgrade or change your plan at any time.
+          Pay only for what you need. Add or remove units at any time.
         </p>
-        <PricingTable currentPlan={plan} />
+        <PricingTable />
       </div>
     </div>
   );

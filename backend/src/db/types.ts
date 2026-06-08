@@ -144,6 +144,9 @@ export type NewSubscription = InferInsertModel<typeof schema.subscriptions>;
 export type SubscriptionPlan = 'free' | 'personal' | 'planner' | 'agency';
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete' | 'free';
 
+export type UserSubscriptionItem = InferSelectModel<typeof schema.userSubscriptionItems>;
+export type NewUserSubscriptionItem = InferInsertModel<typeof schema.userSubscriptionItems>;
+
 // ==================== ENUM TYPES ====================
 
 export type PlatformRole = 'super_admin' | 'operator' | 'user';

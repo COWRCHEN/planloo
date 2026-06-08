@@ -1,10 +1,8 @@
 /**
  * Billing Hooks using TanStack Query
- *
- * Provides React hooks for billing/subscription operations.
  */
 
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
 
@@ -19,6 +17,26 @@ export type SubscriptionStatus =
   | 'canceled'
   | 'incomplete'
   | 'free';
+
+export type ItemType =
+  | 'events'
+  | 'guests'
+  | 'emails'
+  | 'sms'
+  | 'collaborators'
+  | 'custom_fields'
+  | 'org_members'
+  | 'floor_plans'
+  | 'organizations'
+  | 'audit_history'
+  | 'sso';
+
+export interface SubscriptionItem {
+  itemType: ItemType;
+  quantity: number;
+  stripeItemId: string | null;
+  activeFrom: string | null;
+}
 
 export interface PlanLimits {
   maxActiveEvents: number | null;
@@ -48,11 +66,11 @@ export interface SubscriptionInfo {
   cancelAtPeriodEnd: boolean;
   canceledAt: string | null;
   emailsSentThisPeriod: number;
-  customLimits?: Record<string, unknown>;
 }
 
 export interface BillingData {
   subscription: SubscriptionInfo | null;
+  items: SubscriptionItem[];
   limits: PlanLimits;
   usage: {
     totalEvents: number;
@@ -84,9 +102,6 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 // ==================== HOOKS ====================
 
-/**
- * Fetch current subscription, plan limits, and usage.
- */
 export function useBilling() {
   return useQuery<BillingData>({
     queryKey: billingKeys.detail(),
@@ -94,16 +109,19 @@ export function useBilling() {
       const res = await fetch(`${API_URL}/billing`, { credentials: 'include' });
       return handleResponse<BillingData>(res);
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 /**
- * Create a Stripe Checkout session and redirect to the returned URL.
+ * Create a Stripe Checkout session with selected unit items.
  */
 export function useCreateCheckoutSession() {
   return useMutation({
-    mutationFn: async (input: { plan: Exclude<PlanId, 'free' | 'enterprise'>; interval: BillingInterval }) => {
+    mutationFn: async (input: {
+      items: { itemType: ItemType; quantity: number }[];
+      interval: BillingInterval;
+    }) => {
       const res = await fetch(`${API_URL}/billing/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -121,8 +139,31 @@ export function useCreateCheckoutSession() {
 }
 
 /**
- * Create a Stripe Customer Portal session and redirect to the returned URL.
+ * Update a single subscription item quantity mid-period (Stripe proration).
+ * quantity = 0 removes the item.
  */
+export function useUpdateBillingItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      itemType: ItemType;
+      quantity: number;
+      interval: BillingInterval;
+    }) => {
+      const res = await fetch(`${API_URL}/billing/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(input),
+      });
+      return handleResponse<void>(res);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: billingKeys.all });
+    },
+  });
+}
+
 export function useCreatePortalSession() {
   return useMutation({
     mutationFn: async () => {
