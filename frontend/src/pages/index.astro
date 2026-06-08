@@ -46,7 +46,7 @@ const faqSchema = {
       name: 'Is Planloo free to use?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Yes. Planloo offers a free plan with no credit card required. Paid plans are available for larger events, more collaborators, and advanced features.',
+        text: 'Yes. Planloo offers a free base plan with no credit card required. You pay only for the extra resources and features you actually use — buy additional events, guests, emails, or feature unlocks one unit at a time.',
       },
     },
     {
@@ -305,6 +305,73 @@ const eventTypesSchema = {
     description,
   })),
 };
+
+// Pricing data — see docs/features/pricing_new/unit-pricing.md for source numbers
+const checkIcon =
+  '<svg class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>';
+
+const annualPrice = (monthly: number) => Math.round(monthly * 0.85 * 100) / 100;
+
+const freeBaseFeatures = [
+  '1 active event',
+  '50 guests',
+  'CSV import / export',
+  'Budget tracking',
+  'Task templates',
+  'Vendor management',
+];
+
+const basicPlanFeatures = [
+  '100 guests',
+  '300 emails / mo',
+  '100 SMS / mo',
+  'CSV, budget, tasks & vendors',
+];
+
+const addOnUnits = [
+  { label: 'Events', unit: '+1 event per unit', price: 3 },
+  { label: 'Extra guests', unit: '+100 guests per unit', price: 2 },
+  { label: 'Extra emails', unit: '+1,000 emails / mo per unit', price: 2 },
+  { label: 'Extra SMS', unit: '+100 SMS / mo per unit', price: 5 },
+  { label: 'Collaborators', unit: '+1 slot per event', price: 1 },
+  { label: 'Custom guest fields', unit: '+1 field', price: 3 },
+  { label: 'Org members', unit: '+1 member (beyond 2 included)', price: 5 },
+];
+
+const featureUnlocks = [
+  { label: 'Floor Plans', description: 'Seating charts & floor plan builder', price: 10 },
+  { label: 'Organizations', description: '1 org with 2 members included', price: 10 },
+  { label: 'Guest Audit History', description: 'Full change log for guest records', price: 8 },
+];
+
+// Basic $9.99 | events $3 | guests $2/100 | emails $2/1k | SMS $5/100
+// Free tier: 1 event + 50 guests. Basic adds: 100 guests + 300 emails + 100 SMS.
+const pricingExamples = [
+  {
+    name: 'Casual user',
+    description: '1 event, ~150 guests, email & SMS already covered',
+    items: ['Basic plan — complete'],
+    price: 9.99, // just $9.99
+  },
+  {
+    name: 'Solo event planner',
+    description: '5 events, 350 guests, 2k emails/mo',
+    items: ['Basic plan', '+5 events', '+200 guests', '+2,000 emails / mo'],
+    price: 32.99, // 9.99 + 15 + 4 + 4
+  },
+  {
+    name: 'Corporate event manager',
+    description: '6 events/yr, 400 guests, floor plans & collaborators',
+    items: ['Basic plan', '+6 events', '+300 guests', '+3,000 emails / mo', 'Floor plans', '3 collaborators'],
+    price: 52.99, // 9.99 + 18 + 6 + 6 + 10 + 3
+  },
+  {
+    name: 'Small wedding agency',
+    description: 'Up to 20 events, full suite with audit history',
+    items: ['Basic plan', '+20 events', '+800 guests', '+10,000 emails / mo', 'Floor plans', 'Organizations', 'Audit history'],
+    price: 162.99, // 9.99 + 60 + 16 + 20 + 10 + 10 + 8 + (5 collab + 3 fields + 3 org members = 29)
+  },
+];
 ---
 
 <BaseLayout
@@ -722,10 +789,10 @@ const eventTypesSchema = {
             id="pricing-heading"
             class="font-heading text-3xl font-bold tracking-tight text-foreground sm:text-4xl"
           >
-            Simple, transparent pricing
+            Simple, unit-based pricing
           </h2>
           <p class="mt-4 text-lg text-muted-foreground">
-            Start free and scale as you grow. No hidden fees, no surprises.
+            Start free. Buy only the resources and features you actually use — stack units, drop them anytime.
           </p>
 
           <!-- Billing toggle -->
@@ -756,972 +823,199 @@ const eventTypesSchema = {
           </div>
         </div>
 
-        <!-- Plan cards -->
-        <div
-          class="-mx-4 mt-12 overflow-x-auto px-4 pb-4 pt-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:overflow-visible lg:px-0 lg:pt-0"
-        >
-          <div class="mx-auto grid w-[900px] grid-cols-5 gap-3 lg:w-auto">
-            <!-- Free -->
-            <div class="flex flex-col cursor-default rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-foreground/20 hover:shadow-xl">
-              <div>
-                <h3 class="font-heading text-base font-semibold text-foreground">Free</h3>
-                <p class="mt-0.5 text-xs text-muted-foreground">Try it out</p>
-              </div>
-              <div class="mt-4">
-                <p class="text-3xl font-bold text-foreground" data-monthly>
-                  $0 <span class="text-sm font-normal text-muted-foreground">/mo</span>
-                </p>
-                <p class="hidden text-3xl font-bold text-foreground" data-annual>
-                  $0 <span class="text-sm font-normal text-muted-foreground">/mo</span>
-                </p>
-                <p class="mt-1 h-4 text-xs text-muted-foreground" data-monthly>&nbsp;</p>
-                <p class="mt-1 hidden h-4 text-xs text-muted-foreground" data-annual>&nbsp;</p>
-              </div>
-              <ul class="mt-5 flex-1 space-y-2.5 text-xs text-muted-foreground">
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  1 active event
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  50 guests total
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  Guest management &amp; RSVPs
-                </li>
-              </ul>
-              <a
-                href="/register"
-                class="mt-6 flex h-9 w-full items-center justify-center rounded-lg border text-xs font-medium transition-colors hover:bg-accent"
-              >
-                Get started free
-              </a>
+        <!-- Pricing cards -->
+        <div class="mt-12 grid gap-4 lg:grid-cols-3">
+          <!-- Free -->
+          <div
+            class="flex flex-col cursor-default rounded-2xl border bg-card p-6 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-foreground/20 hover:shadow-xl"
+          >
+            <div>
+              <h3 class="font-heading text-base font-semibold text-foreground">Free</h3>
+              <p class="mt-0.5 text-xs text-muted-foreground">Try it out, no card required</p>
             </div>
-
-            <!-- Personal -->
-            <div class="flex flex-col cursor-default rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-foreground/20 hover:shadow-xl">
-              <div>
-                <h3 class="font-heading text-base font-semibold text-foreground">Personal</h3>
-                <p class="mt-0.5 text-xs text-muted-foreground">For individuals</p>
-              </div>
-              <div class="mt-4">
-                <p class="text-3xl font-bold text-foreground" data-monthly>
-                  $19.99 <span class="text-sm font-normal text-muted-foreground">/mo</span>
-                </p>
-                <p class="hidden text-3xl font-bold text-foreground" data-annual>
-                  $17.08 <span class="text-sm font-normal text-muted-foreground">/mo</span>
-                </p>
-                <p class="mt-1 h-4 text-xs text-muted-foreground" data-monthly>&nbsp;</p>
-                <p class="mt-1 hidden h-4 text-xs text-muted-foreground" data-annual>
-                  $205.00 billed annually
-                </p>
-              </div>
-              <ul class="mt-5 flex-1 space-y-2.5 text-xs text-muted-foreground">
+            <p class="mt-4 text-3xl font-bold text-foreground">
+              $0 <span class="text-sm font-normal text-muted-foreground">/mo</span>
+            </p>
+            <ul class="mt-5 flex-1 space-y-2.5 text-xs text-muted-foreground">
+              {freeBaseFeatures.map((feature) => (
                 <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  3 active events
+                  <Fragment set:html={checkIcon} />
+                  {feature}
                 </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  200 guests total
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  1,000 emails/mo
-                </li>
-                <!-- <li class="flex items-start gap-2">
-                  <svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
-                  2 collaborators/event
-                </li> -->
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  Budget, tasks &amp; vendors
-                </li>
-              </ul>
-              <a
-                href="/register"
-                class="mt-6 flex h-9 w-full items-center justify-center rounded-lg border text-xs font-medium transition-colors hover:bg-accent"
-              >
-                Start
-              </a>
-            </div>
-
-            <!-- Planner (most popular) -->
-            <div
-              class="border-primary relative flex cursor-default flex-col rounded-2xl border-2 bg-card p-5 shadow-md transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-xl"
+              ))}
+            </ul>
+            <a
+              href="/register"
+              class="mt-6 flex h-9 w-full items-center justify-center rounded-lg border text-xs font-medium transition-colors hover:bg-accent"
             >
-              <div
-                class="bg-primary text-primary-foreground absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold"
-              >
-                Most popular
-              </div>
-              <div>
-                <h3 class="font-heading text-base font-semibold text-foreground">Planner</h3>
-                <p class="mt-0.5 text-xs text-muted-foreground">For serious planners</p>
-              </div>
-              <div class="mt-4">
-                <p class="text-3xl font-bold text-foreground" data-monthly>
-                  $39.99 <span class="text-sm font-normal text-muted-foreground">/mo</span>
-                </p>
-                <p class="hidden text-3xl font-bold text-foreground" data-annual>
-                  $34.00 <span class="text-sm font-normal text-muted-foreground">/mo</span>
-                </p>
-                <p class="mt-1 h-4 text-xs text-muted-foreground" data-monthly>&nbsp;</p>
-                <p class="mt-1 hidden h-4 text-xs text-muted-foreground" data-annual>
-                  $408.00 billed annually
-                </p>
-              </div>
-              <ul class="mt-5 flex-1 space-y-2.5 text-xs text-muted-foreground">
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  25 active events
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  600 guests total
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  3,000 emails/mo
-                </li>
-                <!-- <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  10 collaborators/event
-                </li> -->
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  1 org (5 members)
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  Floor plans
-                </li>
-              </ul>
-              <a
-                href="/register"
-                class="bg-primary text-primary-foreground hover:bg-primary/90 mt-6 flex h-9 w-full items-center justify-center rounded-lg text-xs font-semibold shadow transition-colors"
-              >
-                Start
-              </a>
-            </div>
+              Get started free
+            </a>
+          </div>
 
-            <!-- Agency -->
-            <div class="flex flex-col cursor-default rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-foreground/20 hover:shadow-xl">
-              <div>
-                <h3 class="font-heading text-base font-semibold text-foreground">Agency</h3>
-                <p class="mt-0.5 text-xs text-muted-foreground">For event agencies</p>
-              </div>
-              <div class="mt-4">
-                <p class="text-3xl font-bold text-foreground" data-monthly>
-                  $199.99 <span class="text-sm font-normal text-muted-foreground">/mo</span>
-                </p>
-                <p class="hidden text-3xl font-bold text-foreground" data-annual>
-                  $170.00 <span class="text-sm font-normal text-muted-foreground">/mo</span>
-                </p>
-                <p class="mt-1 h-4 text-xs text-muted-foreground" data-monthly>&nbsp;</p>
-                <p class="mt-1 hidden h-4 text-xs text-muted-foreground" data-annual>
-                  $2,040.00 billed annually
-                </p>
-              </div>
-              <ul class="mt-5 flex-1 space-y-2.5 text-xs text-muted-foreground">
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  100 active events
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  2,000 guests total
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  20,000 emails/mo
-                </li>
-                <!-- <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  10 collaborators/event
-                </li> -->
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  3 orgs (10 members each)
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  All Planner features
-                </li>
-              </ul>
-              <a
-                href="/register"
-                class="mt-6 flex h-9 w-full items-center justify-center rounded-lg border text-xs font-medium transition-colors hover:bg-accent"
-              >
-                Start
-              </a>
+          <!-- Basic plan -->
+          <div
+            class="border-primary relative flex cursor-default flex-col rounded-2xl border-2 bg-card p-6 shadow-md transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-xl"
+          >
+            <div
+              class="bg-primary text-primary-foreground absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold"
+            >
+              Most popular
             </div>
+            <div>
+              <h3 class="font-heading text-base font-semibold text-foreground">Basic</h3>
+              <p class="mt-0.5 text-xs text-muted-foreground">Everything you need to get started</p>
+            </div>
+            <div class="mt-4">
+              <p class="text-3xl font-bold text-foreground" data-monthly>
+                $9.99 <span class="text-sm font-normal text-muted-foreground">/mo</span>
+              </p>
+              <p class="hidden text-3xl font-bold text-foreground" data-annual>
+                ${annualPrice(9.99).toFixed(2)} <span class="text-sm font-normal text-muted-foreground">/mo</span>
+              </p>
+              <p class="mt-1 h-4 text-xs text-muted-foreground" data-monthly>&nbsp;</p>
+              <p class="mt-1 hidden h-4 text-xs text-muted-foreground" data-annual>
+                ${(annualPrice(9.99) * 12).toFixed(2)} billed annually
+              </p>
+            </div>
+            <ul class="mt-5 flex-1 space-y-2.5 text-xs text-muted-foreground">
+              {basicPlanFeatures.map((feature) => (
+                <li class="flex items-start gap-2">
+                  <Fragment set:html={checkIcon} />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <a
+              href="/register"
+              class="bg-primary text-primary-foreground hover:bg-primary/90 mt-6 flex h-9 w-full items-center justify-center rounded-lg text-xs font-semibold shadow transition-colors"
+            >
+              Start with Basic
+            </a>
+          </div>
 
-            <!-- Enterprise -->
-            <div class="flex flex-col cursor-default rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-foreground/20 hover:shadow-xl">
-              <div>
-                <h3 class="font-heading text-base font-semibold text-foreground">Enterprise</h3>
-                <p class="mt-0.5 text-xs text-muted-foreground">Custom scale</p>
-              </div>
-              <div class="mt-4">
-                <p class="text-2xl font-bold text-foreground" data-monthly>Contact us</p>
-                <p class="hidden text-2xl font-bold text-foreground" data-annual>Contact us</p>
-                <p class="mt-1 h-4 text-xs text-muted-foreground" data-monthly>&nbsp;</p>
-                <p class="mt-1 hidden h-4 text-xs text-muted-foreground" data-annual>&nbsp;</p>
-              </div>
-              <ul class="mt-5 flex-1 space-y-2.5 text-xs text-muted-foreground">
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  Custom event limit
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  Custom guest &amp; email limits
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  Custom orgs &amp; members
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  Dedicated support
-                </li>
-                <li class="flex items-start gap-2">
-                  <svg
-                    class="text-primary mt-0.5 h-3.5 w-3.5 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2.5"
-                      d="M5 13l4 4L19 7"></path></svg
-                  >
-                  SLA &amp; custom contract
-                </li>
-              </ul>
-              <a
-                href="mailto:sales@planloo.com"
-                class="mt-6 flex h-9 w-full items-center justify-center rounded-lg border text-xs font-medium transition-colors hover:bg-accent"
-              >
-                Contact sales
-              </a>
+          <!-- Enterprise -->
+          <div
+            class="flex flex-col cursor-default rounded-2xl border bg-card p-6 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-foreground/20 hover:shadow-xl"
+          >
+            <div>
+              <h3 class="font-heading text-base font-semibold text-foreground">Enterprise</h3>
+              <p class="mt-0.5 text-xs text-muted-foreground">Custom scale</p>
             </div>
+            <p class="mt-4 text-2xl font-bold text-foreground">Contact us</p>
+            <ul class="mt-5 flex-1 space-y-2.5 text-xs text-muted-foreground">
+              <li class="flex items-start gap-2">
+                <Fragment set:html={checkIcon} />
+                Everything in Basic
+              </li>
+              <li class="flex items-start gap-2">
+                <Fragment set:html={checkIcon} />
+                Custom event &amp; guest limits
+              </li>
+              <li class="flex items-start gap-2">
+                <Fragment set:html={checkIcon} />
+                SSO / SAML
+              </li>
+              <li class="flex items-start gap-2">
+                <Fragment set:html={checkIcon} />
+                Dedicated support &amp; SLA
+              </li>
+            </ul>
+            <a
+              href="mailto:sales@planloo.com"
+              class="mt-6 flex h-9 w-full items-center justify-center rounded-lg border text-xs font-medium transition-colors hover:bg-accent"
+            >
+              Contact sales
+            </a>
           </div>
         </div>
 
-        <!-- Feature comparison table -->
+        <!-- Add-ons section -->
+        <div class="mt-6 rounded-2xl border bg-card p-6 shadow-sm">
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 class="font-heading text-base font-semibold text-foreground">
+                Add-ons — stack on top of any plan
+              </h3>
+              <p class="mt-0.5 text-xs text-muted-foreground">
+                Buy exactly what you need. Remove an add-on and stop paying next billing cycle.
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-5 grid gap-x-8 gap-y-0 sm:grid-cols-2 lg:grid-cols-3">
+            <p
+              class="col-span-full mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            >
+              Resource units
+            </p>
+            {addOnUnits.map((unit) => (
+              <div class="flex items-center justify-between gap-3 border-b border-border/50 py-2 last:border-0">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground">{unit.label}</p>
+                  <p class="text-xs text-muted-foreground">{unit.unit}</p>
+                </div>
+                <p class="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                  <span data-monthly>${unit.price}</span>
+                  <span class="hidden" data-annual>${annualPrice(unit.price).toFixed(2)}</span>
+                  <span class="text-xs font-normal text-muted-foreground">/mo</span>
+                </p>
+              </div>
+            ))}
+
+            <div class="col-span-full mb-2 mt-5 border-t pt-5">
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Feature unlocks — flat monthly fee
+              </p>
+            </div>
+            {featureUnlocks.map((feature) => (
+              <div class="flex items-center justify-between gap-3 border-b border-border/50 py-2 last:border-0">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground">{feature.label}</p>
+                  <p class="text-xs text-muted-foreground">{feature.description}</p>
+                </div>
+                <p class="shrink-0 text-sm font-semibold tabular-nums text-foreground">
+                  <span data-monthly>${feature.price}</span>
+                  <span class="hidden" data-annual>${annualPrice(feature.price).toFixed(2)}</span>
+                  <span class="text-xs font-normal text-muted-foreground">/mo</span>
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <!-- Real-world examples -->
         <div class="mt-16">
-          <h3 class="mb-6 text-center font-heading text-lg font-semibold text-foreground">
-            Full feature comparison
+          <h3 class="text-center font-heading text-lg font-semibold text-foreground">
+            What people actually pay
           </h3>
-          <div class="overflow-x-auto rounded-2xl border">
-            <table class="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr class="border-b bg-muted/50">
-                  <th
-                    class="w-44 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                    >Feature</th
-                  >
-                  <th
-                    class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                    >Free</th
-                  >
-                  <th
-                    class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                    >Personal</th
-                  >
-                  <th
-                    class="text-primary bg-primary/5 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide"
-                    >Planner</th
-                  >
-                  <th
-                    class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                    >Agency</th
-                  >
-                  <th
-                    class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                    >Enterprise</th
-                  >
-                </tr>
-              </thead>
-              <tbody class="divide-y">
-                <tr class="bg-muted/20">
-                  <td
-                    colspan="6"
-                    class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                    >Limits</td
-                  >
-                </tr>
-                <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">Active events</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">1</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">3</td>
-                  <td class="bg-primary/5 px-4 py-3 text-center text-sm font-medium text-foreground"
-                    >25</td
-                  >
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">100</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">Custom</td>
-                </tr>
-                <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">Guests total</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">50</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">200</td>
-                  <td class="bg-primary/5 px-4 py-3 text-center text-sm font-medium text-foreground"
-                    >600</td
-                  >
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">2,000</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">Custom</td>
-                </tr>
-                <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">Email pool / mo</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">—</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">1,000</td>
-                  <td class="bg-primary/5 px-4 py-3 text-center text-sm font-medium text-foreground"
-                    >3,000</td
-                  >
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">20,000</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">Custom</td>
-                </tr>
-                <!-- <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">Collaborators / event</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">0</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">2</td>
-                  <td class="bg-primary/5 px-4 py-3 text-center text-sm font-medium text-foreground"
-                    >10</td
-                  >
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">10</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">Custom</td>
-                </tr> -->
-                <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">Custom guest fields</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">0</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">3</td>
-                  <td class="bg-primary/5 px-4 py-3 text-center text-sm font-medium text-foreground"
-                    >10</td
-                  >
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">10</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">Custom</td>
-                </tr>
-                <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">Organizations</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">0</td>
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">0</td>
-                  <td class="bg-primary/5 px-4 py-3 text-center text-sm font-medium text-foreground"
-                    >1 (5 members)</td
-                  >
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">3 (10 members)</td
-                  >
-                  <td class="px-4 py-3 text-center text-sm text-muted-foreground">Custom</td>
-                </tr>
-
-                <tr class="bg-muted/20">
-                  <td
-                    colspan="6"
-                    class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                    >Features</td
-                  >
-                </tr>
-                <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">CSV import / export</td>
-                  <td class="px-4 py-3 text-center"
-                    ><span class="text-muted-foreground/50" aria-label="Not included">✗</span></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="bg-primary/5 px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                </tr>
-                <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">Floor plans</td>
-                  <td class="px-4 py-3 text-center"
-                    ><span class="text-muted-foreground/50" aria-label="Not included">✗</span></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><span class="text-muted-foreground/50" aria-label="Not included">✗</span></td
-                  >
-                  <td class="bg-primary/5 px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                </tr>
-                <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">Budget tracking</td>
-                  <td class="px-4 py-3 text-center"
-                    ><span class="text-muted-foreground/50" aria-label="Not included">✗</span></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="bg-primary/5 px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                </tr>
-                <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">Task templates</td>
-                  <td class="px-4 py-3 text-center"
-                    ><span class="text-muted-foreground/50" aria-label="Not included">✗</span></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="bg-primary/5 px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                </tr>
-                <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">Vendor management</td>
-                  <td class="px-4 py-3 text-center"
-                    ><span class="text-muted-foreground/50" aria-label="Not included">✗</span></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="bg-primary/5 px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                </tr>
-                <tr class="transition-colors hover:bg-muted/30">
-                  <td class="px-4 py-3 text-sm text-foreground">Guest audit history</td>
-                  <td class="px-4 py-3 text-center"
-                    ><span class="text-muted-foreground/50" aria-label="Not included">✗</span></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><span class="text-muted-foreground/50" aria-label="Not included">✗</span></td
-                  >
-                  <td class="bg-primary/5 px-4 py-3 text-center"
-                    ><span class="text-muted-foreground/50" aria-label="Not included">✗</span></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                  <td class="px-4 py-3 text-center"
-                    ><svg
-                      class="text-primary mx-auto h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      aria-label="Included"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2.5"
-                        d="M5 13l4 4L19 7"></path></svg
-                    ></td
-                  >
-                </tr>
-              </tbody>
-            </table>
+          <p class="mx-auto mt-2 max-w-xl text-center text-sm text-muted-foreground">
+            Start with Basic, then add only what you actually use.
+          </p>
+          <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {pricingExamples.map((profile) => (
+              <div
+                class="flex flex-col cursor-default rounded-2xl border bg-card p-5 shadow-sm transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-foreground/20 hover:shadow-xl"
+              >
+                <h4 class="font-heading text-sm font-semibold text-foreground">{profile.name}</h4>
+                <p class="mt-1 text-xs text-muted-foreground">{profile.description}</p>
+                <ul class="mt-4 flex-1 space-y-1.5 text-xs text-muted-foreground">
+                  {profile.items.map((item) => (
+                    <li class="flex items-start gap-2">
+                      <Fragment set:html={checkIcon} />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <p class="mt-4 text-2xl font-bold text-foreground" data-monthly>
+                  ${profile.price} <span class="text-sm font-normal text-muted-foreground">/mo</span>
+                </p>
+                <p class="mt-4 hidden text-2xl font-bold text-foreground" data-annual>
+                  ${annualPrice(profile.price).toFixed(2)} <span class="text-sm font-normal text-muted-foreground">/mo</span>
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
 
       <script>
         const btnMonthly = document.getElementById('billing-monthly')!;

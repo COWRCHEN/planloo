@@ -19,6 +19,7 @@ export type SubscriptionStatus =
   | 'free';
 
 export type ItemType =
+  | 'basic_plan'
   | 'events'
   | 'guests'
   | 'emails'

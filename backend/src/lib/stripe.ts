@@ -43,6 +43,7 @@ export function getStripePriceId(
 // ==================== UNIT-BASED PRICES ====================
 
 const ITEM_ENV_PREFIX: Record<string, string> = {
+  basic_plan: 'STRIPE_PRICE_BASIC_PLAN',
   events: 'STRIPE_PRICE_EVENTS',
   guests: 'STRIPE_PRICE_GUESTS',
   emails: 'STRIPE_PRICE_EMAILS',

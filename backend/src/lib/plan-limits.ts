@@ -85,6 +85,12 @@ export function computeLimits(items: SubscriptionItem[]): PlanLimits {
 
   for (const { itemType, quantity: q } of items) {
     switch (itemType) {
+      case 'basic_plan':
+        // Bundle: 100 guests + 300 emails/mo + 100 SMS/mo — $9.99/mo
+        limits.maxGuests = (limits.maxGuests ?? 0) + 100;
+        limits.emailPoolPerMonth = (limits.emailPoolPerMonth ?? 0) + 300;
+        limits.smsPoolPerMonth = (limits.smsPoolPerMonth ?? 0) + 100;
+        break;
       case 'events':
         limits.maxActiveEvents = (limits.maxActiveEvents ?? 0) + q;
         break;

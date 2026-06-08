@@ -47,6 +47,10 @@ export interface Env {
   STRIPE_PRICE_PLANNER_ANNUAL?: string;
   STRIPE_PRICE_AGENCY_ANNUAL?: string;
 
+  // Basic plan bundle price IDs
+  STRIPE_PRICE_BASIC_PLAN_MONTHLY?: string;
+  STRIPE_PRICE_BASIC_PLAN_ANNUAL?: string;
+
   // Unit-based Stripe Price IDs (monthly)
   STRIPE_PRICE_EVENTS_MONTHLY?: string;
   STRIPE_PRICE_GUESTS_MONTHLY?: string;

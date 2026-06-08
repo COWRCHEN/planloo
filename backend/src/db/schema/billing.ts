@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { user } from './auth';
 
 export const ITEM_TYPES = [
+  'basic_plan',
   'events', 'guests', 'emails', 'sms', 'collaborators',
   'custom_fields', 'org_members', 'floor_plans', 'organizations',
   'audit_history', 'sso',
