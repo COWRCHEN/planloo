@@ -5,10 +5,11 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AUTH_API_BASE_URL } from '@/lib/auth-client';
 import { eventKeys } from './use-events';
 import { PlanLimitError } from '@/lib/api-error';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
+const API_URL = AUTH_API_BASE_URL;
 
 // ==================== TYPES ====================
 

@@ -21,6 +21,63 @@ import api from '@/routes';
 
 const app = new Hono<HonoEnv>();
 
+function getClientIp(request: Request): string {
+  return (
+    request.headers.get('cf-connecting-ip') ||
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown'
+  );
+}
+
+async function extractSignInEmail(request: Request): Promise<string | null> {
+  const contentType = request.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    return null;
+  }
+
+  try {
+    const body = (await request.clone().json()) as { email?: unknown };
+    if (typeof body.email !== 'string') {
+      return null;
+    }
+
+    const email = body.email.trim().toLowerCase();
+    return email.length > 0 ? email : null;
+  } catch {
+    return null;
+  }
+}
+
+function getAuthErrorMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const candidate = payload as {
+    message?: unknown;
+    error?: unknown;
+  };
+
+  if (typeof candidate.message === 'string' && candidate.message.length > 0) {
+    return candidate.message;
+  }
+
+  if (typeof candidate.error === 'string' && candidate.error.length > 0) {
+    return candidate.error;
+  }
+
+  if (
+    candidate.error &&
+    typeof candidate.error === 'object' &&
+    typeof (candidate.error as { message?: unknown }).message === 'string'
+  ) {
+    return (candidate.error as { message: string }).message;
+  }
+
+  return null;
+}
+
 // Global middleware
 app.use('*', logger());
 
@@ -95,8 +152,46 @@ app.use('/api/v1/uploads/*', uploadLimiter);
  * Must create auth instance per-request due to Cloudflare Workers constraints.
  */
 app.on(['GET', 'POST'], '/api/v1/auth/*', async (c) => {
+  const isEmailSignIn =
+    c.req.method === 'POST' && c.req.path === '/api/v1/auth/sign-in/email';
+  const email = isEmailSignIn ? await extractSignInEmail(c.req.raw) : null;
+  const ipAddress = isEmailSignIn ? getClientIp(c.req.raw) : null;
+  const userAgent = isEmailSignIn ? c.req.header('user-agent') || 'unknown' : null;
+
   const auth = createAuth(c.env);
-  return auth.handler(c.req.raw);
+  const response = await auth.handler(c.req.raw);
+
+  if (isEmailSignIn) {
+    const setCookie = response.headers.get('set-cookie') || '';
+    const hasSessionCookie = setCookie.toLowerCase().includes('session');
+
+    let authErrorMessage: string | null = null;
+    try {
+      const payload = await response.clone().json();
+      authErrorMessage = getAuthErrorMessage(payload);
+    } catch {
+      // Ignore non-JSON response bodies.
+    }
+
+    const failed = !response.ok || !hasSessionCookie;
+    const logPayload = {
+      event: failed ? 'auth.signin.failed' : 'auth.signin.succeeded',
+      email,
+      ipAddress,
+      userAgent,
+      status: response.status,
+      errorMessage: authErrorMessage,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (failed) {
+      console.warn('[auth.signin.failed]', JSON.stringify(logPayload));
+    } else {
+      console.info('[auth.signin.succeeded]', JSON.stringify(logPayload));
+    }
+  }
+
+  return response;
 });
 
 /**

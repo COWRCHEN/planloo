@@ -7,9 +7,10 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
+import { AUTH_API_BASE_URL } from '@/lib/auth-client';
 import { floorPlanKeys, type FloorPlanObjectResponse } from './use-floor-plans';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
+const API_URL = AUTH_API_BASE_URL;
 
 // ==================== TYPES ====================
 

@@ -6,6 +6,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { AUTH_API_BASE_URL } from '@/lib/auth-client';
 
 // ==================== ENUMS ====================
 
@@ -293,7 +294,7 @@ export interface UpdateEventVenueInput {
   notes?: string | null;
 }
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
+const API_URL = AUTH_API_BASE_URL;
 
 // ==================== QUERY KEYS ====================
 

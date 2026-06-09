@@ -6,9 +6,9 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { authClient } from '@/lib/auth-client';
+import { authClient, AUTH_API_BASE_URL } from '@/lib/auth-client';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787/api/v1';
+const API_URL = AUTH_API_BASE_URL;
 
 // Query keys
 export const authKeys = {
@@ -36,6 +36,29 @@ export interface AuthSession {
     id: string;
     expiresAt: Date;
   };
+}
+
+function extractSessionPayload(value: unknown): { user: unknown; session: unknown } | null {
+  if (!value || typeof value !== 'object') return null;
+
+  const direct = value as {
+    user?: unknown;
+    session?: unknown;
+    data?: unknown;
+  };
+
+  if (direct.user && direct.session) {
+    return { user: direct.user, session: direct.session };
+  }
+
+  if (direct.data && typeof direct.data === 'object') {
+    const nested = direct.data as { user?: unknown; session?: unknown };
+    if (nested.user && nested.session) {
+      return { user: nested.user, session: nested.session };
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -111,13 +134,59 @@ export function useSignIn() {
       email: string;
       password: string;
     }) => {
-      const { error } = await authClient.signIn.email({ email, password });
-      if (error) {
-        throw new Error(error.message || 'Invalid email or password');
+      const signInResult = await authClient.signIn.email({ email, password });
+      const signInError = signInResult?.error;
+
+      if (signInError) {
+        throw new Error(signInError.message || 'Invalid email or password');
       }
-      // Refetch session after sign in
-      const { data } = await authClient.getSession();
-      return data;
+
+      // Some Better Auth responses already include session/user payload.
+      // Use it directly when present to avoid immediate get-session race conditions.
+      const signInPayload = extractSessionPayload(signInResult);
+      if (signInPayload) {
+        return signInPayload;
+      }
+
+      // Better Auth can return 200 without throwing when email verification is required.
+      // Treat "no active session" as a failed login so the UI shows actionable feedback.
+      const sessionResult = await authClient.getSession();
+      const sessionError = sessionResult?.error;
+      const sessionData = sessionResult?.data ?? sessionResult;
+
+      if (sessionError) {
+        throw new Error(sessionError.message || 'Sign in failed. Please try again.');
+      }
+
+      const sessionPayload = extractSessionPayload(sessionData);
+      if (sessionPayload) {
+        return sessionPayload;
+      }
+
+      // Fallback: do a direct backend session check. In some edge cases the client helper
+      // can lag right after sign-in even though the cookie is already set.
+      const sessionResponse = await fetch(`${API_URL}/auth/get-session`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (sessionResponse.ok) {
+        const directSession = await sessionResponse.json();
+        const directSessionPayload = extractSessionPayload(directSession);
+        if (directSessionPayload) {
+          return directSessionPayload;
+        }
+
+        if (import.meta.env.DEV) {
+          console.warn('[useSignIn] get-session returned no usable payload', directSession);
+        }
+      }
+
+      {
+        throw new Error(
+          'Sign in was not completed. Please verify your email address, then try again.'
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authKeys.session() });

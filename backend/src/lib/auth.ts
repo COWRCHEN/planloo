@@ -31,6 +31,15 @@ export function createAuth(env: Env) {
         ? 'https://staging-api.planloo.com'
         : 'http://localhost:8787';
 
+  const trustedOrigins = [env.FRONTEND_URL];
+  if (env.ENVIRONMENT === 'development') {
+    trustedOrigins.push(
+      'http://localhost:4321',
+      'http://127.0.0.1:4321',
+      'http://10.0.48.174:4321'
+    );
+  }
+
   // Build social providers array conditionally
   const socialProviders: ReturnType<typeof betterAuth>['options']['socialProviders'] = {};
 
@@ -46,7 +55,7 @@ export function createAuth(env: Env) {
     baseURL,
     basePath: '/api/v1/auth',
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: [env.FRONTEND_URL],
+    trustedOrigins: Array.from(new Set(trustedOrigins)),
 
     database: drizzleAdapter(db, {
       provider: 'sqlite',

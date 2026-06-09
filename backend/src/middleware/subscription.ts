@@ -23,6 +23,16 @@ import {
   FREE_BASE_LIMITS,
 } from '@/lib/plan-limits';
 
+function isMissingSubscriptionItemsTableError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const message = err.message.toLowerCase();
+  return (
+    message.includes('user_subscription_items') ||
+    message.includes('no such table') ||
+    message.includes('does not exist')
+  );
+}
+
 export const loadSubscription = createMiddleware<HonoEnv>(async (c, next) => {
   const user = c.get('user');
 
@@ -34,20 +44,22 @@ export const loadSubscription = createMiddleware<HonoEnv>(async (c, next) => {
   try {
     const db = createDbClient(c.env.DB);
 
-    const [[sub], items] = await Promise.all([
-      db
-        .select({
-          plan: schema.subscriptions.plan,
-          status: schema.subscriptions.status,
-          currentPeriodEnd: schema.subscriptions.currentPeriodEnd,
-          cancelAtPeriodEnd: schema.subscriptions.cancelAtPeriodEnd,
-          emailsSentThisPeriod: schema.subscriptions.emailsSentThisPeriod,
-          customLimits: schema.subscriptions.customLimits,
-        })
-        .from(schema.subscriptions)
-        .where(eq(schema.subscriptions.userId, user.id))
-        .limit(1),
-      db
+    const [sub] = await db
+      .select({
+        plan: schema.subscriptions.plan,
+        status: schema.subscriptions.status,
+        currentPeriodEnd: schema.subscriptions.currentPeriodEnd,
+        cancelAtPeriodEnd: schema.subscriptions.cancelAtPeriodEnd,
+        emailsSentThisPeriod: schema.subscriptions.emailsSentThisPeriod,
+        customLimits: schema.subscriptions.customLimits,
+      })
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.userId, user.id))
+      .limit(1);
+
+    let items: { itemType: string; quantity: number }[] = [];
+    try {
+      items = await db
         .select({
           itemType: schema.userSubscriptionItems.itemType,
           quantity: schema.userSubscriptionItems.quantity,
@@ -58,8 +70,12 @@ export const loadSubscription = createMiddleware<HonoEnv>(async (c, next) => {
             eq(schema.userSubscriptionItems.userId, user.id),
             isNull(schema.userSubscriptionItems.activeTo)
           )
-        ),
-    ]);
+        );
+    } catch (err) {
+      if (!isMissingSubscriptionItemsTableError(err)) {
+        throw err;
+      }
+    }
 
     const subStatus = sub?.status ?? 'free';
     const subPlan = sub?.plan ?? 'free';

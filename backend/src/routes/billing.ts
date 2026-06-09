@@ -20,6 +20,16 @@ import { ITEM_TYPES } from '@/db/schema/billing';
 
 const billing = new Hono<HonoEnv>();
 
+function isMissingSubscriptionItemsTableError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const message = err.message.toLowerCase();
+  return (
+    message.includes('user_subscription_items') ||
+    message.includes('no such table') ||
+    message.includes('does not exist')
+  );
+}
+
 // ==================== SCHEMAS ====================
 
 const checkoutSchema = z.object({
@@ -50,26 +60,12 @@ billing.get('/', requireAuth, async (c) => {
   const user = c.get('user')!;
   const db = createDbClient(c.env.DB);
 
-  const [[sub], items, [eventCountRow], [guestCountRow], [orgCountRow]] = await Promise.all([
+  const [[sub], [eventCountRow], [guestCountRow], [orgCountRow]] = await Promise.all([
     db
       .select()
       .from(schema.subscriptions)
       .where(eq(schema.subscriptions.userId, user.id))
       .limit(1),
-    db
-      .select({
-        itemType: schema.userSubscriptionItems.itemType,
-        quantity: schema.userSubscriptionItems.quantity,
-        stripeItemId: schema.userSubscriptionItems.stripeItemId,
-        activeFrom: schema.userSubscriptionItems.activeFrom,
-      })
-      .from(schema.userSubscriptionItems)
-      .where(
-        and(
-          eq(schema.userSubscriptionItems.userId, user.id),
-          isNull(schema.userSubscriptionItems.activeTo)
-        )
-      ),
     db
       .select({ total: count() })
       .from(schema.events)
@@ -97,6 +93,34 @@ billing.get('/', requireAuth, async (c) => {
         )
       ),
   ]);
+
+  let items: {
+    itemType: string;
+    quantity: number;
+    stripeItemId: string | null;
+    activeFrom: Date | null;
+  }[] = [];
+
+  try {
+    items = await db
+      .select({
+        itemType: schema.userSubscriptionItems.itemType,
+        quantity: schema.userSubscriptionItems.quantity,
+        stripeItemId: schema.userSubscriptionItems.stripeItemId,
+        activeFrom: schema.userSubscriptionItems.activeFrom,
+      })
+      .from(schema.userSubscriptionItems)
+      .where(
+        and(
+          eq(schema.userSubscriptionItems.userId, user.id),
+          isNull(schema.userSubscriptionItems.activeTo)
+        )
+      );
+  } catch (err) {
+    if (!isMissingSubscriptionItemsTableError(err)) {
+      throw err;
+    }
+  }
 
   const rawPlan = sub?.plan ?? 'free';
   const rawStatus = sub?.status ?? 'free';
