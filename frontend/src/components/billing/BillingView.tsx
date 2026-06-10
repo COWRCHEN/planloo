@@ -13,7 +13,6 @@ import { useBilling, useCreatePortalSession } from '@/hooks/use-billing';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { UsageMeter } from './UsageMeter';
 import { CurrentPlanBadge } from './CurrentPlanBadge';
-import { PricingTable } from './PricingTable';
 
 // ==================== HELPER COMPONENTS ====================
 
@@ -298,11 +297,9 @@ function BillingContent() {
       <CurrentPlanCard />
 
       <div>
-        <h2 className="mb-1 text-xl font-semibold">Customize your plan</h2>
-        <p className="mb-6 text-sm text-muted-foreground">
-          Pay only for what you need. Add or remove units at any time.
-        </p>
-        <PricingTable />
+        <Button asChild>
+          <a href="/dashboard/billing/upgrade">Upgrade your plan</a>
+        </Button>
       </div>
     </div>
   );

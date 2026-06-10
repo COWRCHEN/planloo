@@ -1,0 +1,17 @@
+---
+import DashboardLayout from '@/layouts/DashboardLayout.astro';
+import { CustomizePlanView } from '@/components/billing/CustomizePlanView';
+
+export const prerender = false;
+---
+
+<DashboardLayout title="Upgrade Plan" description="Build your custom Planloo subscription">
+  <div class="space-y-6">
+    <div>
+      <h1 class="font-heading text-3xl font-bold">Upgrade your plan</h1>
+      <p class="text-muted-foreground">Pay only for what you need. Add or remove units at any time.</p>
+    </div>
+
+    <CustomizePlanView client:load />
+  </div>
+</DashboardLayout>

@@ -194,6 +194,7 @@ export function PricingTable() {
 
   const total = computeTotal(includeBasic, config, interval);
   const lineItems = toLineItems(includeBasic, config);
+  const subscribeAmount = interval === 'annual' ? total * 12 : total;
 
   function setQty(itemType: ItemType, qty: number) {
     setConfig(prev => ({ ...prev, [itemType]: qty }));
@@ -263,33 +264,6 @@ export function PricingTable() {
                   onCheckedChange={setIncludeBasic}
                   id="toggle-basic"
                 />
-              </div>
-            </div>
-          </div>
-
-          {/* Free base note */}
-          <div className="rounded-lg border bg-muted/30 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-              Always included — free
-            </p>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1.5 text-xs">
-                <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />1 active event
-              </div>
-              <div className="flex items-center gap-1.5 text-xs">
-                <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />50 guests
-              </div>
-              <div className="flex items-center gap-1.5 text-xs">
-                <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />CSV import / export
-              </div>
-              <div className="flex items-center gap-1.5 text-xs">
-                <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />Budget tracking
-              </div>
-              <div className="flex items-center gap-1.5 text-xs">
-                <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />Task templates
-              </div>
-              <div className="flex items-center gap-1.5 text-xs">
-                <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />Vendor management
               </div>
             </div>
           </div>
@@ -425,7 +399,7 @@ export function PricingTable() {
                   ? 'Redirecting…'
                   : lineItems.length === 0
                   ? 'Select a plan to continue'
-                  : `Subscribe for $${total % 1 === 0 ? total : total.toFixed(2)}/mo`}
+                  : `Subscribe for $${subscribeAmount % 1 === 0 ? subscribeAmount : subscribeAmount.toFixed(2)}${interval === 'annual' ? '/year' : '/mo'}`}
               </Button>
             )}
           </div>
